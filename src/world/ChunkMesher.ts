@@ -1,176 +1,33 @@
-import * as THREE from 'three';
-import { TextureAtlas } from '../rendering/TextureAtlas';
+import type * as THREE from 'three';
 import { BlockId } from '../content/BlockId';
 import { isBlockOpaque } from '../content/BlockQueries';
 import { BLOCKS } from '../content/BlockRegistry';
-import { TileIndex } from '../content/TileIndex';
 import { CHUNK_HEIGHT, CHUNK_SIZE, Chunk } from './Chunk';
-
-interface FaceSpec {
-  /** Face normal */
-  dir: [number, number, number];
-  /** Face index into BlockDefinition.faces */
-  faceIdx: number;
-  /** Directional sunlight shade multiplier */
-  shade: number;
-  /** 4 vertices in counter-clockwise winding order + their UV corner [uIdx, vIdx] */
-  corners: Array<{
-    pos: [number, number, number];
-    uv: [0 | 1, 0 | 1];
-    /** 3 neighbor offsets in the neighbor plane [side1, side2, corner] for smooth voxel AO & light */
-    ao: [[number, number, number], [number, number, number], [number, number, number]];
-  }>;
-}
-
-const FACES: FaceSpec[] = [
-  // +X (East)
-  {
-    dir: [1, 0, 0],
-    faceIdx: 0,
-    shade: 0.72,
-    corners: [
-      { pos: [1, 0, 1], uv: [0, 0], ao: [[1, -1, 0], [1, 0, 1], [1, -1, 1]] },
-      { pos: [1, 0, 0], uv: [1, 0], ao: [[1, -1, 0], [1, 0, -1], [1, -1, -1]] },
-      { pos: [1, 1, 0], uv: [1, 1], ao: [[1, 1, 0], [1, 0, -1], [1, 1, -1]] },
-      { pos: [1, 1, 1], uv: [0, 1], ao: [[1, 1, 0], [1, 0, 1], [1, 1, 1]] },
-    ],
-  },
-  // -X (West)
-  {
-    dir: [-1, 0, 0],
-    faceIdx: 1,
-    shade: 0.72,
-    corners: [
-      { pos: [0, 0, 0], uv: [0, 0], ao: [[-1, -1, 0], [-1, 0, -1], [-1, -1, -1]] },
-      { pos: [0, 0, 1], uv: [1, 0], ao: [[-1, -1, 0], [-1, 0, 1], [-1, -1, 1]] },
-      { pos: [0, 1, 1], uv: [1, 1], ao: [[-1, 1, 0], [-1, 0, 1], [-1, 1, 1]] },
-      { pos: [0, 1, 0], uv: [0, 1], ao: [[-1, 1, 0], [-1, 0, -1], [-1, 1, -1]] },
-    ],
-  },
-  // +Y (Top)
-  {
-    dir: [0, 1, 0],
-    faceIdx: 2,
-    shade: 1.0,
-    corners: [
-      { pos: [0, 1, 1], uv: [0, 0], ao: [[-1, 1, 0], [0, 1, 1], [-1, 1, 1]] },
-      { pos: [1, 1, 1], uv: [1, 0], ao: [[1, 1, 0], [0, 1, 1], [1, 1, 1]] },
-      { pos: [1, 1, 0], uv: [1, 1], ao: [[1, 1, 0], [0, 1, -1], [1, 1, -1]] },
-      { pos: [0, 1, 0], uv: [0, 1], ao: [[-1, 1, 0], [0, 1, -1], [-1, 1, -1]] },
-    ],
-  },
-  // -Y (Bottom)
-  {
-    dir: [0, -1, 0],
-    faceIdx: 3,
-    shade: 0.5,
-    corners: [
-      { pos: [0, 0, 0], uv: [0, 0], ao: [[-1, -1, 0], [0, -1, -1], [-1, -1, -1]] },
-      { pos: [1, 0, 0], uv: [1, 0], ao: [[1, -1, 0], [0, -1, -1], [1, -1, -1]] },
-      { pos: [1, 0, 1], uv: [1, 1], ao: [[1, -1, 0], [0, -1, 1], [1, -1, 1]] },
-      { pos: [0, 0, 1], uv: [0, 1], ao: [[-1, -1, 0], [0, -1, 1], [-1, -1, 1]] },
-    ],
-  },
-  // +Z (South)
-  {
-    dir: [0, 0, 1],
-    faceIdx: 4,
-    shade: 0.86,
-    corners: [
-      { pos: [0, 0, 1], uv: [0, 0], ao: [[-1, 0, 1], [0, -1, 1], [-1, -1, 1]] },
-      { pos: [1, 0, 1], uv: [1, 0], ao: [[1, 0, 1], [0, -1, 1], [1, -1, 1]] },
-      { pos: [1, 1, 1], uv: [1, 1], ao: [[1, 0, 1], [0, 1, 1], [1, 1, 1]] },
-      { pos: [0, 1, 1], uv: [0, 1], ao: [[-1, 0, 1], [0, 1, 1], [-1, 1, 1]] },
-    ],
-  },
-  // -Z (North)
-  {
-    dir: [0, 0, -1],
-    faceIdx: 5,
-    shade: 0.86,
-    corners: [
-      { pos: [1, 0, 0], uv: [0, 0], ao: [[1, 0, -1], [0, -1, -1], [1, -1, -1]] },
-      { pos: [0, 0, 0], uv: [1, 0], ao: [[-1, 0, -1], [0, -1, -1], [-1, -1, -1]] },
-      { pos: [0, 1, 0], uv: [1, 1], ao: [[-1, 0, -1], [0, 1, -1], [-1, 1, -1]] },
-      { pos: [1, 1, 0], uv: [0, 1], ao: [[1, 0, -1], [0, 1, -1], [1, 1, -1]] },
-    ],
-  },
-];
-
-const AO_CURVE = [0.46, 0.66, 0.84, 1.0];
-
-// Classic non-linear Minecraft-like light curve for 0..15
-const LIGHT_CURVE: number[] = [];
-for (let i = 0; i <= 15; i++) {
-  LIGHT_CURVE.push(Math.pow(i / 15, 1.85));
-}
-
-class GeometryBuilder {
-  public positions: number[] = [];
-  public normals: number[] = [];
-  public uvs: number[] = [];
-  /**
-   * Vertex color channels encode lighting for real-time GPU day/night shader:
-   * - R = directional shade * vertex AO (0..1)
-   * - G = smooth skylight intensity (0..1)
-   * - B = smooth block-light intensity (0..1)
-   */
-  public colors: number[] = [];
-  public indices: number[] = [];
-  public vertexCount = 0;
-
-  public pushQuad(
-    v0: [number, number, number],
-    v1: [number, number, number],
-    v2: [number, number, number],
-    v3: [number, number, number],
-    normal: [number, number, number],
-    u0: number,
-    v0uv: number,
-    u1: number,
-    v1uv: number,
-    shade: number,
-    sky: number,
-    blk: number
-  ): void {
-    const base = this.vertexCount;
-    this.positions.push(
-      v0[0], v0[1], v0[2],
-      v1[0], v1[1], v1[2],
-      v2[0], v2[1], v2[2],
-      v3[0], v3[1], v3[2]
-    );
-    for (let i = 0; i < 4; i++) {
-      this.normals.push(normal[0], normal[1], normal[2]);
-      this.colors.push(shade, sky, blk);
-    }
-    this.uvs.push(u0, v0uv, u1, v0uv, u1, v1uv, u0, v1uv);
-    this.indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
-    this.vertexCount += 4;
-  }
-
-  public toBufferGeometry(): THREE.BufferGeometry | null {
-    if (this.vertexCount === 0) return null;
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(this.positions, 3));
-    geo.setAttribute('normal', new THREE.Float32BufferAttribute(this.normals, 3));
-    geo.setAttribute('uv', new THREE.Float32BufferAttribute(this.uvs, 2));
-    geo.setAttribute('color', new THREE.Float32BufferAttribute(this.colors, 3));
-    geo.setIndex(this.indices);
-    geo.computeBoundingSphere();
-    return geo;
-  }
-}
+import { FACES } from './meshing/FaceTopology';
+import { GeometryBuilder, MeshData } from './meshing/GeometryBuilder';
+import { AO_CURVE, LIGHT_CURVE, sampleLightCurve } from './meshing/LightCurves';
+import {
+  emitCrossGeometry,
+  emitTorchGeometry,
+  TileUvProvider,
+} from './meshing/SpecialShapeEmitters';
+import { createBufferGeometry } from './meshing/ThreeGeometryAdapter';
 
 export type WorldBlockGetter = (wx: number, wy: number, wz: number) => BlockId;
 export type WorldLightGetter = (wx: number, wy: number, wz: number) => number;
 
-export function buildChunkGeometries(
+export interface ChunkMeshData {
+  opaque: MeshData | null;
+  water: MeshData | null;
+}
+
+/** Pure voxel-to-typed-array stage; suitable for transfer from a worker. */
+export function buildChunkMeshData(
   chunk: Chunk,
   getWorldBlock: WorldBlockGetter,
   getWorldPackedLight: WorldLightGetter,
-  atlas: TextureAtlas
-): { opaque: THREE.BufferGeometry | null; water: THREE.BufferGeometry | null } {
+  atlas: TileUvProvider
+): ChunkMeshData {
   const opaque = new GeometryBuilder();
   const water = new GeometryBuilder();
 
@@ -253,7 +110,6 @@ export function buildChunkGeometries(
           const [u0, v0, u1, v1] = atlas.getTileUVs(tile);
           const baseVertex = builder.vertexCount;
 
-          const aoLevels = [3, 3, 3, 3];
           const cornerLightSum = [0, 0, 0, 0];
           const centerPacked = samplePackedLight(nx, ny, nz);
           const centerSky = (centerPacked >> 4) & 0xf;
@@ -275,7 +131,6 @@ export function buildChunkGeometries(
 
             if (isEmissive) {
               // Emissive blocks like GlowCrystal shine brightly on all faces
-              aoLevels[cIdx] = 3;
               cornerLightSum[cIdx] = 30;
               builder.colors.push(1.0, LIGHT_CURVE[centerSky], 1.0);
               continue;
@@ -298,7 +153,6 @@ export function buildChunkGeometries(
             const oc = isBlockOpaque(sampleBlock(cxPos, cyPos, czPos));
 
             const aoLevel = isLiquid ? 3 : vertexAO(o1, o2, oc);
-            aoLevels[cIdx] = aoLevel;
 
             // Smooth 4-voxel average for skylight & block light across non-opaque neighbors
             let skySum = centerSky;
@@ -327,8 +181,8 @@ export function buildChunkGeometries(
             const avgSky = skySum / count;
             const avgBlk = blkSum / count;
 
-            const skyNorm = sampleCurve(avgSky);
-            const blkNorm = sampleCurve(avgBlk);
+            const skyNorm = sampleLightCurve(avgSky);
+            const blkNorm = sampleLightCurve(avgBlk);
             const shadeAO = face.shade * AO_CURVE[aoLevel];
 
             cornerLightSum[cIdx] = shadeAO * Math.max(skyNorm, blkNorm);
@@ -357,110 +211,21 @@ export function buildChunkGeometries(
   }
 
   return {
-    opaque: opaque.toBufferGeometry(),
-    water: water.toBufferGeometry(),
+    opaque: opaque.toMeshData(),
+    water: water.toMeshData(),
   };
 }
 
-function sampleCurve(level: number): number {
-  const clamped = Math.max(0, Math.min(15, level));
-  const lo = Math.floor(clamped);
-  const hi = Math.min(15, lo + 1);
-  const frac = clamped - lo;
-  return LIGHT_CURVE[lo] * (1 - frac) + LIGHT_CURVE[hi] * frac;
-}
-
-function emitTorchGeometry(
-  builder: GeometryBuilder,
-  atlas: TextureAtlas,
-  lx: number,
-  y: number,
-  lz: number,
-  packedLight: number
-): void {
-  const x0 = lx + 7 / 16;
-  const x1 = lx + 9 / 16;
-  const z0 = lz + 7 / 16;
-  const z1 = lz + 9 / 16;
-  const y0 = y;
-  const y1 = y + 10 / 16;
-
-  const skyNorm = LIGHT_CURVE[(packedLight >> 4) & 0xf];
-  const blkNorm = 1.0;
-
-  // Side sub-UV: x=7..9, y=6..16 in the 16x16 Torch tile
-  const [su0, sv0, su1, sv1] = atlas.getSubTileUVs(TileIndex.Torch, 7, 6, 9, 16);
-  // Top ember sub-UV: x=7..9, y=6..8
-  const [tu0, tv0, tu1, tv1] = atlas.getSubTileUVs(TileIndex.Torch, 7, 6, 9, 8);
-
-  // +X
-  builder.pushQuad(
-    [x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1],
-    [1, 0, 0], su0, sv0, su1, sv1, 0.95, skyNorm, blkNorm
-  );
-  // -X
-  builder.pushQuad(
-    [x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0],
-    [-1, 0, 0], su0, sv0, su1, sv1, 0.95, skyNorm, blkNorm
-  );
-  // +Z
-  builder.pushQuad(
-    [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1],
-    [0, 0, 1], su0, sv0, su1, sv1, 0.98, skyNorm, blkNorm
-  );
-  // -Z
-  builder.pushQuad(
-    [x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0],
-    [0, 0, -1], su0, sv0, su1, sv1, 0.98, skyNorm, blkNorm
-  );
-  // +Y top ember
-  builder.pushQuad(
-    [x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0],
-    [0, 1, 0], tu0, tv0, tu1, tv1, 1.0, skyNorm, blkNorm
-  );
-}
-
-function emitCrossGeometry(
-  builder: GeometryBuilder,
-  atlas: TextureAtlas,
-  tile: TileIndex,
-  lx: number,
-  y: number,
-  lz: number,
-  packedLight: number,
-  emissive: boolean
-): void {
-  const pad = 0.08;
-  const x0 = lx + pad;
-  const x1 = lx + 1 - pad;
-  const z0 = lz + pad;
-  const z1 = lz + 1 - pad;
-  const y0 = y;
-  const y1 = y + 1;
-
-  const skyNorm = LIGHT_CURVE[(packedLight >> 4) & 0xf];
-  const blkNorm = emissive ? 1.0 : LIGHT_CURVE[packedLight & 0xf];
-  const shade = emissive ? 1.0 : 0.9;
-
-  const [u0, v0, u1, v1] = atlas.getTileUVs(tile);
-
-  // Diagonal A (front + back so FrontSide culling renders from every angle)
-  builder.pushQuad(
-    [x0, y0, z0], [x1, y0, z1], [x1, y1, z1], [x0, y1, z0],
-    [0, 1, 0], u0, v0, u1, v1, shade, skyNorm, blkNorm
-  );
-  builder.pushQuad(
-    [x1, y0, z1], [x0, y0, z0], [x0, y1, z0], [x1, y1, z1],
-    [0, 1, 0], u0, v0, u1, v1, shade, skyNorm, blkNorm
-  );
-
-  // Diagonal B (front + back)
-  builder.pushQuad(
-    [x0, y0, z1], [x1, y0, z0], [x1, y1, z0], [x0, y1, z1],
-    [0, 1, 0], u0, v0, u1, v1, shade, skyNorm, blkNorm
-  );
-  builder.pushQuad(
-    [x1, y0, z0], [x0, y0, z1], [x0, y1, z1], [x1, y1, z0],
-    [0, 1, 0], u0, v0, u1, v1, shade, skyNorm, blkNorm
-  );
+/** Main-thread compatibility adapter used by World; mesh data itself remains Three.js-independent. */
+export function buildChunkGeometries(
+  chunk: Chunk,
+  getWorldBlock: WorldBlockGetter,
+  getWorldPackedLight: WorldLightGetter,
+  atlas: TileUvProvider
+): { opaque: THREE.BufferGeometry | null; water: THREE.BufferGeometry | null } {
+  const data = buildChunkMeshData(chunk, getWorldBlock, getWorldPackedLight, atlas);
+  return {
+    opaque: createBufferGeometry(data.opaque),
+    water: createBufferGeometry(data.water),
+  };
 }
