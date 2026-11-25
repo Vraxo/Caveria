@@ -1,6 +1,7 @@
 import { matchCraftingGrid } from '../items/Crafting';
 import { HOTBAR_SIZE, Inventory, TOTAL_INVENTORY_SLOTS } from '../items/Inventory';
-import { ITEMS, ItemStack } from '../items/Item';
+import { ArmorSlot, ITEMS, ItemStack } from '../items/Item';
+import { ARMOR_SLOTS, ArmorManager } from '../player/ArmorManager';
 import { TextureAtlas } from '../rendering/TextureAtlas';
 import { renderItemStackIntoSlot } from './Hotbar';
 
@@ -13,6 +14,8 @@ export class InventoryModal {
   private readonly titleEl: HTMLElement;
   private readonly craftGridEl: HTMLElement;
   private readonly craftOutputEl: HTMLElement;
+  private readonly armorGridEl: HTMLElement;
+  private readonly armorBonusEl: HTMLElement;
   private readonly backpackGridEl: HTMLElement;
   private readonly hotbarGridEl: HTMLElement;
   private readonly cursorEl: HTMLElement;
@@ -27,6 +30,7 @@ export class InventoryModal {
   constructor(
     inventory: Inventory,
     atlas: TextureAtlas,
+    private readonly armor: ArmorManager,
     onDropOverflow: (stack: ItemStack) => void,
     onRequestClose: () => void
   ) {
@@ -39,6 +43,8 @@ export class InventoryModal {
     this.titleEl = document.getElementById('craft-section-title')!;
     this.craftGridEl = document.getElementById('craft-grid')!;
     this.craftOutputEl = document.getElementById('craft-output-slot')!;
+    this.armorGridEl = document.getElementById('armor-equipment-grid')!;
+    this.armorBonusEl = document.getElementById('armor-bonus-label')!;
     this.backpackGridEl = document.getElementById('inv-backpack-grid')!;
     this.hotbarGridEl = document.getElementById('inv-hotbar-grid')!;
     this.cursorEl = document.getElementById('cursor-item')!;
@@ -59,8 +65,8 @@ export class InventoryModal {
       gridSize === 3 ? 'Crafting Table (3×3)' : 'Hand Crafting (2×2)';
     this.recipeHintEl.textContent =
       gridSize === 3
-        ? 'Recipes: 1 Log → 4 Planks · 2 Planks (vertical) → 4 Sticks · 3 Planks/Cobble/Shards + 2 Sticks → Pickaxe · Axes & Shovels · Coal/Shard + Stick → Torches'
-        : 'Recipes: 1 Log → 4 Planks · 2 Planks (vertical) → 4 Sticks · 4 Planks (2×2) → Crafting Table (place & Right-Click for 3×3 tools!) · Coal/Shard + Stick → Torches';
+        ? 'Recipes: Chitin in classic helmet/chest/legs/boots shapes → Armor · Planks/Cobble/Shards + Sticks → Tools & Swords · Coal/Shard + Stick → Torches'
+        : 'Recipes: 1 Log → 4 Planks · 2 Planks (vertical) → 4 Sticks · 4 Planks (2×2) → Crafting Table (place & Right-Click for 3×3 equipment!) · Shroom + Coal → Roasted Shrooms';
 
     this.renderAll();
   }
@@ -140,7 +146,10 @@ export class InventoryModal {
     renderItemStackIntoSlot(this.craftOutputEl, matched, this.atlas);
     this.craftOutputEl.classList.toggle('craft-ready', matched !== null);
 
-    // 3. Main backpack (slots 9..35)
+    // 3. Equipped armor
+    this.renderArmorSlots();
+
+    // 4. Main backpack (slots 9..35)
     this.backpackGridEl.innerHTML = '';
     for (let i = HOTBAR_SIZE; i < TOTAL_INVENTORY_SLOTS; i++) {
       const slotEl = document.createElement('div');
@@ -160,7 +169,7 @@ export class InventoryModal {
       this.backpackGridEl.appendChild(slotEl);
     }
 
-    // 4. Hotbar row (slots 0..8)
+    // 5. Hotbar row (slots 0..8)
     this.hotbarGridEl.innerHTML = '';
     for (let i = 0; i < HOTBAR_SIZE; i++) {
       const slotEl = document.createElement('div');
@@ -180,13 +189,62 @@ export class InventoryModal {
       this.hotbarGridEl.appendChild(slotEl);
     }
 
-    // 5. Floating cursor stack
+    // 6. Floating cursor stack
     if (this.cursorStack && this.cursorStack.count > 0) {
       this.cursorEl.classList.remove('hidden');
       renderItemStackIntoSlot(this.cursorEl, this.cursorStack, this.atlas);
     } else {
       this.cursorEl.classList.add('hidden');
     }
+  }
+
+  private renderArmorSlots(): void {
+    this.armorGridEl.innerHTML = '';
+    this.armorBonusEl.textContent = this.armor.hasFullChitinSet
+      ? 'Full set: 45% less Crawler knockback'
+      : `${this.armor.armorPoints}/10 protection`;
+    for (const slot of ARMOR_SLOTS) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'armor-slot-wrap';
+      const slotEl = document.createElement('div');
+      slotEl.className = 'inv-slot';
+      const equipped = this.armor.get(slot);
+      slotEl.classList.toggle('armor-slot-equipped', equipped !== null);
+      renderItemStackIntoSlot(slotEl, equipped, this.atlas);
+      if (!equipped) slotEl.title = `Equip ${slot}`;
+      slotEl.addEventListener('mousedown', (event) => {
+        event.preventDefault();
+        this.handleArmorSlot(slot, event.button, event.shiftKey);
+      });
+      const label = document.createElement('span');
+      label.className = 'armor-slot-label';
+      label.textContent = slot === 'chestplate' ? 'Chest' : slot;
+      wrapper.append(slotEl, label);
+      this.armorGridEl.appendChild(wrapper);
+    }
+  }
+
+  private handleArmorSlot(slot: ArmorSlot, mouseButton: number, shiftKey: boolean): void {
+    const target = this.armor.get(slot);
+    if (shiftKey && target) {
+      const remainder = { ...target };
+      this.inventory.addItem(remainder);
+      if (remainder.count <= 0) this.armor.set(slot, null, false);
+      this.renderAll();
+      return;
+    }
+    if (mouseButton !== 0 && mouseButton !== 2) return;
+
+    if (!this.cursorStack) {
+      if (!target) return;
+      this.cursorStack = target;
+      this.armor.set(slot, null, false);
+    } else if (ITEMS[this.cursorStack.id].armorSlot === slot) {
+      const incoming = this.cursorStack;
+      this.cursorStack = target;
+      this.armor.set(slot, incoming);
+    }
+    this.renderAll();
   }
 
   private handleSlotClick(
@@ -201,7 +259,11 @@ export class InventoryModal {
 
     // Shift-click quick-transfer between hotbar <-> backpack or craft -> inventory
     if (shiftKey && target) {
-      if (section === 'craft') {
+      const armorSlot = ITEMS[target.id].armorSlot;
+      if (section !== 'craft' && armorSlot) {
+        const displaced = this.armor.quickEquip(target);
+        setTarget(displaced ?? null);
+      } else if (section === 'craft') {
         const clone = { ...target };
         this.inventory.addItem(clone);
         setTarget(clone.count > 0 ? clone : null);

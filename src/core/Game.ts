@@ -6,6 +6,7 @@ import { MobManager } from '../entities/MobManager';
 import { Inventory } from '../items/Inventory';
 import { ItemId, createStack } from '../items/Item';
 import { Player } from '../player/Player';
+import { ArmorManager } from '../player/ArmorManager';
 import { PlayerVitals } from '../player/PlayerVitals';
 import { GamePersistenceController, GameSaveSnapshot } from '../persistence/GamePersistenceController';
 import { WorldPersistence } from '../persistence/WorldPersistence';
@@ -38,6 +39,7 @@ export class Game {
   private readonly dayNight: DayNightCycle;
   private readonly player: Player;
   private readonly vitals: PlayerVitals;
+  private readonly armor: ArmorManager;
   private readonly particles: BreakParticles;
   private readonly drops: DroppedItemManager;
   private readonly mobs: MobManager;
@@ -156,6 +158,12 @@ export class Game {
       savedGame?.player.hunger,
       savedGame?.player.saturation
     );
+    this.armor = new ArmorManager(
+      savedGame?.armor,
+      () => this.audio.playArmorEquip(),
+      () => this.audio.playToolBreak()
+    );
+    this.vitals.attachArmor(this.armor);
     this.mobs = new MobManager(
       this.scene,
       this.world,
@@ -192,6 +200,7 @@ export class Game {
     this.inventoryModal = new InventoryModal(
       this.inventory,
       this.atlas,
+      this.armor,
       (overflow) => this.interactions.tossStackFromPlayer(overflow),
       () => this.closeInventoryAndResume()
     );
@@ -433,6 +442,7 @@ export class Game {
         saturation: this.vitals.saturation,
       },
       inventory: this.inventory.snapshot(),
+      armor: this.armor.snapshot(),
       selectedHotbar: this.hotbar.selectedIndex,
       creativeMode: this.creativeMode,
       timeOfDay: this.dayNight.timeOfDay,

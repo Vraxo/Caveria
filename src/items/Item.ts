@@ -59,7 +59,15 @@ export enum ItemId {
   // Crystal Tools (tier 3 — Caveria signature!)
   CrystalPickaxe = 130,
   CrystalSword = 131,
+
+  // Cave Chitin armor
+  ChitinHelmet = 140,
+  ChitinChestplate = 141,
+  ChitinLeggings = 142,
+  ChitinBoots = 143,
 }
+
+export type ArmorSlot = 'helmet' | 'chestplate' | 'leggings' | 'boots';
 
 export interface ItemDefinition {
   id: ItemId;
@@ -77,6 +85,8 @@ export interface ItemDefinition {
   /** Hunger points and saturation restored when eaten. */
   nutrition?: number;
   saturation?: number;
+  armorSlot?: ArmorSlot;
+  armorPoints?: number;
   maxDurability?: number;
 }
 
@@ -316,6 +326,54 @@ export const ITEMS: Record<number, ItemDefinition> = {
     miningSpeed: 1,
     attackDamage: 8,
     maxDurability: 320,
+  },
+  [ItemId.ChitinHelmet]: {
+    id: ItemId.ChitinHelmet,
+    name: 'Chitin Helmet',
+    maxStack: 1,
+    placeBlockId: null,
+    toolCategory: 'none',
+    toolTier: 0,
+    miningSpeed: 1,
+    armorSlot: 'helmet',
+    armorPoints: 2,
+    maxDurability: 90,
+  },
+  [ItemId.ChitinChestplate]: {
+    id: ItemId.ChitinChestplate,
+    name: 'Chitin Chestplate',
+    maxStack: 1,
+    placeBlockId: null,
+    toolCategory: 'none',
+    toolTier: 0,
+    miningSpeed: 1,
+    armorSlot: 'chestplate',
+    armorPoints: 4,
+    maxDurability: 130,
+  },
+  [ItemId.ChitinLeggings]: {
+    id: ItemId.ChitinLeggings,
+    name: 'Chitin Leggings',
+    maxStack: 1,
+    placeBlockId: null,
+    toolCategory: 'none',
+    toolTier: 0,
+    miningSpeed: 1,
+    armorSlot: 'leggings',
+    armorPoints: 3,
+    maxDurability: 120,
+  },
+  [ItemId.ChitinBoots]: {
+    id: ItemId.ChitinBoots,
+    name: 'Chitin Boots',
+    maxStack: 1,
+    placeBlockId: null,
+    toolCategory: 'none',
+    toolTier: 0,
+    miningSpeed: 1,
+    armorSlot: 'boots',
+    armorPoints: 1,
+    maxDurability: 80,
   },
 };
 

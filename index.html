@@ -151,7 +151,7 @@
         gap: 3px;
         pointer-events: none;
       }
-      #health-hearts, #hunger-pips { display: flex; gap: 2px; }
+      #health-hearts, #hunger-pips, #armor-pips { display: flex; gap: 2px; }
       .heart, .hunger-pip {
         width: 18px;
         font: 18px/1 sans-serif;
@@ -178,6 +178,14 @@
         -webkit-background-clip: text;
         color: transparent;
       }
+      .armor-pip {
+        width: 14px;
+        color: #a8b5c7;
+        font: 14px/1 sans-serif;
+        text-shadow: 1px 1px 0 #1e293b;
+      }
+      .armor-pip.empty { color: #334155; }
+      #armor-pips.hidden { display: none; }
       #air-meter { color: #7dd3fc; font-size: 13px; letter-spacing: 2px; text-shadow: 1px 1px #083344; }
       #air-meter.hidden { display: none; }
       #damage-flash {
@@ -469,6 +477,28 @@
         margin-bottom: 5px;
         text-transform: uppercase;
         letter-spacing: 0.06em;
+      }
+
+      #armor-equipment-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 48px);
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .armor-slot-wrap { text-align: center; }
+      .armor-slot-label {
+        display: block;
+        margin-top: 3px;
+        color: #64748b;
+        font-size: 9px;
+        text-transform: uppercase;
+      }
+      .armor-slot-equipped { border-color: rgba(148, 163, 184, 0.7); }
+      #armor-bonus-label {
+        margin-left: 6px;
+        color: #c084fc;
+        text-transform: none;
+        letter-spacing: 0;
       }
 
       #inv-backpack-grid {
@@ -826,6 +856,7 @@
     <div id="debug-hud"></div>
     <div id="vitals-hud">
       <div id="health-hearts" aria-label="Player health"></div>
+      <div id="armor-pips" class="hidden" aria-label="Equipped armor"></div>
       <div id="hunger-pips" aria-label="Player hunger"></div>
       <div id="air-meter" class="hidden" aria-label="Remaining air"></div>
     </div>
@@ -854,6 +885,9 @@
         </div>
 
         <div id="recipe-book-hint"></div>
+
+        <div class="inv-section-label">Cave Chitin Armor <span id="armor-bonus-label"></span></div>
+        <div id="armor-equipment-grid"></div>
 
         <div class="inv-section-label">Backpack</div>
         <div id="inv-backpack-grid"></div>

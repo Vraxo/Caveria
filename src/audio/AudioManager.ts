@@ -50,6 +50,7 @@ export class AudioManager {
   public playCraft(): void { this.ui.playCraft(); }
   public playToss(): void { this.ui.playToss(); }
   public playEat(): void { this.ui.playEat(); }
+  public playArmorEquip(): void { this.ui.playArmorEquip(); }
   public playToolBreak(): void { this.ui.playToolBreak(); }
   public playModeToggle(): void { this.ui.playModeToggle(); }
   public playThunder(intensity: number): void { this.ambience.playThunder(intensity); }
