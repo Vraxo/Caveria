@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { isBlockSolid } from '../world/Block';
+import { isBlockSolid } from '../content/BlockQueries';
 import { World } from '../world/World';
 
 export interface PlayerCollider {

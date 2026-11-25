@@ -11,7 +11,8 @@ import { HeldItemView } from '../rendering/HeldItemView';
 import { BlockHighlight } from '../rendering/Highlight';
 import { MiningOverlay } from '../rendering/MiningOverlay';
 import { Hotbar } from '../ui/Hotbar';
-import { BLOCKS, BlockId } from '../world/Block';
+import { BlockId } from '../content/BlockId';
+import { BLOCKS } from '../content/BlockRegistry';
 import { CHUNK_HEIGHT } from '../world/Chunk';
 import { World } from '../world/World';
 

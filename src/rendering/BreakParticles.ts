@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { BLOCKS, BlockId } from '../world/Block';
+import { BlockId } from '../content/BlockId';
+import { BLOCKS } from '../content/BlockRegistry';
 
 interface Particle {
   mesh: THREE.Mesh;

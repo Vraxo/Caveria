@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ITEMS, ItemId, ItemStack } from '../items/Item';
-import { BLOCKS, BlockId } from '../world/Block';
+import { BlockId } from '../content/BlockId';
+import { BLOCKS } from '../content/BlockRegistry';
 import { TextureAtlas } from './TextureAtlas';
 
 /** A layered, camera-space first-person rig with voxel hands and held items. */

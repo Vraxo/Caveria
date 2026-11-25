@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Input } from '../core/Input';
-import { BlockId } from '../world/Block';
+import { BlockId } from '../content/BlockId';
 import { World } from '../world/World';
 import { PlayerCollider, doesBlockIntersectPlayer, moveWithVoxelCollision } from './Physics';
 

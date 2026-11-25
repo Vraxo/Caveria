@@ -1,5 +1,5 @@
 import type * as THREE from 'three';
-import { BlockId } from './Block';
+import { BlockId } from '../content/BlockId';
 
 export const CHUNK_SIZE = 16;
 export const CHUNK_HEIGHT = 128;

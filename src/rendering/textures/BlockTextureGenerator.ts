@@ -1,4 +1,4 @@
-import { TileIndex } from '../../world/Block';
+import { TileIndex } from '../../content/TileIndex';
 import { mulberry32 } from '../../world/Noise';
 import { ATLAS_COLS, TILE_SIZE } from './AtlasLayout';
 import { createCanvas2D, RGBA, TilePainter } from './PixelArt';

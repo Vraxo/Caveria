@@ -6,7 +6,7 @@ import {
   applyVoxelLightingShader,
   createVoxelLightUniforms,
 } from '../rendering/VoxelMaterial';
-import { BlockId } from './Block';
+import { BlockId } from '../content/BlockId';
 import { CHUNK_HEIGHT, CHUNK_SIZE, Chunk } from './Chunk';
 import { buildChunkGeometries } from './ChunkMesher';
 import { ChunkPipeline } from './ChunkPipeline';

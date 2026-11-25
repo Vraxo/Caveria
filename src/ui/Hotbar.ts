@@ -2,7 +2,7 @@ import { Input } from '../core/Input';
 import { HOTBAR_SIZE, Inventory } from '../items/Inventory';
 import { ITEMS, ItemId, ItemStack, createStack } from '../items/Item';
 import { TextureAtlas } from '../rendering/TextureAtlas';
-import { BlockId } from '../world/Block';
+import { BlockId } from '../content/BlockId';
 
 export class Hotbar {
   private readonly inventory: Inventory;
