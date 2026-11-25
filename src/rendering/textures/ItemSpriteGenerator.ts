@@ -93,6 +93,45 @@ export class ItemSpriteGenerator {
       px(4, 12, [146, 102, 54, 255]);
     };
 
+    const drawArmor = (piece: 'helmet' | 'chestplate' | 'leggings' | 'boots') => {
+      const shell: RGBA = [126, 72, 54, 255];
+      const edge: RGBA = [62, 38, 34, 255];
+      const shine: RGBA = [202, 116, 72, 255];
+      const fillRect = (x0: number, y0: number, x1: number, y1: number, color: RGBA) => {
+        for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) px(x, y, color);
+      };
+      if (piece === 'helmet') {
+        fillRect(3, 4, 12, 9, edge);
+        fillRect(4, 3, 11, 8, shell);
+        fillRect(5, 4, 10, 5, shine);
+        fillRect(6, 8, 9, 10, [0, 0, 0, 0]);
+      } else if (piece === 'chestplate') {
+        fillRect(4, 4, 11, 13, edge);
+        fillRect(2, 5, 13, 8, edge);
+        fillRect(5, 4, 10, 12, shell);
+        fillRect(3, 5, 4, 9, shell);
+        fillRect(11, 5, 12, 9, shell);
+        fillRect(6, 5, 9, 6, shine);
+      } else if (piece === 'leggings') {
+        fillRect(4, 3, 11, 8, edge);
+        fillRect(5, 4, 10, 7, shell);
+        fillRect(4, 8, 7, 13, edge);
+        fillRect(8, 8, 11, 13, edge);
+        fillRect(5, 8, 6, 12, shell);
+        fillRect(9, 8, 10, 12, shell);
+        fillRect(6, 4, 9, 5, shine);
+      } else {
+        fillRect(3, 7, 7, 12, edge);
+        fillRect(8, 7, 12, 12, edge);
+        fillRect(4, 7, 6, 10, shell);
+        fillRect(9, 7, 11, 10, shell);
+        fillRect(3, 11, 7, 13, shell);
+        fillRect(8, 11, 12, 13, shell);
+        px(4, 8, shine);
+        px(9, 8, shine);
+      }
+    };
+
     const drawShovelHead = (tier: 'wood' | 'stone') => {
       const p = tierPalette(tier);
       drawDiagonalHandle();
@@ -219,6 +258,18 @@ export class ItemSpriteGenerator {
         break;
       case ItemId.CrystalSword:
         drawSword('crystal');
+        break;
+      case ItemId.ChitinHelmet:
+        drawArmor('helmet');
+        break;
+      case ItemId.ChitinChestplate:
+        drawArmor('chestplate');
+        break;
+      case ItemId.ChitinLeggings:
+        drawArmor('leggings');
+        break;
+      case ItemId.ChitinBoots:
+        drawArmor('boots');
         break;
       default:
         break;

@@ -1,4 +1,4 @@
-import { ItemStack, ITEMS } from '../items/Item';
+import { ArmorSlot, ItemStack, ITEMS } from '../items/Item';
 import { TOTAL_INVENTORY_SLOTS } from '../items/Inventory';
 import { BlockId } from '../content/BlockId';
 import { CHUNK_HEIGHT } from '../world/Chunk';
@@ -38,6 +38,7 @@ export interface CaveriaSaveData {
     saturation: number;
   };
   inventory: Array<ItemStack | null>;
+  armor: Record<ArmorSlot, ItemStack | null>;
   selectedHotbar: number;
   creativeMode: boolean;
   timeOfDay: number;
@@ -171,6 +172,25 @@ export class WorldPersistence {
       }
     }
 
+    const armor: Record<ArmorSlot, ItemStack | null> = {
+      helmet: null,
+      chestplate: null,
+      leggings: null,
+      boots: null,
+    };
+    for (const slot of Object.keys(armor) as ArmorSlot[]) {
+      const stack = raw.armor?.[slot];
+      if (!stack || !ITEMS[stack.id] || ITEMS[stack.id].armorSlot !== slot) continue;
+      const maxDurability = ITEMS[stack.id].maxDurability;
+      armor[slot] = {
+        id: stack.id,
+        count: 1,
+        durability: maxDurability === undefined
+          ? undefined
+          : Math.max(1, Math.min(maxDurability, Math.floor(finite(stack.durability, maxDurability)))),
+      };
+    }
+
     const worldEdits: SerializedVoxelEdit[] = [];
     if (Array.isArray(raw.worldEdits)) {
       for (const edit of raw.worldEdits) {
@@ -209,6 +229,7 @@ export class WorldPersistence {
         saturation: Math.max(0, Math.min(20, finite(player.saturation, 5))),
       },
       inventory,
+      armor,
       selectedHotbar: Math.max(0, Math.min(8, Math.floor(finite(raw.selectedHotbar, 0)))),
       creativeMode: Boolean(raw.creativeMode),
       timeOfDay: ((finite(raw.timeOfDay, 0.18) % 1) + 1) % 1,

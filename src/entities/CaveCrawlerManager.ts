@@ -105,10 +105,11 @@ export class CaveCrawlerManager {
         }
         if (distance < 1.25 && Math.abs(this.player.position.y - crawler.position.y) < 1.5 && crawler.attackTimer <= 0) {
           crawler.attackTimer = 1.15;
+          const knockback = this.vitals.knockbackMultiplier;
           if (this.vitals.damage(3, 'mob')) {
-            this.player.velocity.x += desiredX * 4.2;
-            this.player.velocity.y = Math.max(this.player.velocity.y, 3.2);
-            this.player.velocity.z += desiredZ * 4.2;
+            this.player.velocity.x += desiredX * 4.2 * knockback;
+            this.player.velocity.y = Math.max(this.player.velocity.y, 3.2 * knockback);
+            this.player.velocity.z += desiredZ * 4.2 * knockback;
           }
         }
       } else {

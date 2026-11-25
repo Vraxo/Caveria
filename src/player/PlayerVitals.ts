@@ -1,3 +1,5 @@
+import { ArmorManager } from './ArmorManager';
+
 export type DamageCause = 'mob' | 'fall' | 'drowning' | 'starvation';
 
 const MAX_HEALTH = 20;
@@ -20,6 +22,7 @@ export class PlayerVitals {
   private starvationTimer = 4;
   private regenerationTimer = 4;
   private flashTimer = 0;
+  private armor: ArmorManager | null = null;
   private readonly heartsEl = document.getElementById('health-hearts')!;
   private readonly hungerEl = document.getElementById('hunger-pips')!;
   private readonly airEl = document.getElementById('air-meter')!;
@@ -45,6 +48,11 @@ export class PlayerVitals {
   public get maxHealth(): number { return MAX_HEALTH; }
   public get maxHunger(): number { return MAX_HUNGER; }
   public get canSprint(): boolean { return this.hunger > 0; }
+  public get knockbackMultiplier(): number { return this.armor?.knockbackMultiplier ?? 1; }
+
+  public attachArmor(armor: ArmorManager): void {
+    this.armor = armor;
+  }
 
   public restore(health: number | undefined, hunger?: number, saturation?: number): void {
     this.health = Math.max(1, Math.min(MAX_HEALTH, Math.round(health ?? MAX_HEALTH)));
@@ -138,7 +146,8 @@ export class PlayerVitals {
 
   public damage(amount: number, cause: DamageCause): boolean {
     if (this.dead || this.invulnerable || this.invulnerabilityTimer > 0 || amount <= 0) return false;
-    this.health = Math.max(0, this.health - amount);
+    const appliedDamage = this.armor?.mitigate(amount, cause) ?? amount;
+    this.health = Math.max(0, this.health - appliedDamage);
     this.invulnerabilityTimer = 0.65;
     this.regenerationTimer = 4;
     this.flashTimer = 0.14;

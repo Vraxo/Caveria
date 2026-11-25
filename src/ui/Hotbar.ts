@@ -80,7 +80,13 @@ export class Hotbar {
     const cur = this.selectedStack;
     const definition = cur ? ITEMS[cur.id] : null;
     this.labelEl.textContent = definition
-      ? `${definition.name}${definition.nutrition ? ` · +${definition.nutrition} hunger` : ''}`
+      ? `${definition.name}${
+          definition.nutrition
+            ? ` · +${definition.nutrition} hunger`
+            : definition.armorPoints
+              ? ` · ${definition.armorPoints} protection`
+              : ''
+        }`
       : 'Empty Hand';
   }
 
@@ -121,7 +127,11 @@ export function renderItemStackIntoSlot(
   }
 
   const def = ITEMS[stack.id];
-  slotEl.title = def.nutrition ? `${def.name} · Restores ${def.nutrition} hunger` : def.name;
+  slotEl.title = def.nutrition
+    ? `${def.name} · Restores ${def.nutrition} hunger`
+    : def.armorPoints
+      ? `${def.name} · ${def.armorPoints} protection`
+      : def.name;
 
   const img = document.createElement('img');
   img.className = 'slot-icon';

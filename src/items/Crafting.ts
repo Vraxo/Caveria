@@ -17,6 +17,7 @@ const X = ItemId.CrystalShard;
 const A = ItemId.AmethystShard;
 const M = ItemId.CaveShroom;
 const B = ItemId.CaveBerries;
+const H = ItemId.CaveChitin;
 const _ = null;
 
 export const RECIPES: ReadonlyArray<CraftingRecipe> = [
@@ -117,7 +118,70 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
     outputCount: 1,
   },
 
-  // --- 3x3 Crafting Table Tool Recipes ---
+  // --- 3x3 Crafting Table Equipment Recipes ---
+
+  {
+    name: 'Chitin Helmet',
+    pattern: [
+      [H, H, H],
+      [H, _, H],
+    ],
+    outputId: ItemId.ChitinHelmet,
+    outputCount: 1,
+  },
+  {
+    name: 'Chitin Chestplate',
+    pattern: [
+      [H, _, H],
+      [H, H, H],
+      [H, H, H],
+    ],
+    outputId: ItemId.ChitinChestplate,
+    outputCount: 1,
+  },
+  {
+    name: 'Chitin Leggings',
+    pattern: [
+      [H, H, H],
+      [H, _, H],
+      [H, _, H],
+    ],
+    outputId: ItemId.ChitinLeggings,
+    outputCount: 1,
+  },
+  {
+    name: 'Chitin Boots',
+    pattern: [
+      [H, _, H],
+      [H, _, H],
+    ],
+    outputId: ItemId.ChitinBoots,
+    outputCount: 1,
+  },
+  {
+    name: 'Repair Chitin Helmet',
+    pattern: [[ItemId.ChitinHelmet], [H]],
+    outputId: ItemId.ChitinHelmet,
+    outputCount: 1,
+  },
+  {
+    name: 'Repair Chitin Chestplate',
+    pattern: [[ItemId.ChitinChestplate], [H]],
+    outputId: ItemId.ChitinChestplate,
+    outputCount: 1,
+  },
+  {
+    name: 'Repair Chitin Leggings',
+    pattern: [[ItemId.ChitinLeggings], [H]],
+    outputId: ItemId.ChitinLeggings,
+    outputCount: 1,
+  },
+  {
+    name: 'Repair Chitin Boots',
+    pattern: [[ItemId.ChitinBoots], [H]],
+    outputId: ItemId.ChitinBoots,
+    outputCount: 1,
+  },
 
   // Wooden Tools
   {
