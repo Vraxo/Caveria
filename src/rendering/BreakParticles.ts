@@ -27,6 +27,7 @@ export class BreakParticles {
     [BlockId.Glass]: 0xd8f2fc,
     [BlockId.Torch]: 0xffb347,
     [BlockId.GlowCrystal]: 0x7ef2ff,
+    [BlockId.CraftingTable]: 0x9c7240,
   };
 
   constructor(scene: THREE.Scene) {

@@ -1,6 +1,7 @@
 export class Input {
   private readonly keysDown = new Set<string>();
   private readonly keysPressed = new Set<string>();
+  private readonly mouseDown = new Set<number>();
   private readonly mousePressed = new Set<number>();
 
   public mouseDeltaX = 0;
@@ -32,6 +33,7 @@ export class Input {
     window.addEventListener('blur', () => {
       this.keysDown.clear();
       this.keysPressed.clear();
+      this.mouseDown.clear();
       this.mousePressed.clear();
     });
 
@@ -43,7 +45,12 @@ export class Input {
 
     window.addEventListener('mousedown', (e) => {
       if (!this.isPointerLocked) return;
+      this.mouseDown.add(e.button);
       this.mousePressed.add(e.button);
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      this.mouseDown.delete(e.button);
     });
 
     window.addEventListener('contextmenu', (e) => {
@@ -64,6 +71,7 @@ export class Input {
       this.isPointerLocked = document.pointerLockElement === this.canvas;
       if (!this.isPointerLocked) {
         this.keysDown.clear();
+        this.mouseDown.clear();
       }
       this.onLockChangeCallback?.(this.isPointerLocked);
     });
@@ -77,8 +85,18 @@ export class Input {
     this.canvas.requestPointerLock();
   }
 
+  public exitPointerLock(): void {
+    if (document.pointerLockElement) {
+      document.exitPointerLock();
+    }
+  }
+
   public isKeyDown(code: string): boolean {
     return this.keysDown.has(code);
+  }
+
+  public isMouseDown(button: number): boolean {
+    return this.mouseDown.has(button);
   }
 
   public consumeKeyPress(code: string): boolean {

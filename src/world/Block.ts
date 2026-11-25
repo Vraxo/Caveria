@@ -15,6 +15,7 @@ export enum BlockId {
   Bedrock = 13,
   Torch = 14,
   GlowCrystal = 15,
+  CraftingTable = 16,
 }
 
 export enum TileIndex {
@@ -35,9 +36,12 @@ export enum TileIndex {
   Bedrock = 14,
   Torch = 15,
   GlowCrystal = 16,
+  CraftingTableTop = 17,
+  CraftingTableSide = 18,
 }
 
 export type BlockRenderShape = 'cube' | 'torch';
+export type ToolCategory = 'none' | 'pickaxe' | 'axe' | 'shovel';
 
 export interface BlockDefinition {
   id: BlockId;
@@ -52,9 +56,15 @@ export interface BlockDefinition {
   liquid: boolean;
   /** True if player can break it */
   breakable: boolean;
+  /** Base seconds to break by hand (or when tool matches if requiresTool is true) */
+  hardness: number;
+  /** Preferred tool category that speeds up mining */
+  preferredTool: ToolCategory;
+  /** Minimum tool tier required to harvest item drops & mine at full speed (0 = hand ok, 1 = wood, 2 = stone) */
+  minToolTier: number;
   /** Emitted block light level (0..15) */
   lightEmission: number;
-  /** Extra skylight attenuation when passing through (0 for air/glass, 1 for leaves, 2 for water, 15 for opaque) */
+  /** Extra skylight attenuation when passing through */
   lightOpacity: number;
   /** Render geometry style */
   shape: BlockRenderShape;
@@ -75,6 +85,9 @@ export const BLOCKS: Record<BlockId, BlockDefinition> = {
     transparent: true,
     liquid: false,
     breakable: false,
+    hardness: 0,
+    preferredTool: 'none',
+    minToolTier: 0,
     lightEmission: 0,
     lightOpacity: 0,
     shape: 'cube',
@@ -88,6 +101,9 @@ export const BLOCKS: Record<BlockId, BlockDefinition> = {
     transparent: false,
     liquid: false,
     breakable: true,
+    hardness: 0.75,
+    preferredTool: 'shovel',
+    minToolTier: 0,
     lightEmission: 0,
     lightOpacity: 15,
     shape: 'cube',
@@ -108,6 +124,9 @@ export const BLOCKS: Record<BlockId, BlockDefinition> = {
     transparent: false,
     liquid: false,
     breakable: true,
+    hardness: 0.65,
+    preferredTool: 'shovel',
+    minToolTier: 0,
     lightEmission: 0,
     lightOpacity: 15,
     shape: 'cube',
@@ -121,6 +140,9 @@ export const BLOCKS: Record<BlockId, BlockDefinition> = {
     transparent: false,
     liquid: false,
     breakable: true,
+    hardness: 1.8,
+    preferredTool: 'pickaxe',
+    minToolTier: 1,
     lightEmission: 0,
     lightOpacity: 15,
     shape: 'cube',
@@ -134,6 +156,9 @@ export const BLOCKS: Record<BlockId, BlockDefinition> = {
     transparent: false,
     liquid: false,
     breakable: true,
+    hardness: 2.0,
+    preferredTool: 'pickaxe',
+    minToolTier: 1,
     lightEmission: 0,
     lightOpacity: 15,
     shape: 'cube',
@@ -147,6 +172,9 @@ export const BLOCKS: Record<BlockId, BlockDefinition> = {
     transparent: false,
     liquid: false,
     breakable: true,
+    hardness: 0.6,
+    preferredTool: 'shovel',
+    minToolTier: 0,
     lightEmission: 0,
     lightOpacity: 15,
     shape: 'cube',
@@ -160,6 +188,9 @@ export const BLOCKS: Record<BlockId, BlockDefinition> = {
     transparent: false,
     liquid: false,
     breakable: true,
+    hardness: 1.6,
+    preferredTool: 'axe',
+    minToolTier: 0,
     lightEmission: 0,
     lightOpacity: 15,
     shape: 'cube',
@@ -180,6 +211,9 @@ export const BLOCKS: Record<BlockId, BlockDefinition> = {
     transparent: true,
     liquid: false,
     breakable: true,
+    hardness: 0.25,
+    preferredTool: 'none',
+    minToolTier: 0,
     lightEmission: 0,
     lightOpacity: 1,
     shape: 'cube',
@@ -193,6 +227,9 @@ export const BLOCKS: Record<BlockId, BlockDefinition> = {
     transparent: false,
     liquid: false,
     breakable: true,
+    hardness: 1.5,
+    preferredTool: 'axe',
+    minToolTier: 0,
     lightEmission: 0,
     lightOpacity: 15,
     shape: 'cube',
@@ -206,6 +243,9 @@ export const BLOCKS: Record<BlockId, BlockDefinition> = {
     transparent: false,
     liquid: false,
     breakable: true,
+    hardness: 2.4,
+    preferredTool: 'pickaxe',
+    minToolTier: 1,
     lightEmission: 0,
     lightOpacity: 15,
     shape: 'cube',
@@ -219,6 +259,9 @@ export const BLOCKS: Record<BlockId, BlockDefinition> = {
     transparent: false,
     liquid: false,
     breakable: true,
+    hardness: 3.0,
+    preferredTool: 'pickaxe',
+    minToolTier: 2,
     lightEmission: 0,
     lightOpacity: 15,
     shape: 'cube',
@@ -232,6 +275,9 @@ export const BLOCKS: Record<BlockId, BlockDefinition> = {
     transparent: true,
     liquid: false,
     breakable: true,
+    hardness: 0.4,
+    preferredTool: 'none',
+    minToolTier: 0,
     lightEmission: 0,
     lightOpacity: 0,
     shape: 'cube',
@@ -245,6 +291,9 @@ export const BLOCKS: Record<BlockId, BlockDefinition> = {
     transparent: true,
     liquid: true,
     breakable: false,
+    hardness: 0,
+    preferredTool: 'none',
+    minToolTier: 0,
     lightEmission: 0,
     lightOpacity: 2,
     shape: 'cube',
@@ -258,6 +307,9 @@ export const BLOCKS: Record<BlockId, BlockDefinition> = {
     transparent: false,
     liquid: false,
     breakable: false,
+    hardness: Infinity,
+    preferredTool: 'none',
+    minToolTier: 99,
     lightEmission: 0,
     lightOpacity: 15,
     shape: 'cube',
@@ -271,6 +323,9 @@ export const BLOCKS: Record<BlockId, BlockDefinition> = {
     transparent: true,
     liquid: false,
     breakable: true,
+    hardness: 0.05,
+    preferredTool: 'none',
+    minToolTier: 0,
     lightEmission: 14,
     lightOpacity: 0,
     shape: 'torch',
@@ -284,10 +339,36 @@ export const BLOCKS: Record<BlockId, BlockDefinition> = {
     transparent: false,
     liquid: false,
     breakable: true,
+    hardness: 1.4,
+    preferredTool: 'pickaxe',
+    minToolTier: 1,
     lightEmission: 15,
     lightOpacity: 15,
     shape: 'cube',
     faces: allFaces(TileIndex.GlowCrystal),
+  },
+  [BlockId.CraftingTable]: {
+    id: BlockId.CraftingTable,
+    name: 'Crafting Table',
+    solid: true,
+    targetable: true,
+    transparent: false,
+    liquid: false,
+    breakable: true,
+    hardness: 1.6,
+    preferredTool: 'axe',
+    minToolTier: 0,
+    lightEmission: 0,
+    lightOpacity: 15,
+    shape: 'cube',
+    faces: [
+      TileIndex.CraftingTableSide,
+      TileIndex.CraftingTableSide,
+      TileIndex.CraftingTableTop,
+      TileIndex.OakPlanks,
+      TileIndex.CraftingTableSide,
+      TileIndex.CraftingTableSide,
+    ],
   },
 };
 
@@ -298,7 +379,7 @@ export const HOTBAR_BLOCKS: BlockId[] = [
   BlockId.OakLog,
   BlockId.Torch,
   BlockId.GlowCrystal,
-  BlockId.Stone,
+  BlockId.CraftingTable,
   BlockId.Sand,
   BlockId.Glass,
 ];
