@@ -15,6 +15,8 @@ echo Desktop dependencies are missing or incomplete.
 echo Installing development dependencies without deleting existing modules...
 call npm install --include=dev --no-audit --no-fund
 if errorlevel 1 goto install_failed
+call npm rebuild electron esbuild electron-winstaller
+if errorlevel 1 goto install_failed
 if not exist "node_modules\electron\dist\electron.exe" goto install_failed
 
 :dependencies_ready
