@@ -21,9 +21,9 @@ if errorlevel 1 goto install_failed
 if exist "node_modules\electron\dist\electron.exe" goto dependencies_ready
 
 echo Electron package is present, but its runtime was not downloaded.
-echo Running Caveria's verified Electron runtime installer...
-call node "desktop\install-electron-runtime.cjs"
-if errorlevel 1 goto install_failed
+echo Running the Windows-native Electron runtime installer...
+powershell -NoProfile -ExecutionPolicy Bypass -File "desktop\install-electron-runtime.ps1"
+if errorlevel 1 goto runtime_install_failed
 if not exist "node_modules\electron\dist\electron.exe" goto install_failed
 
 :dependencies_ready
@@ -43,6 +43,14 @@ echo.
 echo [ERROR] Dependency installation failed.
 echo Close any running Caveria or Vite command windows, then run this launcher again.
 echo If the error mentions esbuild.exe, a running dev server or antivirus is locking that file.
+pause
+exit /b 1
+
+:runtime_install_failed
+echo.
+echo [ERROR] Electron's Windows runtime could not be installed.
+echo The detailed cause is printed above. Common causes are a proxy, antivirus quarantine,
+echo or GitHub downloads being blocked on this network.
 pause
 exit /b 1
 
