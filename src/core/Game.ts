@@ -6,6 +6,7 @@ import { Inventory } from '../items/Inventory';
 import { ItemId, createStack } from '../items/Item';
 import { Player } from '../player/Player';
 import { GamePersistenceController, GameSaveSnapshot } from '../persistence/GamePersistenceController';
+import { WorldPersistence } from '../persistence/WorldPersistence';
 import { AtmosphereController } from '../rendering/AtmosphereController';
 import { BreakParticles } from '../rendering/BreakParticles';
 import { DayNightCycle } from '../rendering/DayNightCycle';
@@ -82,9 +83,16 @@ export class Game {
 
     const params = new URLSearchParams(window.location.search);
     const rawSeed = params.get('seed') ?? 'caveria';
+    const worldId = params.get('world') ?? `legacy:${rawSeed}`;
+    const worldName = params.get('name')?.trim() || (rawSeed === 'caveria' ? 'Caveria World' : rawSeed);
     this.seedLabel = rawSeed;
     const numericSeed = hashString(rawSeed);
-    this.persistence = new GamePersistenceController(rawSeed, () => this.audio.playUiClick());
+    this.persistence = new GamePersistenceController(
+      rawSeed,
+      worldId,
+      worldName,
+      () => this.audio.playUiClick()
+    );
     const savedGame = this.persistence.load();
 
     this.input = new Input(canvas);
@@ -162,10 +170,31 @@ export class Game {
       input: this.input,
       audio: this.audio,
       inventoryModal: this.inventoryModal,
-      hasSavedWorld: savedGame !== null,
+      currentWorld: {
+        worldId,
+        worldName: savedGame?.worldName ?? worldName,
+        seed: rawSeed,
+        savedAt: savedGame?.savedAt ?? 0,
+        createdAt: savedGame?.createdAt ?? Date.now(),
+        editCount: savedGame?.worldEdits.length ?? 0,
+      },
       onAudioChanged: () => this.persistence.save(false),
-      onQuit: () => {
-        this.persistence.save(false);
+      onBeforeWorldSwitch: (saveCurrent) => {
+        if (!saveCurrent) this.persistence.suppressFurtherSaves();
+      },
+      onDeleteWorld: (world) => {
+        if (world.worldId === worldId) this.persistence.suppressFurtherSaves();
+        WorldPersistence.deleteWorld(world.worldId, world.seed);
+        if (world.worldId === worldId) {
+          const url = new URL(window.location.href);
+          url.search = '';
+          window.location.href = url.toString();
+        }
+      },
+      onWorldStarted: () => this.persistence.enableSaving(),
+      onQuit: (saveCurrent) => {
+        if (saveCurrent) this.persistence.save(false);
+        else this.persistence.suppressFurtherSaves();
         window.close();
       },
     });

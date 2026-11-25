@@ -1,6 +1,9 @@
 import { CaveriaSaveData, SAVE_VERSION, WorldPersistence } from './WorldPersistence';
 
-export type GameSaveSnapshot = Omit<CaveriaSaveData, 'version' | 'seed' | 'savedAt'>;
+export type GameSaveSnapshot = Omit<
+  CaveriaSaveData,
+  'version' | 'worldId' | 'worldName' | 'seed' | 'createdAt' | 'savedAt'
+>;
 
 /** Owns autosave cadence, browser lifecycle saves, reset controls, and save feedback. */
 export class GamePersistenceController {
@@ -9,17 +12,26 @@ export class GamePersistenceController {
   private snapshotProvider: (() => GameSaveSnapshot) | null = null;
   private autosaveElapsed = 0;
   private statusTimer = 0;
-  private suppressSave = false;
+  private createdAt = Date.now();
+  private saveEnabled = false;
+  private saveSuppressed = false;
 
   constructor(
     private readonly seedLabel: string,
+    private readonly worldId: string,
+    private readonly worldName: string,
     private readonly onManualSave: () => void
   ) {
-    this.persistence = new WorldPersistence(seedLabel);
+    this.persistence = new WorldPersistence(seedLabel, worldId, worldName);
   }
 
   public load(): CaveriaSaveData | null {
-    return this.persistence.load();
+    const save = this.persistence.load();
+    if (save) {
+      this.createdAt = save.createdAt;
+      this.saveEnabled = true;
+    }
+    return save;
   }
 
   public bind(snapshotProvider: () => GameSaveSnapshot): void {
@@ -30,15 +42,6 @@ export class GamePersistenceController {
       this.onManualSave();
       this.save(true);
     });
-    document.getElementById('reset-world')!.addEventListener('click', (event) => {
-      event.stopPropagation();
-      if (window.confirm(`Delete the saved world for seed “${this.seedLabel}”?`)) {
-        this.suppressSave = true;
-        this.persistence.clear();
-        window.location.reload();
-      }
-    });
-
     window.addEventListener('beforeunload', () => this.save(false));
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') this.save(false);
@@ -58,6 +61,14 @@ export class GamePersistenceController {
     }
   }
 
+  public enableSaving(): void {
+    this.saveEnabled = true;
+  }
+
+  public suppressFurtherSaves(): void {
+    this.saveSuppressed = true;
+  }
+
   public showRestored(editCount: number): void {
     this.statusEl.textContent = `✓ World restored · ${editCount} voxel edits`;
     this.statusEl.classList.add('visible');
@@ -65,11 +76,14 @@ export class GamePersistenceController {
   }
 
   public save(showFeedback: boolean): void {
-    if (this.suppressSave || !this.snapshotProvider) return;
+    if (!this.saveEnabled || this.saveSuppressed || !this.snapshotProvider) return;
     const snapshot = this.snapshotProvider();
     const saved = this.persistence.save({
       version: SAVE_VERSION,
+      worldId: this.worldId,
+      worldName: this.worldName,
       seed: this.seedLabel,
+      createdAt: this.createdAt,
       savedAt: Date.now(),
       ...snapshot,
     });
