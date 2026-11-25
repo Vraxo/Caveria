@@ -151,7 +151,11 @@ export class Game {
         this.overlay.returnToTitle();
       }
     );
-    this.vitals.restore(savedGame?.player.health);
+    this.vitals.restore(
+      savedGame?.player.health,
+      savedGame?.player.hunger,
+      savedGame?.player.saturation
+    );
     this.mobs = new MobManager(
       this.scene,
       this.world,
@@ -182,6 +186,7 @@ export class Game {
       heldItemView: this.heldItemView,
       audio: this.audio,
       mobs: this.mobs,
+      vitals: this.vitals,
       onOpenWorkbench: () => this.openInventoryScreen(3),
     });
     this.inventoryModal = new InventoryModal(
@@ -327,16 +332,36 @@ export class Game {
 
       const wasGrounded = this.player.onGround;
       const impactVelocity = this.player.velocity.y;
+      const startX = this.player.position.x;
+      const startZ = this.player.position.z;
+      const swimming = this.player.isInWater(this.world);
+      const wantsToSprint =
+        this.input.isKeyDown('ControlLeft') || this.input.isKeyDown('ControlRight');
+      const sprinting =
+        !this.creativeMode && this.vitals.canSprint && !this.player.crouching && wantsToSprint;
       const maxStep = 1 / 90;
       const weatherMovementScale = this.weather.getMovementSpeedMultiplier();
       let remaining = dt;
       while (remaining > 0) {
         const step = Math.min(remaining, maxStep);
-        this.player.updatePhysics(step, this.input, this.world, weatherMovementScale);
+        this.player.updatePhysics(
+          step,
+          this.input,
+          this.world,
+          weatherMovementScale,
+          this.creativeMode || this.vitals.canSprint
+        );
         remaining -= step;
       }
       this.movementAudio.updateMovement(dt, wasGrounded, impactVelocity);
       if (!wasGrounded && this.player.onGround) this.vitals.applyFallDamage(impactVelocity);
+      if (!this.creativeMode) {
+        const traveled = Math.hypot(this.player.position.x - startX, this.player.position.z - startZ);
+        this.vitals.addMovementExhaustion(traveled, sprinting, swimming);
+        if (wasGrounded && !this.player.onGround && this.input.isKeyDown('Space')) {
+          this.vitals.addExhaustion(sprinting ? 0.2 : 0.08);
+        }
+      }
       this.vitals.update(dt, this.player.isHeadUnderwater(this.world), this.creativeMode);
       this.mobs.update(dt);
 
@@ -404,6 +429,8 @@ export class Game {
         pitch: this.player.pitch,
         flyMode: this.player.flyMode,
         health: this.vitals.health,
+        hunger: this.vitals.hunger,
+        saturation: this.vitals.saturation,
       },
       inventory: this.inventory.snapshot(),
       selectedHotbar: this.hotbar.selectedIndex,

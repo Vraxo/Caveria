@@ -10,8 +10,9 @@ export class Inventory {
   private readonly listeners: Array<() => void> = [];
 
   constructor() {
-    // Give the survivor a modest starter kit (4 Torches) while encouraging tree-punching for tools!
+    // A modest starter kit leaves room for gathering while preventing an immediate hunger spiral.
     this.slots[0] = createStack(ItemId.Torch, 4);
+    this.slots[1] = createStack(ItemId.CaveBerries, 3);
   }
 
   public onChange(cb: () => void): void {

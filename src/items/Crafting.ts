@@ -15,6 +15,8 @@ const D = ItemId.DeepSlate;
 const K = ItemId.Coal;
 const X = ItemId.CrystalShard;
 const A = ItemId.AmethystShard;
+const M = ItemId.CaveShroom;
+const B = ItemId.CaveBerries;
 const _ = null;
 
 export const RECIPES: ReadonlyArray<CraftingRecipe> = [
@@ -97,6 +99,21 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
       [ItemId.Sand, ItemId.Sand],
     ],
     outputId: ItemId.Sandstone,
+    outputCount: 1,
+  },
+  {
+    name: 'Roasted Cave Shroom',
+    pattern: [[M], [K]],
+    outputId: ItemId.RoastedCaveShroom,
+    outputCount: 2,
+  },
+  {
+    name: 'Cave Stew',
+    pattern: [
+      [M, B],
+      [B, M],
+    ],
+    outputId: ItemId.CaveStew,
     outputCount: 1,
   },
 

@@ -78,7 +78,10 @@ export class Hotbar {
     }
 
     const cur = this.selectedStack;
-    this.labelEl.textContent = cur ? ITEMS[cur.id].name : 'Empty Hand';
+    const definition = cur ? ITEMS[cur.id] : null;
+    this.labelEl.textContent = definition
+      ? `${definition.name}${definition.nutrition ? ` · +${definition.nutrition} hunger` : ''}`
+      : 'Empty Hand';
   }
 
   private buildDomSlots(): void {
@@ -118,7 +121,7 @@ export function renderItemStackIntoSlot(
   }
 
   const def = ITEMS[stack.id];
-  slotEl.title = def.name;
+  slotEl.title = def.nutrition ? `${def.name} · Restores ${def.nutrition} hunger` : def.name;
 
   const img = document.createElement('img');
   img.className = 'slot-icon';

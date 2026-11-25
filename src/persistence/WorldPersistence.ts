@@ -34,6 +34,8 @@ export interface CaveriaSaveData {
     pitch: number;
     flyMode: boolean;
     health: number;
+    hunger: number;
+    saturation: number;
   };
   inventory: Array<ItemStack | null>;
   selectedHotbar: number;
@@ -148,6 +150,8 @@ export class WorldPersistence {
       pitch: 0,
       flyMode: false,
       health: 20,
+      hunger: 20,
+      saturation: 5,
     };
     const worldCoord = (value: unknown, fallback: number): number =>
       Math.max(-1_000_000, Math.min(1_000_000, finite(value, fallback)));
@@ -201,6 +205,8 @@ export class WorldPersistence {
         pitch: Math.max(-Math.PI / 2, Math.min(Math.PI / 2, finite(player.pitch, 0))),
         flyMode: Boolean(player.flyMode),
         health: Math.max(1, Math.min(20, Math.round(finite(player.health, 20)))),
+        hunger: Math.max(0, Math.min(20, Math.round(finite(player.hunger, 20)))),
+        saturation: Math.max(0, Math.min(20, finite(player.saturation, 5))),
       },
       inventory,
       selectedHotbar: Math.max(0, Math.min(8, Math.floor(finite(raw.selectedHotbar, 0)))),

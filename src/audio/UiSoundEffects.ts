@@ -29,6 +29,19 @@ export class UiSoundEffects {
     this.synth.tone({ type: 'square', freq: 1100, duration: 0.1, gain: 0.05, delay: 0.11 });
   }
   public playToss(): void { this.synth.noiseBurst({ duration: 0.12, filterType: 'bandpass', freq: 600, freqEnd: 1400, q: 1.4, gain: 0.08 }); }
+  public playEat(): void {
+    for (let bite = 0; bite < 3; bite++) {
+      this.synth.noiseBurst({
+        duration: 0.07,
+        filterType: 'bandpass',
+        freq: 520 + bite * 90,
+        q: 1.2,
+        gain: 0.075,
+        delay: bite * 0.075,
+      });
+    }
+    this.synth.tone({ type: 'triangle', freq: 260, freqEnd: 390, duration: 0.1, gain: 0.04, delay: 0.2 });
+  }
   public playToolBreak(): void {
     this.synth.noiseBurst({ duration: 0.16, filterType: 'bandpass', freq: 1600, q: 1.8, gain: 0.18 });
     this.synth.tone({ type: 'square', freq: 300, freqEnd: 140, duration: 0.14, gain: 0.08 });
