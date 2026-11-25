@@ -12,6 +12,7 @@ import { DayNightCycle } from '../rendering/DayNightCycle';
 import { DroppedItemManager } from '../rendering/DroppedItems';
 import { HeldItemView } from '../rendering/HeldItemView';
 import { TextureAtlas } from '../rendering/TextureAtlas';
+import { WeatherSystem } from '../rendering/WeatherSystem';
 import { DebugHud } from '../ui/DebugHud';
 import { GameOverlayController } from '../ui/GameOverlayController';
 import { Hotbar } from '../ui/Hotbar';
@@ -40,6 +41,7 @@ export class Game {
   private readonly interactions: BlockInteractionController;
   private readonly movementAudio: MovementAudioController;
   private readonly atmosphere: AtmosphereController;
+  private readonly weather: WeatherSystem;
   private readonly persistence: GamePersistenceController;
 
   private readonly inventory: Inventory;
@@ -109,6 +111,8 @@ export class Game {
     }
     this.audio = new AudioManager();
     if (savedGame) this.audio.setMuted(savedGame.muted);
+    this.weather = new WeatherSystem(this.scene, this.world, this.player, this.audio);
+    if (savedGame) this.weather.restore(savedGame.weather);
     this.particles = new BreakParticles(this.scene);
     this.drops = new DroppedItemManager(this.scene, this.atlas, (itemId) => {
       if (itemId === ItemId.AmethystShard) this.audio.playCrystalPickup();
@@ -149,7 +153,8 @@ export class Game {
       this.scene,
       this.world,
       this.player,
-      this.dayNight
+      this.dayNight,
+      this.weather
     );
     this.overlay = new GameOverlayController({
       renderer: this.renderer,
@@ -192,6 +197,7 @@ export class Game {
 
   private update(dt: number): void {
     this.persistence.update(dt);
+    this.weather.update(dt);
 
     if (this.input.consumeKeyPress('KeyM')) {
       this.overlay.toggleAudio();
@@ -227,9 +233,13 @@ export class Game {
         this.interactions.tossHeldSingleItem();
       }
 
-      // Day/Night time controls
+      // Day/night and weather controls
       if (this.input.consumeKeyPress('KeyT')) {
         this.dayNight.advanceTime(0.125);
+      }
+      if (this.input.consumeKeyPress('KeyY')) {
+        this.weather.cycleWeather();
+        this.audio.playModeToggle();
       }
       if (this.input.isKeyDown('BracketLeft')) {
         this.dayNight.advanceTime(-dt * 0.22);
@@ -248,10 +258,11 @@ export class Game {
       const wasGrounded = this.player.onGround;
       const impactVelocity = this.player.velocity.y;
       const maxStep = 1 / 90;
+      const weatherMovementScale = this.weather.getMovementSpeedMultiplier();
       let remaining = dt;
       while (remaining > 0) {
         const step = Math.min(remaining, maxStep);
-        this.player.updatePhysics(step, this.input, this.world);
+        this.player.updatePhysics(step, this.input, this.world, weatherMovementScale);
         remaining -= step;
       }
       this.movementAudio.updateMovement(dt, wasGrounded, impactVelocity);
@@ -274,8 +285,8 @@ export class Game {
     this.heldItemView.update(dt, horizSpeed, activelyMining, this.player.crouching);
 
     this.drops.update(dt, this.world, this.player.position, this.inventory);
-    this.dayNight.update(dt, this.player.position);
-    this.movementAudio.updateAmbience(dt, this.dayNight);
+    this.dayNight.update(dt, this.player.position, this.weather.cloudCover);
+    this.movementAudio.updateAmbience(dt, this.dayNight, this.weather.getAmbientState());
     this.atmosphere.update();
     this.world.updateStreaming(this.player.position.x, this.player.position.z);
     this.particles.update(dt);
@@ -284,6 +295,7 @@ export class Game {
       this.player,
       this.world,
       this.dayNight,
+      this.weather,
       this.interactions.currentHit,
       this.seedLabel,
       this.creativeMode
@@ -318,6 +330,7 @@ export class Game {
       selectedHotbar: this.hotbar.selectedIndex,
       creativeMode: this.creativeMode,
       timeOfDay: this.dayNight.timeOfDay,
+      weather: this.weather.snapshot(),
       muted: this.audio.muted,
       worldEdits: this.world.exportEdits(),
     };

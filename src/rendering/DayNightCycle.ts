@@ -22,7 +22,9 @@ export class DayNightCycle {
 
   private readonly group = new THREE.Group();
   private readonly sunMesh: THREE.Mesh;
+  private readonly sunMat: THREE.MeshBasicMaterial;
   private readonly moonMesh: THREE.Mesh;
+  private readonly moonMat: THREE.MeshBasicMaterial;
   private readonly starsPoints: THREE.Points;
   private readonly starsMat: THREE.PointsMaterial;
   private elapsed = 0;
@@ -30,22 +32,24 @@ export class DayNightCycle {
   constructor(scene: THREE.Scene) {
     // Sun disc
     const sunGeo = new THREE.PlaneGeometry(26, 26);
-    const sunMat = new THREE.MeshBasicMaterial({
+    this.sunMat = new THREE.MeshBasicMaterial({
       color: 0xfff5b8,
       fog: false,
       depthWrite: false,
+      transparent: true,
     });
-    this.sunMesh = new THREE.Mesh(sunGeo, sunMat);
+    this.sunMesh = new THREE.Mesh(sunGeo, this.sunMat);
     this.group.add(this.sunMesh);
 
     // Moon disc with crisp procedural pixel crater texture
     const moonGeo = new THREE.PlaneGeometry(22, 22);
-    const moonMat = new THREE.MeshBasicMaterial({
+    this.moonMat = new THREE.MeshBasicMaterial({
       map: this.createMoonTexture(),
       fog: false,
       depthWrite: false,
+      transparent: true,
     });
-    this.moonMesh = new THREE.Mesh(moonGeo, moonMat);
+    this.moonMesh = new THREE.Mesh(moonGeo, this.moonMat);
     this.group.add(this.moonMesh);
 
     // Starfield dome
@@ -99,7 +103,7 @@ export class DayNightCycle {
     return `${hh}:${mm} (${phase})`;
   }
 
-  public update(dt: number, playerPos: THREE.Vector3): void {
+  public update(dt: number, playerPos: THREE.Vector3, cloudCover = 0): void {
     this.elapsed += dt;
     if (!this.paused) {
       this.timeOfDay = (this.timeOfDay + dt / DEFAULT_DAY_LENGTH_SECONDS) % 1;
@@ -162,6 +166,11 @@ export class DayNightCycle {
       this.skyBrightness = 0.16 - nightDepth * 0.02; // ~0.14 moonlit surface
       this.starsMat.opacity = 0.85;
     }
+
+    const celestialVisibility = Math.max(0.04, 1 - cloudCover * 1.08);
+    this.sunMat.opacity = celestialVisibility;
+    this.moonMat.opacity = celestialVisibility;
+    this.starsMat.opacity *= celestialVisibility;
   }
 
   private createMoonTexture(): THREE.CanvasTexture {

@@ -57,7 +57,7 @@ export class Player {
     this.syncCamera();
   }
 
-  public updatePhysics(dt: number, input: Input, world: World): void {
+  public updatePhysics(dt: number, input: Input, world: World, movementSpeedScale = 1): void {
     const forwardInput =
       (input.isKeyDown('KeyW') || input.isKeyDown('ArrowUp') ? 1 : 0) -
       (input.isKeyDown('KeyS') || input.isKeyDown('ArrowDown') ? 1 : 0);
@@ -107,7 +107,7 @@ export class Player {
         (input.isKeyDown('ControlLeft') || input.isKeyDown('ControlRight'));
 
       const baseSpeed = this.crouching ? CROUCH_SPEED : sprinting ? SPRINT_SPEED : WALK_SPEED;
-      const speed = baseSpeed * (inWater ? 0.65 : 1.0);
+      const speed = baseSpeed * movementSpeedScale * (inWater ? 0.65 : 1.0);
 
       // Smooth responsive horizontal acceleration
       const accel = this.onGround ? 18.0 : 9.0;

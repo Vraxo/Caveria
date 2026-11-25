@@ -22,6 +22,11 @@ export interface CaveriaSaveData {
   selectedHotbar: number;
   creativeMode: boolean;
   timeOfDay: number;
+  weather: {
+    phase: 'clear' | 'rain' | 'storm';
+    intensity: number;
+    timeRemaining: number;
+  };
   muted: boolean;
   worldEdits: SerializedVoxelEdit[];
 }
@@ -122,6 +127,14 @@ export class WorldPersistence {
       selectedHotbar: Math.max(0, Math.min(8, Math.floor(finite(raw.selectedHotbar, 0)))),
       creativeMode: Boolean(raw.creativeMode),
       timeOfDay: ((finite(raw.timeOfDay, 0.18) % 1) + 1) % 1,
+      weather: {
+        phase:
+          raw.weather?.phase === 'rain' || raw.weather?.phase === 'storm'
+            ? raw.weather.phase
+            : 'clear',
+        intensity: Math.max(0, Math.min(1, finite(raw.weather?.intensity, 0))),
+        timeRemaining: Math.max(1, Math.min(600, finite(raw.weather?.timeRemaining, 75))),
+      },
       muted: Boolean(raw.muted),
       worldEdits,
     };

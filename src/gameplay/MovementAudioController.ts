@@ -46,7 +46,11 @@ export class MovementAudioController {
     }
   }
 
-  public updateAmbience(dt: number, dayNight: DayNightCycle): void {
+  public updateAmbience(
+    dt: number,
+    dayNight: DayNightCycle,
+    weather: { precipitation: number; storm: boolean; exposedToSky: boolean }
+  ): void {
     const surfaceY = this.world.terrainGen.getSurfaceHeight(
       Math.floor(this.player.position.x),
       Math.floor(this.player.position.z)
@@ -55,6 +59,9 @@ export class MovementAudioController {
       underground: this.player.position.y < surfaceY - 5,
       underwater: this.player.isHeadUnderwater(this.world),
       skyBrightness: dayNight.skyBrightness,
+      precipitation: weather.precipitation,
+      storm: weather.storm,
+      exposedToSky: weather.exposedToSky,
     });
   }
 }

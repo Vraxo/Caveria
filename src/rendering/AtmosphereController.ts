@@ -3,8 +3,11 @@ import { Player } from '../player/Player';
 import { World } from '../world/World';
 import { CHUNK_SIZE } from '../world/Chunk';
 import { DayNightCycle } from './DayNightCycle';
+import { WeatherSystem } from './WeatherSystem';
 
 const UNDERWATER_FOG_COLOR = new THREE.Color(0x0b3c7c);
+const OVERCAST_SKY_COLOR = new THREE.Color(0x586675);
+const LIGHTNING_COLOR = new THREE.Color(0xdcecff);
 
 /** Synchronizes day/night lighting, sky fog, and the underwater screen treatment. */
 export class AtmosphereController {
@@ -15,13 +18,21 @@ export class AtmosphereController {
     private readonly scene: THREE.Scene,
     private readonly world: World,
     private readonly player: Player,
-    private readonly dayNight: DayNightCycle
+    private readonly dayNight: DayNightCycle,
+    private readonly weather: WeatherSystem
   ) {}
 
   public update(): void {
     const uniforms = this.world.lightUniforms;
-    uniforms.uSkyBrightness.value = this.dayNight.skyBrightness;
-    uniforms.uSkyTint.value.copy(this.dayNight.skyLightTint);
+    const cloudCover = this.weather.cloudCover;
+    const lightning = this.weather.lightningFlash;
+    uniforms.uSkyBrightness.value = Math.min(
+      1.25,
+      this.dayNight.skyBrightness * (1 - cloudCover * 0.42) + lightning * 0.62
+    );
+    uniforms.uSkyTint.value
+      .copy(this.dayNight.skyLightTint)
+      .lerp(LIGHTNING_COLOR, lightning * 0.78);
     uniforms.uTorchFlicker.value = this.dayNight.torchFlicker;
 
     const underwater = this.player.isHeadUnderwater(this.world);
@@ -40,9 +51,13 @@ export class AtmosphereController {
       return;
     }
 
-    this.renderer.setClearColor(this.dayNight.skyColor);
-    fog.color.copy(this.dayNight.skyColor);
-    fog.near = maxDistance * 0.58;
-    fog.far = maxDistance * 0.98;
+    const weatherSky = this.dayNight.skyColor
+      .clone()
+      .lerp(OVERCAST_SKY_COLOR, cloudCover * 0.76)
+      .lerp(LIGHTNING_COLOR, lightning * 0.82);
+    this.renderer.setClearColor(weatherSky);
+    fog.color.copy(weatherSky);
+    fog.near = maxDistance * (0.58 - cloudCover * 0.18);
+    fog.far = maxDistance * (0.98 - cloudCover * 0.33);
   }
 }

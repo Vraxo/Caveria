@@ -1,6 +1,7 @@
 import { Player } from '../player/Player';
 import { VoxelHit } from '../player/Raycaster';
 import { DayNightCycle } from '../rendering/DayNightCycle';
+import { WeatherSystem } from '../rendering/WeatherSystem';
 import { BLOCKS } from '../content/BlockRegistry';
 import { World } from '../world/World';
 
@@ -25,6 +26,7 @@ export class DebugHud {
     player: Player,
     world: World,
     dayNight: DayNightCycle,
+    weather: WeatherSystem,
     hit: VoxelHit | null,
     seedLabel: string,
     creativeMode: boolean
@@ -72,7 +74,8 @@ export class DebugHud {
       `Biome: ${biomeStr}`,
       `Chunk: ${cx}, ${cz} (${world.loadedChunkCount} loaded, ${world.pendingChunkCount} queued)`,
       `Pipeline: ${world.workerPipelineActive ? 'Web Worker' : 'Main-thread fallback'} | Saved edits: ${world.editCount}`,
-      `Time: ${dayNight.getFormattedClock()} | Light: Sky ${skyLight} / Block ${blockLight}`,
+      `Time: ${dayNight.getFormattedClock()} | Weather: ${weather.localWeather}`,
+      `Light: Sky ${skyLight} / Block ${blockLight} | Exposure: ${weather.exposedToSky ? 'Open' : 'Sheltered'}`,
       `Mode: ${gameModeStr} (${moveModeStr}) | Grounded: ${player.onGround ? 'Yes' : 'No'}`,
       `Target: ${targetStr}`,
       `Seed: ${seedLabel}`,
