@@ -1,35 +1,28 @@
 import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
+import { BlockInteractionController } from '../gameplay/BlockInteractionController';
+import { MovementAudioController } from '../gameplay/MovementAudioController';
 import { Inventory } from '../items/Inventory';
-import {
-  ITEMS,
-  ItemId,
-  ItemStack,
-  createStack,
-  getBlockDrop,
-  getMiningStats,
-} from '../items/Item';
+import { ItemId, createStack } from '../items/Item';
 import { Player } from '../player/Player';
-import { VoxelHit, raycastVoxel } from '../player/Raycaster';
-import { SAVE_VERSION, WorldPersistence } from '../persistence/WorldPersistence';
+import { GamePersistenceController, GameSaveSnapshot } from '../persistence/GamePersistenceController';
+import { AtmosphereController } from '../rendering/AtmosphereController';
 import { BreakParticles } from '../rendering/BreakParticles';
 import { DayNightCycle } from '../rendering/DayNightCycle';
 import { DroppedItemManager } from '../rendering/DroppedItems';
 import { HeldItemView } from '../rendering/HeldItemView';
-import { BlockHighlight } from '../rendering/Highlight';
-import { MiningOverlay } from '../rendering/MiningOverlay';
 import { TextureAtlas } from '../rendering/TextureAtlas';
 import { DebugHud } from '../ui/DebugHud';
+import { GameOverlayController } from '../ui/GameOverlayController';
 import { Hotbar } from '../ui/Hotbar';
 import { InventoryModal } from '../ui/InventoryModal';
-import { BLOCKS, BlockId, HOTBAR_BLOCKS } from '../world/Block';
-import { CHUNK_HEIGHT, CHUNK_SIZE } from '../world/Chunk';
+import { HOTBAR_BLOCKS } from '../world/Block';
+import { CHUNK_SIZE } from '../world/Chunk';
 import { hashString } from '../world/Noise';
 import { World } from '../world/World';
 import { Input } from './Input';
 
 const INITIAL_SKY_COLOR = 0x7ec4f8;
-const UNDERWATER_FOG_COLOR = new THREE.Color(0x0b3c7c);
 
 export class Game {
   private readonly renderer: THREE.WebGLRenderer;
@@ -40,41 +33,24 @@ export class Game {
   private readonly world: World;
   private readonly dayNight: DayNightCycle;
   private readonly player: Player;
-  private readonly highlight: BlockHighlight;
-  private readonly miningOverlay: MiningOverlay;
   private readonly particles: BreakParticles;
   private readonly drops: DroppedItemManager;
   private readonly heldItemView: HeldItemView;
   private readonly audio: AudioManager;
-  private readonly persistence: WorldPersistence;
+  private readonly interactions: BlockInteractionController;
+  private readonly movementAudio: MovementAudioController;
+  private readonly atmosphere: AtmosphereController;
+  private readonly persistence: GamePersistenceController;
 
   private readonly inventory: Inventory;
   private readonly hotbar: Hotbar;
   private readonly inventoryModal: InventoryModal;
   private readonly debugHud: DebugHud;
-
-  private readonly overlayEl: HTMLElement;
-  private readonly statusPillEl: HTMLElement;
-  private readonly waterTintEl: HTMLElement;
-  private readonly miningBarEl: HTMLElement;
-  private readonly miningBarFillEl: HTMLElement;
-  private readonly audioToggleEl: HTMLButtonElement;
-  private readonly saveStatusEl: HTMLElement;
+  private readonly overlay: GameOverlayController;
   private readonly seedLabel: string;
 
   private lastTime = performance.now();
-  private autosaveElapsed = 0;
-  private saveStatusTimer = 0;
-  private suppressSave = false;
-  private footstepDistance = 0;
-  private wasInWater = false;
-  private currentHit: VoxelHit | null = null;
   private creativeMode = false;
-
-  // Progressive mining state
-  private miningTargetKey = '';
-  private miningElapsed = 0;
-  private miningCooldown = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({
@@ -106,7 +82,7 @@ export class Game {
     const rawSeed = params.get('seed') ?? 'caveria';
     this.seedLabel = rawSeed;
     const numericSeed = hashString(rawSeed);
-    this.persistence = new WorldPersistence(rawSeed);
+    this.persistence = new GamePersistenceController(rawSeed, () => this.audio.playUiClick());
     const savedGame = this.persistence.load();
 
     this.input = new Input(canvas);
@@ -133,8 +109,6 @@ export class Game {
     }
     this.audio = new AudioManager();
     if (savedGame) this.audio.setMuted(savedGame.muted);
-    this.highlight = new BlockHighlight(this.scene);
-    this.miningOverlay = new MiningOverlay(this.scene);
     this.particles = new BreakParticles(this.scene);
     this.drops = new DroppedItemManager(this.scene, this.atlas, (itemId) => {
       if (itemId === ItemId.AmethystShard) this.audio.playCrystalPickup();
@@ -149,30 +123,45 @@ export class Game {
       this.hotbar.selectIndex(savedGame.selectedHotbar);
       this.creativeMode = savedGame.creativeMode;
     }
+    this.interactions = new BlockInteractionController({
+      scene: this.scene,
+      world: this.world,
+      player: this.player,
+      input: this.input,
+      inventory: this.inventory,
+      hotbar: this.hotbar,
+      particles: this.particles,
+      drops: this.drops,
+      heldItemView: this.heldItemView,
+      audio: this.audio,
+      onOpenWorkbench: () => this.openInventoryScreen(3),
+    });
     this.inventoryModal = new InventoryModal(
       this.inventory,
       this.atlas,
-      (overflow) => this.tossStackFromPlayer(overflow),
+      (overflow) => this.interactions.tossStackFromPlayer(overflow),
       () => this.closeInventoryAndResume()
     );
     this.debugHud = new DebugHud();
-
-    this.overlayEl = document.getElementById('overlay')!;
-    this.statusPillEl = document.getElementById('status-pill')!;
-    this.waterTintEl = document.getElementById('water-tint')!;
-    this.miningBarEl = document.getElementById('mining-bar')!;
-    this.miningBarFillEl = document.getElementById('mining-bar-fill')!;
-    this.audioToggleEl = document.getElementById('audio-toggle') as HTMLButtonElement;
-    this.saveStatusEl = document.getElementById('save-status')!;
-
-    this.setupOverlayAndEvents();
-    this.updateStatusPill();
-    this.updateAudioToggle();
-    if (savedGame) {
-      this.saveStatusEl.textContent = `✓ World restored · ${this.world.editCount} voxel edits`;
-      this.saveStatusEl.classList.add('visible');
-      this.saveStatusTimer = 3.5;
-    }
+    this.movementAudio = new MovementAudioController(this.audio, this.player, this.world);
+    this.atmosphere = new AtmosphereController(
+      this.renderer,
+      this.scene,
+      this.world,
+      this.player,
+      this.dayNight
+    );
+    this.overlay = new GameOverlayController({
+      renderer: this.renderer,
+      camera: this.camera,
+      input: this.input,
+      audio: this.audio,
+      inventoryModal: this.inventoryModal,
+      onAudioChanged: () => this.persistence.save(false),
+    });
+    this.persistence.bind(() => this.createSaveSnapshot());
+    this.overlay.updateStatus(this.creativeMode, this.player.flyMode);
+    if (savedGame) this.persistence.showRestored(this.world.editCount);
   }
 
   public start(): void {
@@ -180,86 +169,13 @@ export class Game {
     requestAnimationFrame((now) => this.loop(now));
   }
 
-  private setupOverlayAndEvents(): void {
-    const playButton = document.getElementById('play-button')!;
-    const requestPlay = () => {
-      this.audio.unlock();
-      this.audio.playUiClick();
-      if (this.inventoryModal.isOpen) {
-        this.inventoryModal.close();
-      }
-      this.input.requestPointerLock();
-    };
-
-    playButton.addEventListener('click', (e) => {
-      e.stopPropagation();
-      requestPlay();
-    });
-    this.overlayEl.addEventListener('click', requestPlay);
-
-    this.audioToggleEl.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.audio.unlock();
-      this.audio.toggleMute();
-      this.updateAudioToggle();
-      this.saveGame(false);
-    });
-
-    document.getElementById('save-now')!.addEventListener('click', (e) => {
-      e.stopPropagation();
-      this.audio.playUiClick();
-      this.saveGame(true);
-    });
-    document.getElementById('reset-world')!.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (window.confirm(`Delete the saved world for seed “${this.seedLabel}”?`)) {
-        this.suppressSave = true;
-        this.persistence.clear();
-        window.location.reload();
-      }
-    });
-
-    window.addEventListener('beforeunload', () => this.saveGame(false));
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') this.saveGame(false);
-    });
-
-    // Modal interactions get tiny tactile ticks; crafting output gets a brighter chord.
-    document.getElementById('inventory-modal')!.addEventListener('pointerdown', (e) => {
-      const target = e.target as HTMLElement;
-      if (target.closest('#craft-output-slot')) this.audio.playCraft();
-      else if (target.closest('button, .inv-slot')) this.audio.playUiClick();
-    });
-
-    this.input.onPointerLockChange((locked) => {
-      if (locked) {
-        this.overlayEl.classList.add('hidden');
-      } else if (!this.inventoryModal.isOpen) {
-        // Show pause screen only if pointer unlocked due to Esc (not opening Inventory)
-        this.overlayEl.classList.remove('hidden');
-        playButton.textContent = 'Click to Resume';
-      }
-    });
-
-    window.addEventListener('resize', () => {
-      this.camera.aspect = window.innerWidth / window.innerHeight;
-      this.camera.updateProjectionMatrix();
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-  }
-
   private openInventoryScreen(gridSize: 2 | 3): void {
-    this.resetMiningState();
-    this.audio.playInventoryOpen();
-    this.inventoryModal.open(gridSize);
-    this.overlayEl.classList.add('hidden');
-    this.input.exitPointerLock();
+    this.interactions.cancelMining();
+    this.overlay.openInventory(gridSize);
   }
 
   private closeInventoryAndResume(): void {
-    this.audio.playInventoryClose();
-    this.inventoryModal.close();
-    this.input.requestPointerLock();
+    this.overlay.closeInventoryAndResume();
   }
 
   private loop(now: number): void {
@@ -275,20 +191,10 @@ export class Game {
   }
 
   private update(dt: number): void {
-    this.autosaveElapsed += dt;
-    if (this.autosaveElapsed >= 10) {
-      this.autosaveElapsed = 0;
-      this.saveGame(false);
-    }
-    if (this.saveStatusTimer > 0) {
-      this.saveStatusTimer -= dt;
-      if (this.saveStatusTimer <= 0) this.saveStatusEl.classList.remove('visible', 'error');
-    }
+    this.persistence.update(dt);
 
     if (this.input.consumeKeyPress('KeyM')) {
-      this.audio.unlock();
-      this.audio.toggleMute();
-      this.updateAudioToggle();
+      this.overlay.toggleAudio();
     }
 
     if (this.input.consumeKeyPress('F3')) {
@@ -309,7 +215,7 @@ export class Game {
         this.player.flyMode = !this.player.flyMode;
         this.player.velocity.y = 0;
         this.audio.playModeToggle();
-        this.updateStatusPill();
+        this.overlay.updateStatus(this.creativeMode, this.player.flyMode);
       }
 
       if (this.input.consumeKeyPress('KeyC')) {
@@ -318,7 +224,7 @@ export class Game {
 
       // Toss 1 held item with [Q]
       if (this.input.consumeKeyPress('KeyQ')) {
-        this.tossHeldSingleItem();
+        this.interactions.tossHeldSingleItem();
       }
 
       // Day/Night time controls
@@ -348,19 +254,12 @@ export class Game {
         this.player.updatePhysics(step, this.input, this.world);
         remaining -= step;
       }
-      this.updateMovementAudio(dt, wasGrounded, impactVelocity);
+      this.movementAudio.updateMovement(dt, wasGrounded, impactVelocity);
 
-      this.currentHit = raycastVoxel(
-        this.world,
-        this.player.getEyePosition(),
-        this.player.getForwardDirection(),
-        6.0
-      );
-      this.highlight.update(this.currentHit);
-
-      this.handleMiningAndPlacement(dt);
+      this.interactions.updateTarget();
+      this.interactions.update(dt, this.creativeMode);
     } else {
-      this.resetMiningState();
+      this.interactions.cancelMining();
     }
 
     const horizSpeed = this.player.onGround
@@ -369,33 +268,23 @@ export class Game {
     const activelyMining =
       this.input.isPointerLocked &&
       !this.inventoryModal.isOpen &&
-      this.input.isMouseDown(0) &&
-      this.currentHit !== null;
+      this.interactions.activelyMining;
 
     this.heldItemView.setEquipped(this.hotbar.selectedStack);
     this.heldItemView.update(dt, horizSpeed, activelyMining);
 
     this.drops.update(dt, this.world, this.player.position, this.inventory);
     this.dayNight.update(dt, this.player.position);
-    const surfaceY = this.world.terrainGen.getSurfaceHeight(
-      Math.floor(this.player.position.x),
-      Math.floor(this.player.position.z)
-    );
-    this.audio.updateAmbient(dt, {
-      underground: this.player.position.y < surfaceY - 5,
-      underwater: this.player.isHeadUnderwater(this.world),
-      skyBrightness: this.dayNight.skyBrightness,
-    });
-    this.syncShaderLightUniforms();
+    this.movementAudio.updateAmbience(dt, this.dayNight);
+    this.atmosphere.update();
     this.world.updateStreaming(this.player.position.x, this.player.position.z);
     this.particles.update(dt);
-    this.updateAtmosphere();
     this.debugHud.update(
       dt,
       this.player,
       this.world,
       this.dayNight,
-      this.currentHit,
+      this.interactions.currentHit,
       this.seedLabel,
       this.creativeMode
     );
@@ -412,223 +301,11 @@ export class Game {
         }
       }
     }
-    this.updateStatusPill();
+    this.overlay.updateStatus(this.creativeMode, this.player.flyMode);
   }
 
-  private handleMiningAndPlacement(dt: number): void {
-    if (this.miningCooldown > 0) {
-      this.miningCooldown = Math.max(0, this.miningCooldown - dt);
-    }
-
-    // 1. Progressive Mining (Hold Left Click) or Instant Break in Creative
-    if (this.input.isMouseDown(0)) {
-      if (this.input.consumeMousePress(0)) {
-        this.heldItemView.triggerSwing();
-        if (this.currentHit) this.audio.playMineHit(this.currentHit.blockId);
-      }
-
-      if (this.currentHit && BLOCKS[this.currentHit.blockId].breakable) {
-        if (this.creativeMode) {
-          if (this.miningCooldown <= 0) {
-            this.breakBlockAt(this.currentHit, false);
-            this.miningCooldown = 0.16;
-          }
-          this.resetMiningState();
-        } else if (this.miningCooldown <= 0) {
-          const hitKey = `${this.currentHit.blockX},${this.currentHit.blockY},${this.currentHit.blockZ},${this.currentHit.blockId}`;
-          if (hitKey !== this.miningTargetKey) {
-            this.miningTargetKey = hitKey;
-            this.miningElapsed = 0;
-          }
-
-          const { durationSeconds, canHarvest } = getMiningStats(
-            this.currentHit.blockId,
-            this.hotbar.selectedStack
-          );
-
-          this.miningElapsed += dt;
-          this.audio.playMineHit(this.currentHit.blockId);
-          const progress = Math.min(1, this.miningElapsed / durationSeconds);
-
-          this.miningOverlay.update(this.currentHit, progress);
-          this.miningBarEl.classList.remove('hidden');
-          this.miningBarFillEl.style.width = `${Math.round(progress * 100)}%`;
-          this.miningBarFillEl.classList.toggle('no-harvest', !canHarvest);
-
-          if (progress >= 1) {
-            this.breakBlockAt(this.currentHit, canHarvest);
-            if (!this.creativeMode) {
-              const toolBroke = this.inventory.damageTool(this.hotbar.selectedIndex);
-              if (toolBroke) this.audio.playToolBreak();
-            }
-            this.resetMiningState();
-            this.miningCooldown = 0.14;
-          }
-        }
-      } else {
-        this.resetMiningState();
-      }
-    } else {
-      this.resetMiningState();
-    }
-
-    // 2. Middle click: Pick targeted block
-    if (this.input.consumeMousePress(1) && this.currentHit) {
-      this.hotbar.pickBlock(this.currentHit.blockId, this.creativeMode);
-    }
-
-    // 3. Right click: Interact with Crafting Table OR Place held block
-    if (this.input.consumeMousePress(2) && this.currentHit) {
-      const sneaking =
-        this.input.isKeyDown('ShiftLeft') || this.input.isKeyDown('ShiftRight');
-
-      // Right-clicking a Crafting Table opens the 3x3 workbench (unless sneaking to place on it)
-      if (this.currentHit.blockId === BlockId.CraftingTable && !sneaking) {
-        this.openInventoryScreen(3);
-        return;
-      }
-
-      const held = this.hotbar.selectedStack;
-      if (!held) return;
-      const itemDef = ITEMS[held.id];
-      if (itemDef.placeBlockId === null) return;
-
-      const placeBlock = itemDef.placeBlockId;
-      const placeBlockDef = BLOCKS[placeBlock];
-
-      const placeX = this.currentHit.blockX + this.currentHit.normalX;
-      const placeY = this.currentHit.blockY + this.currentHit.normalY;
-      const placeZ = this.currentHit.blockZ + this.currentHit.normalZ;
-
-      if (placeY < 0 || placeY >= CHUNK_HEIGHT) return;
-      const existing = this.world.getBlock(placeX, placeY, placeZ);
-
-      if (placeBlockDef.shape === 'torch' || placeBlockDef.shape === 'cross') {
-        const below = this.world.getBlock(placeX, placeY - 1, placeZ);
-        const above = this.world.getBlock(placeX, placeY + 1, placeZ);
-        const canSupport =
-          placeBlock === BlockId.CaveVine
-            ? BLOCKS[above].solid || above === BlockId.CaveVine
-            : placeBlock === BlockId.DripstoneSpike
-            ? BLOCKS[below].solid || BLOCKS[above].solid
-            : BLOCKS[below].solid;
-
-        if (existing === BlockId.Air && canSupport) {
-          this.world.setBlock(placeX, placeY, placeZ, placeBlock);
-          this.heldItemView.triggerPlace();
-          this.audio.playPlace(placeBlock);
-          if (!this.creativeMode) {
-            this.inventory.consumeOne(this.hotbar.selectedIndex);
-          }
-          this.refreshRaycast();
-        }
-        return;
-      }
-
-      if (
-        (existing === BlockId.Air || existing === BlockId.Water) &&
-        (!placeBlockDef.solid || !this.player.intersectsBlock(placeX, placeY, placeZ))
-      ) {
-        this.world.setBlock(placeX, placeY, placeZ, placeBlock);
-        this.heldItemView.triggerPlace();
-        this.audio.playPlace(placeBlock);
-        if (!this.creativeMode) {
-          this.inventory.consumeOne(this.hotbar.selectedIndex);
-        }
-        this.refreshRaycast();
-      }
-    }
-  }
-
-  private breakBlockAt(hit: VoxelHit, spawnDropItem: boolean): void {
-    const { blockX, blockY, blockZ, blockId } = hit;
-    this.world.setBlock(blockX, blockY, blockZ, BlockId.Air);
-    this.particles.spawnBurst(blockX, blockY, blockZ, blockId);
-    this.audio.playBreak(blockId);
-
-    if (spawnDropItem) {
-      const drop = getBlockDrop(blockId);
-      if (drop) {
-        this.drops.spawnDrop(blockX + 0.5, blockY + 0.45, blockZ + 0.5, drop);
-      }
-    }
-
-    // Pop any torch or floor flora resting directly above
-    const aboveId = this.world.getBlock(blockX, blockY + 1, blockZ);
-    if (aboveId === BlockId.Torch || aboveId === BlockId.CaveShroom) {
-      this.world.setBlock(blockX, blockY + 1, blockZ, BlockId.Air);
-      this.particles.spawnBurst(blockX, blockY + 1, blockZ, aboveId);
-      if (!this.creativeMode) {
-        this.drops.spawnDrop(
-          blockX + 0.5,
-          blockY + 1.35,
-          blockZ + 0.5,
-          createStack(aboveId as number, 1)
-        );
-      }
-    }
-
-    // Cascade break hanging glow vines directly below
-    let vy = blockY - 1;
-    while (vy >= 1 && this.world.getBlock(blockX, vy, blockZ) === BlockId.CaveVine) {
-      this.world.setBlock(blockX, vy, blockZ, BlockId.Air);
-      this.particles.spawnBurst(blockX, vy, blockZ, BlockId.CaveVine);
-      if (!this.creativeMode) {
-        this.drops.spawnDrop(
-          blockX + 0.5,
-          vy + 0.45,
-          blockZ + 0.5,
-          createStack(BlockId.CaveVine as number, 1)
-        );
-      }
-      vy--;
-    }
-
-    this.refreshRaycast();
-  }
-
-  private resetMiningState(): void {
-    this.miningTargetKey = '';
-    this.miningElapsed = 0;
-    this.miningOverlay.update(null, 0);
-    this.miningBarEl.classList.add('hidden');
-  }
-
-  private tossHeldSingleItem(): void {
-    const cur = this.hotbar.selectedStack;
-    if (!cur) return;
-    const single: ItemStack = {
-      id: cur.id,
-      count: 1,
-      durability: cur.durability,
-    };
-    this.inventory.consumeOne(this.hotbar.selectedIndex);
-    this.tossStackFromPlayer(single);
-    this.heldItemView.triggerSwing();
-  }
-
-  private tossStackFromPlayer(stack: ItemStack): void {
-    this.audio.playToss();
-    const eye = this.player.getEyePosition();
-    const dir = this.player.getForwardDirection();
-    const vel = dir.clone().multiplyScalar(5.5);
-    vel.y += 1.6;
-    this.drops.spawnDrop(
-      eye.x + dir.x * 0.45,
-      eye.y - 0.25,
-      eye.z + dir.z * 0.45,
-      stack,
-      vel,
-      1.15
-    );
-  }
-
-  private saveGame(showFeedback: boolean): void {
-    if (this.suppressSave) return;
-    const saved = this.persistence.save({
-      version: SAVE_VERSION,
-      seed: this.seedLabel,
-      savedAt: Date.now(),
+  private createSaveSnapshot(): GameSaveSnapshot {
+    return {
       player: {
         x: this.player.position.x,
         y: this.player.position.y,
@@ -643,99 +320,6 @@ export class Game {
       timeOfDay: this.dayNight.timeOfDay,
       muted: this.audio.muted,
       worldEdits: this.world.exportEdits(),
-    });
-
-    if (showFeedback || !saved) {
-      this.saveStatusEl.textContent = saved
-        ? `✓ World saved · ${this.world.editCount} voxel edits`
-        : '⚠ Save failed · browser storage unavailable';
-      this.saveStatusEl.classList.toggle('error', !saved);
-      this.saveStatusEl.classList.add('visible');
-      this.saveStatusTimer = saved ? 2.4 : 5;
-    }
-  }
-
-  private updateMovementAudio(dt: number, wasGrounded: boolean, impactVelocity: number): void {
-    const inWater = this.player.isInWater(this.world);
-    if (inWater && !this.wasInWater) {
-      this.audio.playSplash();
-    }
-    this.wasInWater = inWater;
-
-    if (wasGrounded && !this.player.onGround && this.player.velocity.y > 2) {
-      this.audio.playJump();
-      this.footstepDistance = 0;
-    } else if (!wasGrounded && this.player.onGround) {
-      this.audio.playLand(impactVelocity < -12);
-      this.footstepDistance = 0;
-    }
-
-    const speed = Math.hypot(this.player.velocity.x, this.player.velocity.z);
-    if (this.player.onGround && !inWater && speed > 0.7) {
-      this.footstepDistance += speed * dt;
-      const sprinting = speed > 5.4;
-      const stride = sprinting ? 1.75 : 1.45;
-      if (this.footstepDistance >= stride) {
-        this.footstepDistance %= stride;
-        const below = this.world.getBlock(
-          this.player.position.x,
-          this.player.position.y - 0.08,
-          this.player.position.z
-        );
-        this.audio.playStep(below, sprinting);
-      }
-    } else if (speed < 0.3) {
-      this.footstepDistance = 0;
-    }
-  }
-
-  private updateAudioToggle(): void {
-    this.audioToggleEl.textContent = this.audio.muted ? '🔇 Sound Off [M]' : '🔊 Sound On [M]';
-    this.audioToggleEl.classList.toggle('muted', this.audio.muted);
-  }
-
-  private syncShaderLightUniforms(): void {
-    const u = this.world.lightUniforms;
-    u.uSkyBrightness.value = this.dayNight.skyBrightness;
-    u.uSkyTint.value.copy(this.dayNight.skyLightTint);
-    u.uTorchFlicker.value = this.dayNight.torchFlicker;
-  }
-
-  private refreshRaycast(): void {
-    this.currentHit = raycastVoxel(
-      this.world,
-      this.player.getEyePosition(),
-      this.player.getForwardDirection(),
-      6.0
-    );
-    this.highlight.update(this.currentHit);
-  }
-
-  private updateAtmosphere(): void {
-    const underwater = this.player.isHeadUnderwater(this.world);
-    this.waterTintEl.classList.toggle('active', underwater);
-
-    const fog = this.scene.fog as THREE.Fog;
-    const maxDist = this.world.renderDistance * CHUNK_SIZE;
-    if (underwater) {
-      const tintedWater = UNDERWATER_FOG_COLOR.clone().multiplyScalar(
-        0.35 + 0.65 * this.dayNight.skyBrightness
-      );
-      this.renderer.setClearColor(tintedWater);
-      fog.color.copy(tintedWater);
-      fog.near = 2;
-      fog.far = 26;
-    } else {
-      this.renderer.setClearColor(this.dayNight.skyColor);
-      fog.color.copy(this.dayNight.skyColor);
-      fog.near = maxDist * 0.58;
-      fog.far = maxDist * 0.98;
-    }
-  }
-
-  private updateStatusPill(): void {
-    const gm = this.creativeMode ? 'Creative' : 'Survival';
-    const fly = this.player.flyMode ? 'Fly' : 'Walk';
-    this.statusPillEl.textContent = `${gm} (${fly}) · [E] Craft · [C] Mode · [F] Fly`;
+    };
   }
 }
