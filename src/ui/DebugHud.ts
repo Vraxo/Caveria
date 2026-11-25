@@ -1,5 +1,6 @@
 import { Player } from '../player/Player';
 import { VoxelHit } from '../player/Raycaster';
+import { DayNightCycle } from '../rendering/DayNightCycle';
 import { BLOCKS } from '../world/Block';
 import { World } from '../world/World';
 
@@ -19,7 +20,14 @@ export class DebugHud {
     this.el.classList.toggle('hidden', !this.visible);
   }
 
-  public update(dt: number, player: Player, world: World, hit: VoxelHit | null, seedLabel: string): void {
+  public update(
+    dt: number,
+    player: Player,
+    world: World,
+    dayNight: DayNightCycle,
+    hit: VoxelHit | null,
+    seedLabel: string
+  ): void {
     this.frames++;
     this.accumTime += dt;
     if (this.accumTime >= 0.25) {
@@ -37,14 +45,23 @@ export class DebugHud {
     const cx = World.worldToChunkCoord(player.position.x);
     const cz = World.worldToChunkCoord(player.position.z);
 
+    const packedAtEye = world.getPackedLight(
+      player.position.x,
+      player.position.y + 1.0,
+      player.position.z
+    );
+    const skyLight = (packedAtEye >> 4) & 0xf;
+    const blockLight = packedAtEye & 0xf;
+
     const targetStr = hit
       ? `${BLOCKS[hit.blockId].name} (${hit.blockX}, ${hit.blockY}, ${hit.blockZ})`
       : 'None';
 
     this.el.textContent = [
-      `Caveria 0.1.0 (${this.fps} FPS)`,
+      `Caveria 0.2.0 (${this.fps} FPS)`,
       `XYZ: ${px} / ${py} / ${pz}`,
       `Chunk: ${cx}, ${cz} (${world.loadedChunkCount} loaded)`,
+      `Time: ${dayNight.getFormattedClock()} | Light: Sky ${skyLight} / Block ${blockLight}`,
       `Mode: ${player.flyMode ? 'Fly' : 'Walk'} | Grounded: ${player.onGround ? 'Yes' : 'No'}`,
       `Target: ${targetStr}`,
       `Seed: ${seedLabel}`,

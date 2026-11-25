@@ -3,7 +3,7 @@ import { BLOCKS, BlockId, TileIndex } from '../world/Block';
 import { mulberry32 } from '../world/Noise';
 
 export const TILE_SIZE = 16;
-export const ATLAS_COLS = 4;
+export const ATLAS_COLS = 5;
 export const ATLAS_ROWS = 4;
 export const ATLAS_PIXEL_WIDTH = ATLAS_COLS * TILE_SIZE;
 export const ATLAS_PIXEL_HEIGHT = ATLAS_ROWS * TILE_SIZE;
@@ -61,14 +61,36 @@ export class TextureAtlas {
 
     const u0 = (col + eps) / ATLAS_COLS;
     const u1 = (col + 1 - eps) / ATLAS_COLS;
-    // Canvas y=0 is top, Three.js v=1 is top
     const v1 = 1 - (row + eps) / ATLAS_ROWS;
     const v0 = 1 - (row + 1 - eps) / ATLAS_ROWS;
 
     return [u0, v0, u1, v1];
   }
 
-  /** Creates a crisp 32x32 isometric-ish 2D preview icon for hotbar UI */
+  /**
+   * Returns UV sub-rectangle within a tile using pixel coords [px0, py0, px1, py1] in 0..16
+   * where py=0 is the TOP of the 16x16 tile.
+   */
+  public getSubTileUVs(
+    tile: TileIndex,
+    px0: number,
+    py0: number,
+    px1: number,
+    py1: number
+  ): [number, number, number, number] {
+    const col = tile % ATLAS_COLS;
+    const row = Math.floor(tile / ATLAS_COLS);
+    const eps = 0.02;
+
+    const u0 = (col * TILE_SIZE + px0 + eps) / ATLAS_PIXEL_WIDTH;
+    const u1 = (col * TILE_SIZE + px1 - eps) / ATLAS_PIXEL_WIDTH;
+    const v1 = 1 - (row * TILE_SIZE + py0 + eps) / ATLAS_PIXEL_HEIGHT;
+    const v0 = 1 - (row * TILE_SIZE + py1 - eps) / ATLAS_PIXEL_HEIGHT;
+
+    return [u0, v0, u1, v1];
+  }
+
+  /** Creates a crisp 32x32 preview icon for hotbar UI */
   public createBlockIcon(blockId: BlockId): HTMLCanvasElement {
     const def = BLOCKS[blockId];
     const icon = document.createElement('canvas');
@@ -77,31 +99,42 @@ export class TextureAtlas {
     const ic = icon.getContext('2d')!;
     ic.imageSmoothingEnabled = false;
 
+    if (def.shape === 'torch') {
+      const torchTile = this.tileCanvases.get(TileIndex.Torch);
+      if (torchTile) {
+        ic.drawImage(torchTile, 0, 0, 16, 16, 4, 3, 24, 26);
+      }
+      return icon;
+    }
+
     const topTile = this.tileCanvases.get(def.faces[2]);
     const sideTile = this.tileCanvases.get(def.faces[4]);
     if (!topTile || !sideTile) return icon;
 
-    // Draw an isometric cube icon from top + left + right faces
     // Top diamond
     ic.save();
     ic.setTransform(1, 0.5, -1, 0.5, 16, 2);
     ic.drawImage(topTile, 0, 0, 14, 14);
     ic.restore();
 
-    // Left face (slightly shaded)
+    // Left face
     ic.save();
     ic.setTransform(1, 0.5, 0, 1, 2, 9);
     ic.drawImage(sideTile, 0, 0, 14, 14);
-    ic.fillStyle = 'rgba(0, 0, 0, 0.18)';
-    ic.fillRect(0, 0, 14, 14);
+    if (def.lightEmission === 0) {
+      ic.fillStyle = 'rgba(0, 0, 0, 0.18)';
+      ic.fillRect(0, 0, 14, 14);
+    }
     ic.restore();
 
-    // Right face (darker shaded)
+    // Right face
     ic.save();
     ic.setTransform(1, -0.5, 0, 1, 16, 16);
     ic.drawImage(sideTile, 0, 0, 14, 14);
-    ic.fillStyle = 'rgba(0, 0, 0, 0.36)';
-    ic.fillRect(0, 0, 14, 14);
+    if (def.lightEmission === 0) {
+      ic.fillStyle = 'rgba(0, 0, 0, 0.36)';
+      ic.fillRect(0, 0, 14, 14);
+    }
     ic.restore();
 
     return icon;
@@ -156,7 +189,7 @@ export class TextureAtlas {
           const r = rng();
           let c: RGBA;
           if (r < 0.08) {
-            c = [105, 76, 52, 255]; // pebble
+            c = [105, 76, 52, 255];
           } else if (r > 0.9) {
             c = [152, 108, 72, 255];
           } else {
@@ -279,7 +312,7 @@ export class TextureAtlas {
       }
     });
 
-    // Oak Leaves (cutout alpha holes for authentic foliage)
+    // Oak Leaves
     this.drawTile(TileIndex.OakLeaves, (px, rng) => {
       for (let y = 0; y < 16; y++) {
         for (let x = 0; x < 16; x++) {
@@ -385,6 +418,58 @@ export class TextureAtlas {
         for (let x = 0; x < 16; x++) {
           const v = rng() > 0.5 ? 65 : 32;
           px(x, y, varyColor([v, v, v + 4], (rng() - 0.5) * 24));
+        }
+      }
+    });
+
+    // Torch (16x16 sprite: central 2px stick at x=7..8, y=6..15, glowing flame at y=4..7)
+    this.drawTile(TileIndex.Torch, (px, rng) => {
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) {
+          if (x >= 7 && x <= 8 && y >= 6 && y <= 15) {
+            if (y === 6) {
+              // Bright white-yellow ember core
+              px(x, y, [255, 248, 196, 255]);
+            } else if (y === 7) {
+              // Warm orange coal ring
+              px(x, y, [246, 152, 42, 255]);
+            } else if (y === 8) {
+              // Charred neck
+              px(x, y, [78, 56, 36, 255]);
+            } else {
+              // Oak stick
+              const grain = x === 7 ? 12 : -10;
+              const n = (rng() - 0.5) * 10 + grain;
+              px(x, y, [clampByte(152 + n), clampByte(118 + n), clampByte(68 + n), 255]);
+            }
+          } else if ((x === 7 || x === 8) && y === 5) {
+            px(x, y, [255, 214, 74, 255]);
+          } else {
+            px(x, y, [0, 0, 0, 0]);
+          }
+        }
+      }
+    });
+
+    // Cavern Glow Crystal (luminous cyan-gold crystalline facets)
+    this.drawTile(TileIndex.GlowCrystal, (px, rng) => {
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) {
+          const cx = Math.abs(x - 7.5);
+          const cy = Math.abs(y - 7.5);
+          const diamond = cx + cy;
+          const border = x === 0 || x === 15 || y === 0 || y === 15;
+          const facet = ((x * 3 + y * 5) % 7) * 5;
+          const n = (rng() - 0.5) * 16;
+          if (border) {
+            px(x, y, [clampByte(46 + n), clampByte(138 + n), clampByte(168 + n), 255]);
+          } else if (diamond < 4.5) {
+            px(x, y, [clampByte(224 + n), clampByte(252 + n), clampByte(255), 255]);
+          } else if (diamond < 8.5) {
+            px(x, y, [clampByte(105 + facet + n), clampByte(228 + n), clampByte(242 + n), 255]);
+          } else {
+            px(x, y, [clampByte(62 + facet + n), clampByte(176 + n), clampByte(208 + n), 255]);
+          }
         }
       }
     });

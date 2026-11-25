@@ -62,8 +62,8 @@ export function raycastVoxel(
 
   while (dist <= maxDistance) {
     const id = world.getBlock(x, y, z);
-    // Solid blocks are targetable (water is skipped so you can mine/build underwater)
-    if (id !== BlockId.Air && BLOCKS[id].solid) {
+    // Targetable blocks (solid blocks + torches; water & air are skipped)
+    if (id !== BlockId.Air && BLOCKS[id].targetable) {
       return {
         blockX: x,
         blockY: y,

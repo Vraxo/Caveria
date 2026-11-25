@@ -1,8 +1,14 @@
 import * as THREE from 'three';
 import { TextureAtlas } from '../rendering/TextureAtlas';
+import {
+  VoxelLightUniforms,
+  applyVoxelLightingShader,
+  createVoxelLightUniforms,
+} from '../rendering/VoxelMaterial';
 import { BlockId } from './Block';
 import { CHUNK_HEIGHT, CHUNK_SIZE, Chunk } from './Chunk';
 import { buildChunkGeometries } from './ChunkMesher';
+import { initializeChunkLighting, updateLightingAtEdit } from './Lighting';
 import { TerrainGen } from './TerrainGen';
 
 export class World {
@@ -10,6 +16,7 @@ export class World {
   public readonly atlas: TextureAtlas;
   public readonly terrainGen: TerrainGen;
   public readonly renderDistance: number;
+  public readonly lightUniforms: VoxelLightUniforms;
 
   private readonly chunks = new Map<string, Chunk>();
   private readonly opaqueMaterial: THREE.MeshBasicMaterial;
@@ -20,15 +27,15 @@ export class World {
     this.atlas = atlas;
     this.terrainGen = new TerrainGen(seed);
     this.renderDistance = renderDistance;
+    this.lightUniforms = createVoxelLightUniforms();
 
-    // Baked directional shading + vertex AO gives authentic classic Minecraft lighting
-    // with zero shadow-map artifacts and high performance.
     this.opaqueMaterial = new THREE.MeshBasicMaterial({
       map: atlas.texture,
       vertexColors: true,
       alphaTest: 0.5,
       side: THREE.FrontSide,
     });
+    applyVoxelLightingShader(this.opaqueMaterial, this.lightUniforms, 'caveria-voxel-opaque-v1');
 
     this.waterMaterial = new THREE.MeshBasicMaterial({
       map: atlas.texture,
@@ -38,6 +45,7 @@ export class World {
       depthWrite: false,
       side: THREE.DoubleSide,
     });
+    applyVoxelLightingShader(this.waterMaterial, this.lightUniforms, 'caveria-voxel-water-v1');
   }
 
   public get loadedChunkCount(): number {
@@ -69,6 +77,21 @@ export class World {
     return chunk.get(lx, y, lz);
   }
 
+  /** Returns packed byte `(sky << 4) | block` at world coords */
+  public getPackedLight(wx: number, wy: number, wz: number): number {
+    const y = Math.floor(wy);
+    if (y >= CHUNK_HEIGHT) return 0xf0;
+    if (y < 0) return 0x00;
+    const cx = World.worldToChunkCoord(wx);
+    const cz = World.worldToChunkCoord(wz);
+    const chunk = this.chunks.get(Chunk.key(cx, cz));
+    if (!chunk) return 0xf0;
+
+    const lx = World.worldToLocalCoord(wx);
+    const lz = World.worldToLocalCoord(wz);
+    return chunk.light[(y * CHUNK_SIZE + lz) * CHUNK_SIZE + lx];
+  }
+
   public setBlock(wx: number, wy: number, wz: number, id: BlockId): boolean {
     const x = Math.floor(wx);
     const y = Math.floor(wy);
@@ -84,18 +107,22 @@ export class World {
     const lz = World.worldToLocalCoord(z);
     chunk.set(lx, y, lz, id);
 
-    // Mark adjacent chunks dirty if editing on a chunk boundary
-    if (lx === 0) this.markChunkDirty(cx - 1, cz);
-    if (lx === CHUNK_SIZE - 1) this.markChunkDirty(cx + 1, cz);
-    if (lz === 0) this.markChunkDirty(cx, cz - 1);
-    if (lz === CHUNK_SIZE - 1) this.markChunkDirty(cx, cz + 1);
+    // Recompute local skylight & block light around the edited voxel
+    const affectedKeys = updateLightingAtEdit(x, y, z, (qcx, qcz) => this.getChunk(qcx, qcz));
+    affectedKeys.add(Chunk.key(cx, cz));
 
-    // Immediately rebuild edited chunk(s) so player edits have zero frame lag
-    this.rebuildChunkMesh(chunk);
-    if (lx === 0) this.rebuildNeighborIfDirty(cx - 1, cz);
-    if (lx === CHUNK_SIZE - 1) this.rebuildNeighborIfDirty(cx + 1, cz);
-    if (lz === 0) this.rebuildNeighborIfDirty(cx, cz - 1);
-    if (lz === CHUNK_SIZE - 1) this.rebuildNeighborIfDirty(cx, cz + 1);
+    // Immediately rebuild the primary edited chunk + direct neighbors so block placement feels instant,
+    // and mark any farther light-affected chunks dirty for next-frame streaming.
+    for (const key of affectedKeys) {
+      const c = this.chunks.get(key);
+      if (!c) continue;
+      const dist = Math.abs(c.cx - cx) + Math.abs(c.cz - cz);
+      if (dist <= 1) {
+        this.rebuildChunkMesh(c);
+      } else {
+        c.dirty = true;
+      }
+    }
 
     return true;
   }
@@ -105,12 +132,28 @@ export class World {
     const centerCx = World.worldToChunkCoord(spawnX);
     const centerCz = World.worldToChunkCoord(spawnZ);
 
+    // 1. Populate voxel data
     for (let dz = -radius; dz <= radius; dz++) {
       for (let dx = -radius; dx <= radius; dx++) {
-        this.ensureChunkData(centerCx + dx, centerCz + dz);
+        this.ensureChunkData(centerCx + dx, centerCz + dz, false);
       }
     }
 
+    // 2. Initialize lighting across the loaded grid
+    for (let dz = -radius; dz <= radius; dz++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        const c = this.getChunk(centerCx + dx, centerCz + dz);
+        if (c) {
+          initializeChunkLighting(
+            c,
+            (qcx, qcz) => this.getChunk(qcx, qcz),
+            (mcx, mcz) => this.markChunkDirty(mcx, mcz)
+          );
+        }
+      }
+    }
+
+    // 3. Build initial meshes
     for (let dz = -radius; dz <= radius; dz++) {
       for (let dx = -radius; dx <= radius; dx++) {
         const c = this.getChunk(centerCx + dx, centerCz + dz);
@@ -128,7 +171,6 @@ export class World {
     const r = this.renderDistance;
     const unloadDistSq = (r + 2) * (r + 2);
 
-    // Unload distant chunks
     for (const [key, chunk] of this.chunks) {
       const dx = chunk.cx - pCx;
       const dz = chunk.cz - pCz;
@@ -138,7 +180,6 @@ export class World {
       }
     }
 
-    // Gather desired chunk coords sorted nearest-first
     const desired: Array<{ cx: number; cz: number; distSq: number }> = [];
     for (let dz = -r; dz <= r; dz++) {
       for (let dx = -r; dx <= r; dx++) {
@@ -150,18 +191,18 @@ export class World {
     }
     desired.sort((a, b) => a.distSq - b.distSq);
 
-    // Generate up to 2 new chunk data arrays per frame
+    // Generate & light up to 2 new chunks per frame
     let genBudget = 2;
     for (const item of desired) {
       if (genBudget <= 0) break;
       if (!this.chunks.has(Chunk.key(item.cx, item.cz))) {
-        this.ensureChunkData(item.cx, item.cz);
+        this.ensureChunkData(item.cx, item.cz, true);
         genBudget--;
       }
     }
 
-    // Mesh up to 2 dirty chunks per frame
-    let meshBudget = 2;
+    // Mesh up to 3 dirty chunks per frame
+    let meshBudget = 3;
     for (const item of desired) {
       if (meshBudget <= 0) break;
       const chunk = this.chunks.get(Chunk.key(item.cx, item.cz));
@@ -173,7 +214,6 @@ export class World {
   }
 
   public findSpawnPoint(): THREE.Vector3 {
-    // Search near (8, 8) outward for dry land above sea level
     for (let radius = 0; radius <= 64; radius += 4) {
       for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
         const wx = Math.round(8 + Math.cos(angle) * radius);
@@ -188,7 +228,7 @@ export class World {
     return new THREE.Vector3(8.5, Math.max(fallbackY, 46) + 2.5, 8.5);
   }
 
-  private ensureChunkData(cx: number, cz: number): Chunk {
+  private ensureChunkData(cx: number, cz: number, computeLightImmediately: boolean): Chunk {
     const key = Chunk.key(cx, cz);
     let chunk = this.chunks.get(key);
     if (!chunk) {
@@ -196,11 +236,18 @@ export class World {
       this.terrainGen.populateChunk(chunk);
       this.chunks.set(key, chunk);
 
-      // Neighboring chunks now have accurate border culling data
       this.markChunkDirty(cx - 1, cz);
       this.markChunkDirty(cx + 1, cz);
       this.markChunkDirty(cx, cz - 1);
       this.markChunkDirty(cx, cz + 1);
+
+      if (computeLightImmediately) {
+        initializeChunkLighting(
+          chunk,
+          (qcx, qcz) => this.getChunk(qcx, qcz),
+          (mcx, mcz) => this.markChunkDirty(mcx, mcz)
+        );
+      }
     }
     return chunk;
   }
@@ -212,19 +259,13 @@ export class World {
     }
   }
 
-  private rebuildNeighborIfDirty(cx: number, cz: number): void {
-    const neighbor = this.chunks.get(Chunk.key(cx, cz));
-    if (neighbor && neighbor.dirty) {
-      this.rebuildChunkMesh(neighbor);
-    }
-  }
-
   private rebuildChunkMesh(chunk: Chunk): void {
     chunk.disposeMeshes(this.scene);
 
     const { opaque, water } = buildChunkGeometries(
       chunk,
       (wx, wy, wz) => this.getBlock(wx, wy, wz),
+      (wx, wy, wz) => this.getPackedLight(wx, wy, wz),
       this.atlas
     );
 

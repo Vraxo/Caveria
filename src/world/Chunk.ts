@@ -9,15 +9,24 @@ export class Chunk {
   public readonly cx: number;
   public readonly cz: number;
   public readonly data: Uint8Array;
+  /**
+   * Packed light buffer per voxel:
+   * - high nibble `(val >> 4) & 0xF` = skylight (0..15)
+   * - low nibble  `val & 0xF`        = block light (0..15)
+   */
+  public readonly light: Uint8Array;
 
   public dirty = true;
+  public lightDirty = true;
   public opaqueMesh: THREE.Mesh | null = null;
   public waterMesh: THREE.Mesh | null = null;
 
   constructor(cx: number, cz: number) {
     this.cx = cx;
     this.cz = cz;
-    this.data = new Uint8Array(CHUNK_SIZE * CHUNK_HEIGHT * CHUNK_SIZE);
+    const total = CHUNK_SIZE * CHUNK_HEIGHT * CHUNK_SIZE;
+    this.data = new Uint8Array(total);
+    this.light = new Uint8Array(total);
   }
 
   public static key(cx: number, cz: number): string {
@@ -41,6 +50,29 @@ export class Chunk {
     }
     this.data[(y * CHUNK_SIZE + lz) * CHUNK_SIZE + lx] = id;
     this.dirty = true;
+  }
+
+  public getSkyLight(lx: number, y: number, lz: number): number {
+    if (y >= CHUNK_HEIGHT) return 15;
+    if (lx < 0 || lx >= CHUNK_SIZE || lz < 0 || lz >= CHUNK_SIZE || y < 0) return 0;
+    return (this.light[(y * CHUNK_SIZE + lz) * CHUNK_SIZE + lx] >> 4) & 0xf;
+  }
+
+  public setSkyLight(lx: number, y: number, lz: number, level: number): void {
+    if (lx < 0 || lx >= CHUNK_SIZE || lz < 0 || lz >= CHUNK_SIZE || y < 0 || y >= CHUNK_HEIGHT) return;
+    const idx = (y * CHUNK_SIZE + lz) * CHUNK_SIZE + lx;
+    this.light[idx] = ((level & 0xf) << 4) | (this.light[idx] & 0xf);
+  }
+
+  public getBlockLight(lx: number, y: number, lz: number): number {
+    if (lx < 0 || lx >= CHUNK_SIZE || lz < 0 || lz >= CHUNK_SIZE || y < 0 || y >= CHUNK_HEIGHT) return 0;
+    return this.light[(y * CHUNK_SIZE + lz) * CHUNK_SIZE + lx] & 0xf;
+  }
+
+  public setBlockLight(lx: number, y: number, lz: number, level: number): void {
+    if (lx < 0 || lx >= CHUNK_SIZE || lz < 0 || lz >= CHUNK_SIZE || y < 0 || y >= CHUNK_HEIGHT) return;
+    const idx = (y * CHUNK_SIZE + lz) * CHUNK_SIZE + lx;
+    this.light[idx] = (this.light[idx] & 0xf0) | (level & 0xf);
   }
 
   public disposeMeshes(scene: THREE.Scene): void {
