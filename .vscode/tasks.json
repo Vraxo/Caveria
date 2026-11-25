@@ -4,10 +4,21 @@
     {
       "label": "caveria: install",
       "type": "shell",
-      "command": "npm install",
+      "command": "npm install --include=dev",
       "problemMatcher": [],
       "presentation": {
         "reveal": "silent"
+      }
+    },
+    {
+      "label": "caveria: build",
+      "type": "shell",
+      "command": "npm run build",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "dedicated",
+        "clear": true
       }
     },
     {
@@ -15,7 +26,6 @@
       "type": "shell",
       "command": "npm run dev",
       "isBackground": true,
-      "dependsOn": ["caveria: install"],
       "problemMatcher": {
         "owner": "vite",
         "pattern": {
