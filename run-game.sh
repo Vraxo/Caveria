@@ -9,11 +9,11 @@ fi
 
 if [ ! -x "node_modules/.bin/vite" ]; then
   echo "Local Vite installation is missing or incomplete."
-  echo "Installing locked development dependencies..."
-  if [ -f "package-lock.json" ]; then
-    npm ci --include=dev
-  else
-    npm install --include=dev
+  echo "Installing development dependencies without deleting existing modules..."
+  npm install --include=dev --no-audit --no-fund
+  if [ ! -x "node_modules/.bin/vite" ]; then
+    echo "[ERROR] Vite installation is incomplete."
+    exit 1
   fi
 fi
 
