@@ -162,7 +162,12 @@ export class Game {
       input: this.input,
       audio: this.audio,
       inventoryModal: this.inventoryModal,
+      hasSavedWorld: savedGame !== null,
       onAudioChanged: () => this.persistence.save(false),
+      onQuit: () => {
+        this.persistence.save(false);
+        window.close();
+      },
     });
     this.persistence.bind(() => this.createSaveSnapshot());
     this.overlay.updateStatus(this.creativeMode, this.player.flyMode);
