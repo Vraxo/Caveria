@@ -90,6 +90,23 @@
         background: #ef4444;
       }
 
+      #mob-target-label {
+        position: fixed;
+        top: calc(50% + 28px);
+        left: 50%;
+        z-index: 12;
+        transform: translateX(-50%);
+        padding: 4px 9px;
+        border: 1px solid rgba(216, 180, 254, 0.6);
+        background: rgba(35, 20, 48, 0.78);
+        color: #f3d7ff;
+        font-size: 11px;
+        font-weight: 800;
+        text-shadow: 1px 1px #000;
+        pointer-events: none;
+      }
+      #mob-target-label.hidden { display: none; }
+
       /* Underwater screen tint */
       #water-tint {
         position: fixed;
@@ -468,6 +485,7 @@
 
       body.menu-open #crosshair,
       body.menu-open #mining-bar,
+      body.menu-open #mob-target-label,
       body.menu-open #hotbar-wrapper,
       body.menu-open #status-pill,
       body.menu-open #audio-toggle,
@@ -729,6 +747,7 @@
     <div id="water-tint"></div>
     <div id="crosshair"></div>
     <div id="mining-bar" class="hidden"><div id="mining-bar-fill"></div></div>
+    <div id="mob-target-label" class="hidden"></div>
 
     <div id="debug-hud"></div>
     <div id="status-pill">Survival · [E] Inventory · [C] Creative · [F] Fly</div>

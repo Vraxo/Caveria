@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { BlockInteractionController } from '../gameplay/BlockInteractionController';
 import { MovementAudioController } from '../gameplay/MovementAudioController';
+import { CrystalMiteManager } from '../entities/CrystalMiteManager';
 import { Inventory } from '../items/Inventory';
 import { ItemId, createStack } from '../items/Item';
 import { Player } from '../player/Player';
@@ -37,6 +38,7 @@ export class Game {
   private readonly player: Player;
   private readonly particles: BreakParticles;
   private readonly drops: DroppedItemManager;
+  private readonly mobs: CrystalMiteManager;
   private readonly heldItemView: HeldItemView;
   private readonly audio: AudioManager;
   private readonly interactions: BlockInteractionController;
@@ -126,6 +128,14 @@ export class Game {
       if (itemId === ItemId.AmethystShard) this.audio.playCrystalPickup();
       else this.audio.playPickup();
     });
+    this.mobs = new CrystalMiteManager(
+      this.scene,
+      this.world,
+      this.player,
+      this.drops,
+      this.particles,
+      this.audio
+    );
     this.heldItemView = new HeldItemView(this.camera, this.atlas);
 
     this.inventory = new Inventory();
@@ -146,6 +156,7 @@ export class Game {
       drops: this.drops,
       heldItemView: this.heldItemView,
       audio: this.audio,
+      mobs: this.mobs,
       onOpenWorkbench: () => this.openInventoryScreen(3),
     });
     this.inventoryModal = new InventoryModal(
@@ -209,7 +220,7 @@ export class Game {
   }
 
   private openInventoryScreen(gridSize: 2 | 3): void {
-    this.interactions.cancelMining();
+    this.interactions.clearTarget();
     this.overlay.openInventory(gridSize);
   }
 
@@ -300,11 +311,12 @@ export class Game {
         remaining -= step;
       }
       this.movementAudio.updateMovement(dt, wasGrounded, impactVelocity);
+      this.mobs.update(dt);
 
       this.interactions.updateTarget();
       this.interactions.update(dt, this.creativeMode);
     } else {
-      this.interactions.cancelMining();
+      this.interactions.clearTarget();
     }
 
     const horizSpeed = this.player.onGround
@@ -330,6 +342,7 @@ export class Game {
       this.world,
       this.dayNight,
       this.weather,
+      this.mobs,
       this.interactions.currentHit,
       this.seedLabel,
       this.creativeMode

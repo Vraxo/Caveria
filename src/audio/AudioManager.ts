@@ -1,6 +1,7 @@
 import { BlockId } from '../content/BlockId';
 import { AmbientSoundscape, AmbientState } from './AmbientSoundscape';
 import { BlockSoundEffects } from './BlockSoundEffects';
+import { CreatureSoundEffects } from './CreatureSoundEffects';
 import { MovementSoundEffects } from './MovementSoundEffects';
 import { SynthPrimitives } from './SynthPrimitives';
 import { UiSoundEffects } from './UiSoundEffects';
@@ -12,6 +13,7 @@ export class AudioManager {
   private readonly synth = new SynthPrimitives(this.engine);
   private readonly blocks = new BlockSoundEffects(this.engine, this.synth);
   private readonly movement = new MovementSoundEffects(this.engine, this.synth);
+  private readonly creatures = new CreatureSoundEffects(this.synth);
   private readonly ui = new UiSoundEffects(this.synth);
   private readonly ambience = new AmbientSoundscape(this.engine, this.synth);
 
@@ -32,6 +34,9 @@ export class AudioManager {
   public playJump(): void { this.movement.playJump(); }
   public playLand(hard: boolean): void { this.movement.playLand(hard); }
   public playSplash(): void { this.movement.playSplash(); }
+  public playCrystalMiteChirp(): void { this.creatures.playCrystalMiteChirp(); }
+  public playCrystalMiteHit(): void { this.creatures.playCrystalMiteHit(); }
+  public playCrystalMiteDeath(): void { this.creatures.playCrystalMiteDeath(); }
 
   public playPickup(): void { this.ui.playPickup(); }
   public playCrystalPickup(): void { this.ui.playCrystalPickup(); }
