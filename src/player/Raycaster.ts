@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { BLOCKS, BlockId } from '../world/Block';
+import { BlockId } from '../content/BlockId';
+import { BLOCKS } from '../content/BlockRegistry';
 import { World } from '../world/World';
 
 export interface VoxelHit {

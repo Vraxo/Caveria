@@ -1,4 +1,4 @@
-import { TileIndex } from '../../world/Block';
+import { TileIndex } from '../../content/TileIndex';
 import { TilePainter } from './PixelArt';
 
 export type TileDrawer = (tile: TileIndex, painter: TilePainter) => void;

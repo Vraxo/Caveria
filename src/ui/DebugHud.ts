@@ -1,7 +1,7 @@
 import { Player } from '../player/Player';
 import { VoxelHit } from '../player/Raycaster';
 import { DayNightCycle } from '../rendering/DayNightCycle';
-import { BLOCKS } from '../world/Block';
+import { BLOCKS } from '../content/BlockRegistry';
 import { World } from '../world/World';
 
 export class DebugHud {

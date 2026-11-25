@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { VoxelHit } from '../player/Raycaster';
-import { BLOCKS } from '../world/Block';
+import { BLOCKS } from '../content/BlockRegistry';
 
 export class BlockHighlight {
   public readonly mesh: THREE.LineSegments;

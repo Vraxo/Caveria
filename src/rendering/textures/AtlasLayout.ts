@@ -1,4 +1,4 @@
-import { TileIndex } from '../../world/Block';
+import { TileIndex } from '../../content/TileIndex';
 
 export const TILE_SIZE = 16;
 export const ATLAS_COLS = 6;

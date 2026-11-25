@@ -1,6 +1,6 @@
 import { ItemStack, ITEMS } from '../items/Item';
 import { TOTAL_INVENTORY_SLOTS } from '../items/Inventory';
-import { BlockId } from '../world/Block';
+import { BlockId } from '../content/BlockId';
 import { CHUNK_HEIGHT } from '../world/Chunk';
 
 export const SAVE_VERSION = 1;

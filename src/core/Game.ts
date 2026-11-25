@@ -16,7 +16,7 @@ import { DebugHud } from '../ui/DebugHud';
 import { GameOverlayController } from '../ui/GameOverlayController';
 import { Hotbar } from '../ui/Hotbar';
 import { InventoryModal } from '../ui/InventoryModal';
-import { HOTBAR_BLOCKS } from '../world/Block';
+import { HOTBAR_BLOCKS } from '../gameplay/CreativePalette';
 import { CHUNK_SIZE } from '../world/Chunk';
 import { hashString } from '../world/Noise';
 import { World } from '../world/World';

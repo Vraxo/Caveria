@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { Inventory } from '../items/Inventory';
 import { ITEMS, ItemId, ItemStack } from '../items/Item';
-import { BLOCKS, BlockId, isBlockSolid } from '../world/Block';
+import { BlockId } from '../content/BlockId';
+import { isBlockSolid } from '../content/BlockQueries';
+import { BLOCKS } from '../content/BlockRegistry';
 import { World } from '../world/World';
 import { TextureAtlas } from './TextureAtlas';
 

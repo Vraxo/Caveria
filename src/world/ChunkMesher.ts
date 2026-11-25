@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { TextureAtlas } from '../rendering/TextureAtlas';
-import { BLOCKS, BlockId, TileIndex, isBlockOpaque } from './Block';
+import { BlockId } from '../content/BlockId';
+import { isBlockOpaque } from '../content/BlockQueries';
+import { BLOCKS } from '../content/BlockRegistry';
+import { TileIndex } from '../content/TileIndex';
 import { CHUNK_HEIGHT, CHUNK_SIZE, Chunk } from './Chunk';
 
 interface FaceSpec {

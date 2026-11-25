@@ -1,4 +1,4 @@
-import { BLOCKS } from './Block';
+import { BLOCKS } from '../content/BlockRegistry';
 import { CHUNK_HEIGHT, CHUNK_SIZE, Chunk } from './Chunk';
 
 const DIRS: ReadonlyArray<[number, number, number]> = [

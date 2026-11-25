@@ -1,4 +1,4 @@
-import { TileIndex } from '../../world/Block';
+import { TileIndex } from '../../content/TileIndex';
 import { clampByte, varyColor } from './PixelArt';
 import { TileDrawer } from './TexturePainter';
 

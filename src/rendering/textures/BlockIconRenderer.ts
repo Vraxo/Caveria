@@ -1,5 +1,7 @@
+import { BlockId } from '../../content/BlockId';
+import { BLOCKS } from '../../content/BlockRegistry';
+import { TileIndex } from '../../content/TileIndex';
 import { ITEMS, ItemId } from '../../items/Item';
-import { BLOCKS, BlockId, TileIndex } from '../../world/Block';
 import { createCanvas2D } from './PixelArt';
 import { ItemSpriteGenerator } from './ItemSpriteGenerator';
 

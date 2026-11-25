@@ -1,4 +1,4 @@
-import { BlockId } from '../world/Block';
+import { BlockId } from '../content/BlockId';
 
 /**
  * Procedural Retro Audio Engine for Caveria.

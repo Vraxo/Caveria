@@ -1,4 +1,4 @@
-import { BlockId } from './Block';
+import { BlockId } from '../content/BlockId';
 import { CHUNK_HEIGHT, CHUNK_SIZE, Chunk, SEA_LEVEL } from './Chunk';
 import { SeededNoise } from './Noise';
 

@@ -1,4 +1,6 @@
-import { BLOCKS, BlockId, ToolCategory } from '../world/Block';
+import { BlockId } from '../content/BlockId';
+import { BLOCKS } from '../content/BlockRegistry';
+import { ToolCategory } from '../gameplay/MiningTypes';
 
 /**
  * ItemId covers placeable blocks (matching BlockId 1..16) + non-block materials & tools (100+).

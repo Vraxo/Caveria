@@ -1,0 +1,91 @@
+import { BlockId } from './BlockId';
+import { allFaces, columnFaces, defineBlock } from './BlockDefinitionHelpers';
+import { BlockCatalog } from './BlockTypes';
+import { TileIndex } from './TileIndex';
+
+export const BASE_BLOCKS: BlockCatalog = {
+  [BlockId.Air]: defineBlock(BlockId.Air, {
+    name: 'Air',
+    hardness: 0,
+    faces: allFaces(TileIndex.Dirt),
+    solid: false,
+    targetable: false,
+    transparent: true,
+    breakable: false,
+    lightOpacity: 0,
+  }),
+  [BlockId.Grass]: defineBlock(BlockId.Grass, {
+    name: 'Grass Block',
+    hardness: 0.75,
+    faces: columnFaces(TileIndex.GrassSide, TileIndex.GrassTop, TileIndex.Dirt),
+    preferredTool: 'shovel',
+  }),
+  [BlockId.Dirt]: defineBlock(BlockId.Dirt, {
+    name: 'Dirt', hardness: 0.65, faces: allFaces(TileIndex.Dirt), preferredTool: 'shovel',
+  }),
+  [BlockId.Stone]: defineBlock(BlockId.Stone, {
+    name: 'Stone', hardness: 1.8, faces: allFaces(TileIndex.Stone), preferredTool: 'pickaxe', minToolTier: 1,
+  }),
+  [BlockId.Cobblestone]: defineBlock(BlockId.Cobblestone, {
+    name: 'Cobblestone', hardness: 2, faces: allFaces(TileIndex.Cobblestone), preferredTool: 'pickaxe', minToolTier: 1,
+  }),
+  [BlockId.Sand]: defineBlock(BlockId.Sand, {
+    name: 'Sand', hardness: 0.6, faces: allFaces(TileIndex.Sand), preferredTool: 'shovel',
+  }),
+  [BlockId.OakLog]: defineBlock(BlockId.OakLog, {
+    name: 'Oak Log', hardness: 1.6, faces: columnFaces(TileIndex.OakLogSide, TileIndex.OakLogTop), preferredTool: 'axe',
+  }),
+  [BlockId.OakLeaves]: defineBlock(BlockId.OakLeaves, {
+    name: 'Oak Leaves', hardness: 0.25, faces: allFaces(TileIndex.OakLeaves), transparent: true, lightOpacity: 1,
+  }),
+  [BlockId.OakPlanks]: defineBlock(BlockId.OakPlanks, {
+    name: 'Oak Planks', hardness: 1.5, faces: allFaces(TileIndex.OakPlanks), preferredTool: 'axe',
+  }),
+  [BlockId.CoalOre]: defineBlock(BlockId.CoalOre, {
+    name: 'Coal Ore', hardness: 2.4, faces: allFaces(TileIndex.CoalOre), preferredTool: 'pickaxe', minToolTier: 1,
+  }),
+  [BlockId.GoldOre]: defineBlock(BlockId.GoldOre, {
+    name: 'Gold Ore', hardness: 3, faces: allFaces(TileIndex.GoldOre), preferredTool: 'pickaxe', minToolTier: 2,
+  }),
+  [BlockId.Glass]: defineBlock(BlockId.Glass, {
+    name: 'Glass', hardness: 0.4, faces: allFaces(TileIndex.Glass), transparent: true, lightOpacity: 0,
+  }),
+  [BlockId.Water]: defineBlock(BlockId.Water, {
+    name: 'Water',
+    hardness: 0,
+    faces: allFaces(TileIndex.Water),
+    solid: false,
+    targetable: false,
+    transparent: true,
+    liquid: true,
+    breakable: false,
+    lightOpacity: 2,
+  }),
+  [BlockId.Bedrock]: defineBlock(BlockId.Bedrock, {
+    name: 'Bedrock', hardness: Infinity, faces: allFaces(TileIndex.Bedrock), breakable: false, minToolTier: 99,
+  }),
+  [BlockId.Torch]: defineBlock(BlockId.Torch, {
+    name: 'Torch',
+    hardness: 0.05,
+    faces: allFaces(TileIndex.Torch),
+    solid: false,
+    transparent: true,
+    lightEmission: 14,
+    lightOpacity: 0,
+    shape: 'torch',
+  }),
+  [BlockId.GlowCrystal]: defineBlock(BlockId.GlowCrystal, {
+    name: 'Azure Crystal',
+    hardness: 1.4,
+    faces: allFaces(TileIndex.GlowCrystal),
+    preferredTool: 'pickaxe',
+    minToolTier: 1,
+    lightEmission: 15,
+  }),
+  [BlockId.CraftingTable]: defineBlock(BlockId.CraftingTable, {
+    name: 'Crafting Table',
+    hardness: 1.6,
+    faces: columnFaces(TileIndex.CraftingTableSide, TileIndex.CraftingTableTop, TileIndex.OakPlanks),
+    preferredTool: 'axe',
+  }),
+};

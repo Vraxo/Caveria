@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ItemId } from '../items/Item';
-import { BlockId, TileIndex } from '../world/Block';
+import { BlockId } from '../content/BlockId';
+import { TileIndex } from '../content/TileIndex';
 import {
   ATLAS_PIXEL_HEIGHT,
   ATLAS_PIXEL_WIDTH,
