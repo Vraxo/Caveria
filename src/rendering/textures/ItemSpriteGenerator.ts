@@ -81,6 +81,18 @@ export class ItemSpriteGenerator {
       }
     };
 
+    const drawSword = (tier: 'wood' | 'stone' | 'crystal') => {
+      const p = tierPalette(tier);
+      for (let i = 3; i <= 12; i++) {
+        px(i, 14 - i, i < 5 ? [120, 82, 44, 255] : p.main);
+        if (i > 5) px(i + 1, 14 - i, p.hi);
+      }
+      for (let i = 0; i < 5; i++) px(3 + i, 11 - i, p.edge);
+      px(2, 12, [104, 70, 38, 255]);
+      px(3, 13, [146, 102, 54, 255]);
+      px(4, 12, [146, 102, 54, 255]);
+    };
+
     const drawShovelHead = (tier: 'wood' | 'stone') => {
       const p = tierPalette(tier);
       drawDiagonalHandle();
@@ -125,6 +137,16 @@ export class ItemSpriteGenerator {
           }
         }
         break;
+      case ItemId.CaveChitin:
+        for (let y = 4; y <= 12; y++) {
+          for (let x = 3; x <= 12; x++) {
+            const edge = Math.abs(x - 7.5) + Math.abs(y - 8) * 0.8;
+            if (edge < 5.2) px(x, y, edge > 4 ? [62, 38, 32, 255] : [124, 66, 48, 255]);
+          }
+        }
+        px(5, 5, [224, 94, 58, 255]);
+        px(10, 5, [224, 94, 58, 255]);
+        break;
       case ItemId.AmethystShard:
         for (let y = 2; y <= 13; y++) {
           for (let x = 4; x <= 11; x++) {
@@ -146,6 +168,9 @@ export class ItemSpriteGenerator {
       case ItemId.WoodenShovel:
         drawShovelHead('wood');
         break;
+      case ItemId.WoodenSword:
+        drawSword('wood');
+        break;
       case ItemId.StonePickaxe:
         drawPickaxeHead('stone');
         break;
@@ -155,8 +180,14 @@ export class ItemSpriteGenerator {
       case ItemId.StoneShovel:
         drawShovelHead('stone');
         break;
+      case ItemId.StoneSword:
+        drawSword('stone');
+        break;
       case ItemId.CrystalPickaxe:
         drawPickaxeHead('crystal');
+        break;
+      case ItemId.CrystalSword:
+        drawSword('crystal');
         break;
       default:
         break;

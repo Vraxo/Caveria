@@ -39,19 +39,23 @@ export enum ItemId {
   Coal = 101,
   CrystalShard = 102,
   AmethystShard = 103,
+  CaveChitin = 104,
 
   // Wooden Tools (tier 1)
   WoodenPickaxe = 110,
   WoodenAxe = 111,
   WoodenShovel = 112,
+  WoodenSword = 113,
 
   // Stone Tools (tier 2)
   StonePickaxe = 120,
   StoneAxe = 121,
   StoneShovel = 122,
+  StoneSword = 123,
 
   // Crystal Tools (tier 3 — Caveria signature!)
   CrystalPickaxe = 130,
+  CrystalSword = 131,
 }
 
 export interface ItemDefinition {
@@ -65,6 +69,8 @@ export interface ItemDefinition {
   toolTier: number;
   /** Mining speed multiplier when matching a block's preferredTool */
   miningSpeed: number;
+  /** Melee damage dealt to mobs; empty hands deal 1. */
+  attackDamage?: number;
   maxDurability?: number;
 }
 
@@ -150,6 +156,15 @@ export const ITEMS: Record<number, ItemDefinition> = {
     toolTier: 0,
     miningSpeed: 1.0,
   },
+  [ItemId.CaveChitin]: {
+    id: ItemId.CaveChitin,
+    name: 'Cave Chitin',
+    maxStack: 64,
+    placeBlockId: null,
+    toolCategory: 'none',
+    toolTier: 0,
+    miningSpeed: 1.0,
+  },
 
   // Wooden Tools
   [ItemId.WoodenPickaxe]: {
@@ -180,6 +195,17 @@ export const ITEMS: Record<number, ItemDefinition> = {
     toolCategory: 'shovel',
     toolTier: 1,
     miningSpeed: 2.4,
+    maxDurability: 60,
+  },
+  [ItemId.WoodenSword]: {
+    id: ItemId.WoodenSword,
+    name: 'Wooden Sword',
+    maxStack: 1,
+    placeBlockId: null,
+    toolCategory: 'none',
+    toolTier: 1,
+    miningSpeed: 1,
+    attackDamage: 4,
     maxDurability: 60,
   },
 
@@ -214,6 +240,17 @@ export const ITEMS: Record<number, ItemDefinition> = {
     miningSpeed: 4.2,
     maxDurability: 132,
   },
+  [ItemId.StoneSword]: {
+    id: ItemId.StoneSword,
+    name: 'Stone Sword',
+    maxStack: 1,
+    placeBlockId: null,
+    toolCategory: 'none',
+    toolTier: 2,
+    miningSpeed: 1,
+    attackDamage: 6,
+    maxDurability: 132,
+  },
 
   // Crystal Pickaxe
   [ItemId.CrystalPickaxe]: {
@@ -226,7 +263,22 @@ export const ITEMS: Record<number, ItemDefinition> = {
     miningSpeed: 7.5,
     maxDurability: 320,
   },
+  [ItemId.CrystalSword]: {
+    id: ItemId.CrystalSword,
+    name: 'Crystal Sword',
+    maxStack: 1,
+    placeBlockId: null,
+    toolCategory: 'none',
+    toolTier: 3,
+    miningSpeed: 1,
+    attackDamage: 8,
+    maxDurability: 320,
+  },
 };
+
+export function getAttackDamage(stack: ItemStack | null): number {
+  return stack ? (ITEMS[stack.id].attackDamage ?? 1) : 1;
+}
 
 export function createStack(id: ItemId, count = 1): ItemStack {
   const def = ITEMS[id];

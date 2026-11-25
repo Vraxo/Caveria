@@ -2,10 +2,11 @@ import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { BlockInteractionController } from '../gameplay/BlockInteractionController';
 import { MovementAudioController } from '../gameplay/MovementAudioController';
-import { CrystalMiteManager } from '../entities/CrystalMiteManager';
+import { MobManager } from '../entities/MobManager';
 import { Inventory } from '../items/Inventory';
 import { ItemId, createStack } from '../items/Item';
 import { Player } from '../player/Player';
+import { PlayerVitals } from '../player/PlayerVitals';
 import { GamePersistenceController, GameSaveSnapshot } from '../persistence/GamePersistenceController';
 import { WorldPersistence } from '../persistence/WorldPersistence';
 import { AtmosphereController } from '../rendering/AtmosphereController';
@@ -36,9 +37,10 @@ export class Game {
   private readonly world: World;
   private readonly dayNight: DayNightCycle;
   private readonly player: Player;
+  private readonly vitals: PlayerVitals;
   private readonly particles: BreakParticles;
   private readonly drops: DroppedItemManager;
-  private readonly mobs: CrystalMiteManager;
+  private readonly mobs: MobManager;
   private readonly heldItemView: HeldItemView;
   private readonly audio: AudioManager;
   private readonly interactions: BlockInteractionController;
@@ -128,10 +130,33 @@ export class Game {
       if (itemId === ItemId.AmethystShard) this.audio.playCrystalPickup();
       else this.audio.playPickup();
     });
-    this.mobs = new CrystalMiteManager(
+    this.vitals = new PlayerVitals(
+      () => {
+        this.interactions.clearTarget();
+        this.overlay.setDeathScreenActive(true);
+        this.input.exitPointerLock();
+      },
+      () => {
+        const respawn = this.world.findSpawnPoint();
+        this.world.generateInitialArea(respawn.x, respawn.z, 2);
+        this.player.restoreTransform(respawn, 0, 0);
+        this.overlay.setDeathScreenActive(false);
+        this.input.requestPointerLock();
+      },
+      () => {
+        const respawn = this.world.findSpawnPoint();
+        this.player.restoreTransform(respawn, 0, 0);
+        this.persistence.save(false);
+        this.overlay.setDeathScreenActive(false);
+        this.overlay.returnToTitle();
+      }
+    );
+    this.vitals.restore(savedGame?.player.health);
+    this.mobs = new MobManager(
       this.scene,
       this.world,
       this.player,
+      this.vitals,
       this.drops,
       this.particles,
       this.audio
@@ -311,10 +336,16 @@ export class Game {
         remaining -= step;
       }
       this.movementAudio.updateMovement(dt, wasGrounded, impactVelocity);
+      if (!wasGrounded && this.player.onGround) this.vitals.applyFallDamage(impactVelocity);
+      this.vitals.update(dt, this.player.isHeadUnderwater(this.world), this.creativeMode);
       this.mobs.update(dt);
 
-      this.interactions.updateTarget();
-      this.interactions.update(dt, this.creativeMode);
+      if (this.vitals.dead) {
+        this.interactions.clearTarget();
+      } else {
+        this.interactions.updateTarget();
+        this.interactions.update(dt, this.creativeMode);
+      }
     } else {
       this.interactions.clearTarget();
     }
@@ -372,6 +403,7 @@ export class Game {
         yaw: this.player.yaw,
         pitch: this.player.pitch,
         flyMode: this.player.flyMode,
+        health: this.vitals.health,
       },
       inventory: this.inventory.snapshot(),
       selectedHotbar: this.hotbar.selectedIndex,

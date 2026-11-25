@@ -140,6 +140,44 @@
         display: none;
       }
 
+      #vitals-hud {
+        position: fixed;
+        left: 50%;
+        bottom: 82px;
+        z-index: 13;
+        transform: translateX(-50%);
+        display: grid;
+        justify-items: center;
+        gap: 3px;
+        pointer-events: none;
+      }
+      #health-hearts { display: flex; gap: 2px; }
+      .heart {
+        width: 18px;
+        color: #ef3340;
+        font: 18px/1 sans-serif;
+        text-shadow: 1px 1px 0 #400, -1px -1px 0 #200;
+      }
+      .heart.empty { color: #351b22; }
+      .heart.half {
+        background: linear-gradient(90deg, #ef3340 50%, #351b22 50%);
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+      }
+      #air-meter { color: #7dd3fc; font-size: 13px; letter-spacing: 2px; text-shadow: 1px 1px #083344; }
+      #air-meter.hidden { display: none; }
+      #damage-flash {
+        position: fixed;
+        inset: 0;
+        z-index: 24;
+        background: rgba(190, 20, 35, 0.3);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.08s ease-out;
+      }
+      #damage-flash.active { opacity: 1; }
+
       /* Mode pill top-right */
       #status-pill {
         position: fixed;
@@ -458,6 +496,28 @@
         display: none;
       }
 
+      #death-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 45;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        background: rgba(78, 8, 12, 0.72);
+        backdrop-filter: grayscale(0.75) blur(2px);
+      }
+      #death-screen.hidden { display: none; }
+      .death-title {
+        margin-bottom: 4px;
+        color: #fff;
+        font: 800 clamp(42px, 8vw, 70px)/1 ui-monospace, monospace;
+        text-shadow: 4px 4px #260000;
+      }
+      #death-message { margin-bottom: 18px; color: #e5e7eb; text-shadow: 2px 2px #000; }
+      #death-screen .voxel-button { width: min(360px, calc(100% - 40px)); }
+
       /* Voxel title and pause menus, inspired by classic sandbox menu structure. */
       #overlay {
         position: fixed;
@@ -486,6 +546,7 @@
       body.menu-open #crosshair,
       body.menu-open #mining-bar,
       body.menu-open #mob-target-label,
+      body.menu-open #vitals-hud,
       body.menu-open #hotbar-wrapper,
       body.menu-open #status-pill,
       body.menu-open #audio-toggle,
@@ -750,6 +811,11 @@
     <div id="mob-target-label" class="hidden"></div>
 
     <div id="debug-hud"></div>
+    <div id="vitals-hud">
+      <div id="health-hearts" aria-label="Player health"></div>
+      <div id="air-meter" class="hidden" aria-label="Remaining air"></div>
+    </div>
+    <div id="damage-flash"></div>
     <div id="status-pill">Survival · [E] Inventory · [C] Creative · [F] Fly</div>
     <button id="audio-toggle" type="button" title="Toggle procedural audio">🔊 Sound On [M]</button>
     <div id="save-status" aria-live="polite"></div>
@@ -788,6 +854,13 @@
     </div>
 
     <div id="cursor-item" class="hidden"></div>
+
+    <div id="death-screen" class="hidden">
+      <div class="death-title">You Died</div>
+      <div id="death-message">The caves claimed another explorer.</div>
+      <button id="respawn-button" class="voxel-button" type="button">Respawn</button>
+      <button id="death-title-button" class="voxel-button" type="button">Title Screen</button>
+    </div>
 
     <!-- Title, pause, options, and controls menus -->
     <div id="overlay" class="mode-title">

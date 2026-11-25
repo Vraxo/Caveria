@@ -1,9 +1,9 @@
 import type * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { Input } from '../core/Input';
-import { CrystalMiteHit, CrystalMiteManager } from '../entities/CrystalMiteManager';
+import { MobHit, MobManager } from '../entities/MobManager';
 import { Inventory } from '../items/Inventory';
-import { ITEMS, ItemStack, createStack, getBlockDrop, getMiningStats } from '../items/Item';
+import { ITEMS, ItemStack, createStack, getAttackDamage, getBlockDrop, getMiningStats } from '../items/Item';
 import { Player } from '../player/Player';
 import { VoxelHit, raycastVoxel } from '../player/Raycaster';
 import { BreakParticles } from '../rendering/BreakParticles';
@@ -28,7 +28,7 @@ interface BlockInteractionDependencies {
   drops: DroppedItemManager;
   heldItemView: HeldItemView;
   audio: AudioManager;
-  mobs: CrystalMiteManager;
+  mobs: MobManager;
   onOpenWorkbench: () => void;
 }
 
@@ -46,7 +46,7 @@ export class BlockInteractionController {
   private readonly drops: DroppedItemManager;
   private readonly heldItemView: HeldItemView;
   private readonly audio: AudioManager;
-  private readonly mobs: CrystalMiteManager;
+  private readonly mobs: MobManager;
   private readonly onOpenWorkbench: () => void;
   private readonly highlight: BlockHighlight;
   private readonly miningOverlay: MiningOverlay;
@@ -55,7 +55,7 @@ export class BlockInteractionController {
   private readonly mobTargetEl: HTMLElement;
 
   private hit: VoxelHit | null = null;
-  private mobTarget: CrystalMiteHit | null = null;
+  private mobTarget: MobHit | null = null;
   private miningTargetKey = '';
   private miningElapsed = 0;
   private miningCooldown = 0;
@@ -96,7 +96,7 @@ export class BlockInteractionController {
     this.mobTargetEl.classList.toggle('hidden', !this.mobTarget);
     if (this.mobTarget) {
       this.mobTargetEl.textContent =
-        `Crystal Mite  ${'♥'.repeat(this.mobTarget.health)}${'♡'.repeat(this.mobTarget.maxHealth - this.mobTarget.health)}`;
+        `${this.mobTarget.name}  ${'♥'.repeat(this.mobTarget.health)}${'♡'.repeat(this.mobTarget.maxHealth - this.mobTarget.health)}`;
     }
   }
 
@@ -109,8 +109,12 @@ export class BlockInteractionController {
       this.cancelMining();
       if (this.input.consumeMousePress(0) && this.miningCooldown <= 0) {
         this.heldItemView.triggerSwing();
-        if (this.mobs.damage(this.mobTarget.id, this.player.getForwardDirection())) {
-          this.miningCooldown = 0.3;
+        const held = this.hotbar.selectedStack;
+        if (this.mobs.damage(this.mobTarget, getAttackDamage(held), this.player.getForwardDirection())) {
+          this.miningCooldown = 0.42;
+          if (held && ITEMS[held.id].maxDurability !== undefined) {
+            if (this.inventory.damageTool(this.hotbar.selectedIndex)) this.audio.playToolBreak();
+          }
         }
       }
       return;
