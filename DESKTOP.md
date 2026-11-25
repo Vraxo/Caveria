@@ -26,13 +26,17 @@ Use the Run and Debug dropdown if you want to select the optional Chrome or Edge
 
 ## Build a Windows installer
 
-On Windows, run:
+On Windows, double-click `build-installer.cmd`. It builds the production game, creates the NSIS installer, and selects the finished file in Explorer.
+
+The equivalent command is:
 
 ```bash
 npm run desktop:build
 ```
 
 The generated NSIS installer is written to `release/Caveria-Setup-<version>.exe`. The first packaging run may download Electron packaging tools. Because the installer is not code-signed, Windows SmartScreen may show an unrecognized-publisher warning.
+
+This packages a distributable installer but does not upload it to GitHub, a website, or an app store. Code signing and release upload are separate publishing steps.
 
 ## Save data
 
