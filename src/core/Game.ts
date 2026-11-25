@@ -1,7 +1,9 @@
 import * as THREE from 'three';
+import { AudioManager } from '../audio/AudioManager';
 import { Inventory } from '../items/Inventory';
 import {
   ITEMS,
+  ItemId,
   ItemStack,
   createStack,
   getBlockDrop,
@@ -42,6 +44,7 @@ export class Game {
   private readonly particles: BreakParticles;
   private readonly drops: DroppedItemManager;
   private readonly heldItemView: HeldItemView;
+  private readonly audio: AudioManager;
 
   private readonly inventory: Inventory;
   private readonly hotbar: Hotbar;
@@ -53,9 +56,12 @@ export class Game {
   private readonly waterTintEl: HTMLElement;
   private readonly miningBarEl: HTMLElement;
   private readonly miningBarFillEl: HTMLElement;
+  private readonly audioToggleEl: HTMLButtonElement;
   private readonly seedLabel: string;
 
   private lastTime = performance.now();
+  private footstepDistance = 0;
+  private wasInWater = false;
   private currentHit: VoxelHit | null = null;
   private creativeMode = false;
 
@@ -103,10 +109,14 @@ export class Game {
     this.world.generateInitialArea(spawnPos.x, spawnPos.z, 3);
 
     this.player = new Player(this.camera, spawnPos);
+    this.audio = new AudioManager();
     this.highlight = new BlockHighlight(this.scene);
     this.miningOverlay = new MiningOverlay(this.scene);
     this.particles = new BreakParticles(this.scene);
-    this.drops = new DroppedItemManager(this.scene, this.atlas);
+    this.drops = new DroppedItemManager(this.scene, this.atlas, (itemId) => {
+      if (itemId === ItemId.AmethystShard) this.audio.playCrystalPickup();
+      else this.audio.playPickup();
+    });
     this.heldItemView = new HeldItemView(this.camera, this.atlas);
 
     this.inventory = new Inventory();
@@ -124,9 +134,11 @@ export class Game {
     this.waterTintEl = document.getElementById('water-tint')!;
     this.miningBarEl = document.getElementById('mining-bar')!;
     this.miningBarFillEl = document.getElementById('mining-bar-fill')!;
+    this.audioToggleEl = document.getElementById('audio-toggle') as HTMLButtonElement;
 
     this.setupOverlayAndEvents();
     this.updateStatusPill();
+    this.updateAudioToggle();
   }
 
   public start(): void {
@@ -137,6 +149,8 @@ export class Game {
   private setupOverlayAndEvents(): void {
     const playButton = document.getElementById('play-button')!;
     const requestPlay = () => {
+      this.audio.unlock();
+      this.audio.playUiClick();
       if (this.inventoryModal.isOpen) {
         this.inventoryModal.close();
       }
@@ -148,6 +162,20 @@ export class Game {
       requestPlay();
     });
     this.overlayEl.addEventListener('click', requestPlay);
+
+    this.audioToggleEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.audio.unlock();
+      this.audio.toggleMute();
+      this.updateAudioToggle();
+    });
+
+    // Modal interactions get tiny tactile ticks; crafting output gets a brighter chord.
+    document.getElementById('inventory-modal')!.addEventListener('pointerdown', (e) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('#craft-output-slot')) this.audio.playCraft();
+      else if (target.closest('button, .inv-slot')) this.audio.playUiClick();
+    });
 
     this.input.onPointerLockChange((locked) => {
       if (locked) {
@@ -168,12 +196,14 @@ export class Game {
 
   private openInventoryScreen(gridSize: 2 | 3): void {
     this.resetMiningState();
+    this.audio.playInventoryOpen();
     this.inventoryModal.open(gridSize);
     this.overlayEl.classList.add('hidden');
     this.input.exitPointerLock();
   }
 
   private closeInventoryAndResume(): void {
+    this.audio.playInventoryClose();
     this.inventoryModal.close();
     this.input.requestPointerLock();
   }
@@ -191,6 +221,12 @@ export class Game {
   }
 
   private update(dt: number): void {
+    if (this.input.consumeKeyPress('KeyM')) {
+      this.audio.unlock();
+      this.audio.toggleMute();
+      this.updateAudioToggle();
+    }
+
     if (this.input.consumeKeyPress('F3')) {
       this.debugHud.toggle();
     }
@@ -208,6 +244,7 @@ export class Game {
       if (this.input.consumeKeyPress('KeyF')) {
         this.player.flyMode = !this.player.flyMode;
         this.player.velocity.y = 0;
+        this.audio.playModeToggle();
         this.updateStatusPill();
       }
 
@@ -232,8 +269,14 @@ export class Game {
       }
 
       this.player.updateLook(this.input);
+      const previousHotbarIndex = this.hotbar.selectedIndex;
       this.hotbar.update(this.input);
+      if (this.hotbar.selectedIndex !== previousHotbarIndex) {
+        this.audio.playHotbarSelect();
+      }
 
+      const wasGrounded = this.player.onGround;
+      const impactVelocity = this.player.velocity.y;
       const maxStep = 1 / 90;
       let remaining = dt;
       while (remaining > 0) {
@@ -241,6 +284,7 @@ export class Game {
         this.player.updatePhysics(step, this.input, this.world);
         remaining -= step;
       }
+      this.updateMovementAudio(dt, wasGrounded, impactVelocity);
 
       this.currentHit = raycastVoxel(
         this.world,
@@ -269,6 +313,15 @@ export class Game {
 
     this.drops.update(dt, this.world, this.player.position, this.inventory);
     this.dayNight.update(dt, this.player.position);
+    const surfaceY = this.world.terrainGen.getSurfaceHeight(
+      Math.floor(this.player.position.x),
+      Math.floor(this.player.position.z)
+    );
+    this.audio.updateAmbient(dt, {
+      underground: this.player.position.y < surfaceY - 5,
+      underwater: this.player.isHeadUnderwater(this.world),
+      skyBrightness: this.dayNight.skyBrightness,
+    });
     this.syncShaderLightUniforms();
     this.world.updateStreaming(this.player.position.x, this.player.position.z);
     this.particles.update(dt);
@@ -286,6 +339,7 @@ export class Game {
 
   private toggleCreativeMode(): void {
     this.creativeMode = !this.creativeMode;
+    this.audio.playModeToggle();
     if (this.creativeMode) {
       // Populate empty hotbar slots with the full creative building palette if empty
       for (let i = 0; i < HOTBAR_BLOCKS.length; i++) {
@@ -306,6 +360,7 @@ export class Game {
     if (this.input.isMouseDown(0)) {
       if (this.input.consumeMousePress(0)) {
         this.heldItemView.triggerSwing();
+        if (this.currentHit) this.audio.playMineHit(this.currentHit.blockId);
       }
 
       if (this.currentHit && BLOCKS[this.currentHit.blockId].breakable) {
@@ -328,6 +383,7 @@ export class Game {
           );
 
           this.miningElapsed += dt;
+          this.audio.playMineHit(this.currentHit.blockId);
           const progress = Math.min(1, this.miningElapsed / durationSeconds);
 
           this.miningOverlay.update(this.currentHit, progress);
@@ -338,7 +394,8 @@ export class Game {
           if (progress >= 1) {
             this.breakBlockAt(this.currentHit, canHarvest);
             if (!this.creativeMode) {
-              this.inventory.damageTool(this.hotbar.selectedIndex);
+              const toolBroke = this.inventory.damageTool(this.hotbar.selectedIndex);
+              if (toolBroke) this.audio.playToolBreak();
             }
             this.resetMiningState();
             this.miningCooldown = 0.14;
@@ -394,7 +451,8 @@ export class Game {
 
         if (existing === BlockId.Air && canSupport) {
           this.world.setBlock(placeX, placeY, placeZ, placeBlock);
-          this.heldItemView.triggerSwing();
+          this.heldItemView.triggerPlace();
+          this.audio.playPlace(placeBlock);
           if (!this.creativeMode) {
             this.inventory.consumeOne(this.hotbar.selectedIndex);
           }
@@ -408,7 +466,8 @@ export class Game {
         (!placeBlockDef.solid || !this.player.intersectsBlock(placeX, placeY, placeZ))
       ) {
         this.world.setBlock(placeX, placeY, placeZ, placeBlock);
-        this.heldItemView.triggerSwing();
+        this.heldItemView.triggerPlace();
+        this.audio.playPlace(placeBlock);
         if (!this.creativeMode) {
           this.inventory.consumeOne(this.hotbar.selectedIndex);
         }
@@ -421,6 +480,7 @@ export class Game {
     const { blockX, blockY, blockZ, blockId } = hit;
     this.world.setBlock(blockX, blockY, blockZ, BlockId.Air);
     this.particles.spawnBurst(blockX, blockY, blockZ, blockId);
+    this.audio.playBreak(blockId);
 
     if (spawnDropItem) {
       const drop = getBlockDrop(blockId);
@@ -484,6 +544,7 @@ export class Game {
   }
 
   private tossStackFromPlayer(stack: ItemStack): void {
+    this.audio.playToss();
     const eye = this.player.getEyePosition();
     const dir = this.player.getForwardDirection();
     const vel = dir.clone().multiplyScalar(5.5);
@@ -496,6 +557,45 @@ export class Game {
       vel,
       1.15
     );
+  }
+
+  private updateMovementAudio(dt: number, wasGrounded: boolean, impactVelocity: number): void {
+    const inWater = this.player.isInWater(this.world);
+    if (inWater && !this.wasInWater) {
+      this.audio.playSplash();
+    }
+    this.wasInWater = inWater;
+
+    if (wasGrounded && !this.player.onGround && this.player.velocity.y > 2) {
+      this.audio.playJump();
+      this.footstepDistance = 0;
+    } else if (!wasGrounded && this.player.onGround) {
+      this.audio.playLand(impactVelocity < -12);
+      this.footstepDistance = 0;
+    }
+
+    const speed = Math.hypot(this.player.velocity.x, this.player.velocity.z);
+    if (this.player.onGround && !inWater && speed > 0.7) {
+      this.footstepDistance += speed * dt;
+      const sprinting = speed > 5.4;
+      const stride = sprinting ? 1.75 : 1.45;
+      if (this.footstepDistance >= stride) {
+        this.footstepDistance %= stride;
+        const below = this.world.getBlock(
+          this.player.position.x,
+          this.player.position.y - 0.08,
+          this.player.position.z
+        );
+        this.audio.playStep(below, sprinting);
+      }
+    } else if (speed < 0.3) {
+      this.footstepDistance = 0;
+    }
+  }
+
+  private updateAudioToggle(): void {
+    this.audioToggleEl.textContent = this.audio.muted ? '🔇 Sound Off [M]' : '🔊 Sound On [M]';
+    this.audioToggleEl.classList.toggle('muted', this.audio.muted);
   }
 
   private syncShaderLightUniforms(): void {

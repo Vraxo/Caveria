@@ -30,10 +30,12 @@ export class DroppedItemManager {
   private readonly spriteMatCache = new Map<ItemId, THREE.MeshBasicMaterial>();
   private readonly atlasBlockMaterial: THREE.MeshBasicMaterial;
   private readonly flatQuadGeo = new THREE.PlaneGeometry(0.38, 0.38);
+  private readonly onPickup?: (itemId: ItemId) => void;
 
-  constructor(scene: THREE.Scene, atlas: TextureAtlas) {
+  constructor(scene: THREE.Scene, atlas: TextureAtlas, onPickup?: (itemId: ItemId) => void) {
     this.scene = scene;
     this.atlas = atlas;
+    this.onPickup = onPickup;
     this.atlasBlockMaterial = new THREE.MeshBasicMaterial({
       map: atlas.texture,
       alphaTest: 0.5,
@@ -140,7 +142,9 @@ export class DroppedItemManager {
         const dist = Math.hypot(dx, dy, dz);
 
         if (dist < COLLECT_RADIUS) {
-          if (inventory.addItem(e.stack) && e.stack.count <= 0) {
+          const pickedUp = inventory.addItem(e.stack);
+          if (pickedUp) this.onPickup?.(e.stack.id);
+          if (pickedUp && e.stack.count <= 0) {
             this.removeEntity(i);
             continue;
           }

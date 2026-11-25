@@ -67,7 +67,7 @@ export class DebugHud {
     );
 
     this.el.textContent = [
-      `Caveria 0.4.0 (${this.fps} FPS)`,
+      `Caveria 0.5.0 (${this.fps} FPS)`,
       `XYZ: ${px} / ${py} / ${pz}`,
       `Biome: ${biomeStr}`,
       `Chunk: ${cx}, ${cz} (${world.loadedChunkCount} loaded)`,

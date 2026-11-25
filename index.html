@@ -138,6 +138,26 @@
         text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
       }
 
+      #audio-toggle {
+        position: fixed;
+        top: 48px;
+        right: 12px;
+        z-index: 31;
+        padding: 6px 10px;
+        border: 1px solid rgba(74, 222, 128, 0.55);
+        border-radius: 5px;
+        background: rgba(15, 23, 42, 0.78);
+        color: #bbf7d0;
+        font: 700 11px/1 ui-monospace, monospace;
+        cursor: pointer;
+        text-shadow: 1px 1px #000;
+      }
+      #audio-toggle:hover { background: rgba(30, 41, 59, 0.94); }
+      #audio-toggle.muted {
+        color: #cbd5e1;
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+
       /* Hotbar & Shared Item Slots */
       #hotbar-wrapper {
         position: fixed;
@@ -478,6 +498,7 @@
 
     <div id="debug-hud"></div>
     <div id="status-pill">Survival · [E] Inventory · [C] Creative · [F] Fly</div>
+    <button id="audio-toggle" type="button" title="Toggle procedural audio">🔊 Sound On [M]</button>
 
     <div id="hotbar-wrapper">
       <div id="selected-block-label">Torch</div>
@@ -528,6 +549,7 @@
           <span class="key-badge">Q</span><span>Toss 1 held item</span>
           <span class="key-badge">1–9 / Scroll</span><span>Select hotbar slot</span>
           <span class="key-badge">C / F</span><span>Toggle Creative Mode / Toggle Fly</span>
+          <span class="key-badge">M</span><span>Mute / unmute procedural retro audio</span>
           <span class="key-badge">T / [ / ] / F3</span><span>Time controls / Debug HUD</span>
         </div>
       </div>
