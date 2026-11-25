@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { Input } from '../core/Input';
+import { WorldPersistence, WorldSummary } from '../persistence/WorldPersistence';
 import { InventoryModal } from './InventoryModal';
 
 type RootMenu = 'title' | 'pause';
-type MenuView = RootMenu | 'options' | 'controls';
+type MenuView = RootMenu | 'worlds' | 'create-world' | 'options' | 'controls';
 
 interface GameOverlayDependencies {
   renderer: THREE.WebGLRenderer;
@@ -12,9 +13,12 @@ interface GameOverlayDependencies {
   input: Input;
   audio: AudioManager;
   inventoryModal: InventoryModal;
-  hasSavedWorld: boolean;
+  currentWorld: WorldSummary;
   onAudioChanged: () => void;
-  onQuit: () => void;
+  onBeforeWorldSwitch: (saveCurrent: boolean) => void;
+  onDeleteWorld: (world: WorldSummary) => void;
+  onWorldStarted: () => void;
+  onQuit: (saveCurrent: boolean) => void;
 }
 
 const SPLASHES = [
@@ -27,24 +31,35 @@ const SPLASHES = [
   'Bring a torch!',
 ];
 
-/** Owns title/pause menus, pointer lock, resize, inventory, status, and options UI. */
+/** Owns title/world/pause menus, pointer lock, resize, inventory, status, and options UI. */
 export class GameOverlayController {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly camera: THREE.PerspectiveCamera;
   private readonly input: Input;
   private readonly audio: AudioManager;
   private readonly inventoryModal: InventoryModal;
+  private readonly currentWorld: WorldSummary;
   private readonly onAudioChanged: () => void;
-  private readonly onQuit: () => void;
+  private readonly onBeforeWorldSwitch: (saveCurrent: boolean) => void;
+  private readonly onDeleteWorld: (world: WorldSummary) => void;
+  private readonly onWorldStarted: () => void;
+  private readonly onQuit: (saveCurrent: boolean) => void;
   private readonly overlayEl = document.getElementById('overlay')!;
   private readonly statusPillEl = document.getElementById('status-pill')!;
   private readonly audioToggleEl = document.getElementById('audio-toggle') as HTMLButtonElement;
   private readonly menuAudioEl = document.getElementById('menu-audio-button') as HTMLButtonElement;
   private readonly fovEl = document.getElementById('fov-button') as HTMLButtonElement;
   private readonly fullscreenEl = document.getElementById('fullscreen-button') as HTMLButtonElement;
-  private readonly playEl = document.getElementById('play-button') as HTMLButtonElement;
+  private readonly worldListEl = document.getElementById('world-list')!;
+  private readonly worldEmptyEl = document.getElementById('world-empty')!;
+  private readonly worldPlayEl = document.getElementById('world-play-button') as HTMLButtonElement;
+  private readonly worldDeleteEl = document.getElementById('world-delete-button') as HTMLButtonElement;
+  private readonly worldNameEl = document.getElementById('world-name-input') as HTMLInputElement;
+  private readonly worldSeedEl = document.getElementById('world-seed-input') as HTMLInputElement;
   private readonly menuEls: Record<MenuView, HTMLElement> = {
     title: document.getElementById('title-menu')!,
+    worlds: document.getElementById('world-menu')!,
+    'create-world': document.getElementById('create-world-menu')!,
     pause: document.getElementById('pause-menu')!,
     options: document.getElementById('options-menu')!,
     controls: document.getElementById('controls-menu')!,
@@ -54,6 +69,8 @@ export class GameOverlayController {
   private activeMenu: MenuView = 'title';
   private controlsReturnMenu: MenuView = 'pause';
   private hasEnteredWorld = false;
+  private worlds: WorldSummary[] = [];
+  private selectedWorldId: string | null = null;
   private readonly fovValues = [60, 75, 90];
   private fovIndex = 1;
 
@@ -63,9 +80,12 @@ export class GameOverlayController {
     this.input = deps.input;
     this.audio = deps.audio;
     this.inventoryModal = deps.inventoryModal;
+    this.currentWorld = deps.currentWorld;
     this.onAudioChanged = deps.onAudioChanged;
+    this.onBeforeWorldSwitch = deps.onBeforeWorldSwitch;
+    this.onDeleteWorld = deps.onDeleteWorld;
+    this.onWorldStarted = deps.onWorldStarted;
     this.onQuit = deps.onQuit;
-    this.playEl.textContent = deps.hasSavedWorld ? 'Continue World' : 'Play World';
     document.getElementById('menu-splash')!.textContent =
       SPLASHES[Math.floor(Math.random() * SPLASHES.length)];
     this.setupEvents();
@@ -102,9 +122,24 @@ export class GameOverlayController {
   }
 
   private setupEvents(): void {
-    this.playEl.addEventListener('click', () => this.requestPlay());
-    document.getElementById('resume-button')!.addEventListener('click', () => this.requestPlay());
+    document.getElementById('singleplayer-button')!.addEventListener('click', () => {
+      this.refreshWorldList();
+      this.showMenu('worlds');
+    });
+    document.getElementById('world-cancel-button')!.addEventListener('click', () => this.showMenu('title'));
+    document.getElementById('world-create-button')!.addEventListener('click', () => {
+      this.worldNameEl.value = this.nextWorldName();
+      this.worldSeedEl.value = '';
+      this.showMenu('create-world');
+      this.worldNameEl.focus();
+      this.worldNameEl.select();
+    });
+    document.getElementById('create-world-cancel')!.addEventListener('click', () => this.showMenu('worlds'));
+    document.getElementById('create-world-confirm')!.addEventListener('click', () => this.createWorld());
+    this.worldPlayEl.addEventListener('click', () => this.playSelectedWorld());
+    this.worldDeleteEl.addEventListener('click', () => this.deleteSelectedWorld());
 
+    document.getElementById('resume-button')!.addEventListener('click', () => this.requestPlay());
     document.getElementById('title-options-button')!.addEventListener('click', () => {
       this.rootMenu = 'title';
       this.showMenu('options');
@@ -122,19 +157,18 @@ export class GameOverlayController {
       this.controlsReturnMenu = 'options';
       this.showMenu('controls');
     });
-    document.getElementById('options-done-button')!.addEventListener('click', () => {
-      this.showMenu(this.rootMenu);
-    });
+    document.getElementById('options-done-button')!.addEventListener('click', () => this.showMenu(this.rootMenu));
     document.getElementById('controls-done-button')!.addEventListener('click', () => {
       this.showMenu(this.controlsReturnMenu);
     });
 
     document.getElementById('save-now')!.addEventListener('click', () => {
       this.hasEnteredWorld = false;
-      this.playEl.textContent = 'Continue World';
       this.showMenu('title');
     });
-    document.getElementById('quit-game-button')!.addEventListener('click', () => this.onQuit());
+    document.getElementById('quit-game-button')!.addEventListener('click', () => {
+      this.onQuit(this.hasEnteredWorld || this.currentWorld.savedAt > 0);
+    });
 
     this.audioToggleEl.addEventListener('click', (event) => {
       event.stopPropagation();
@@ -158,27 +192,11 @@ export class GameOverlayController {
     });
 
     this.input.onPointerLockChange((locked) => {
-      if (locked) {
-        this.hideMenus();
-      } else if (!this.inventoryModal.isOpen) {
-        this.showMenu(this.hasEnteredWorld ? 'pause' : 'title');
-      }
+      if (locked) this.hideMenus();
+      else if (!this.inventoryModal.isOpen) this.showMenu(this.hasEnteredWorld ? 'pause' : 'title');
     });
 
-    window.addEventListener('keydown', (event) => {
-      if (event.code !== 'Escape' || this.overlayEl.classList.contains('hidden')) return;
-      if (this.activeMenu === 'options') {
-        event.preventDefault();
-        this.showMenu(this.rootMenu);
-      } else if (this.activeMenu === 'controls') {
-        event.preventDefault();
-        this.showMenu(this.controlsReturnMenu);
-      } else if (this.activeMenu === 'pause') {
-        event.preventDefault();
-        this.requestPlay();
-      }
-    });
-
+    window.addEventListener('keydown', (event) => this.handleMenuKey(event));
     document.addEventListener('fullscreenchange', () => this.updateFullscreenButton());
     window.addEventListener('resize', () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -187,9 +205,136 @@ export class GameOverlayController {
     });
   }
 
+  private handleMenuKey(event: KeyboardEvent): void {
+    if (this.overlayEl.classList.contains('hidden')) return;
+    if (event.code === 'Enter' && this.activeMenu === 'create-world') {
+      event.preventDefault();
+      this.createWorld();
+      return;
+    }
+    if (event.code !== 'Escape') return;
+    event.preventDefault();
+    if (this.activeMenu === 'worlds') this.showMenu('title');
+    else if (this.activeMenu === 'create-world') this.showMenu('worlds');
+    else if (this.activeMenu === 'options') this.showMenu(this.rootMenu);
+    else if (this.activeMenu === 'controls') this.showMenu(this.controlsReturnMenu);
+    else if (this.activeMenu === 'pause') this.requestPlay();
+  }
+
+  private refreshWorldList(): void {
+    this.worlds = WorldPersistence.listWorlds();
+    const currentExists = this.worlds.some((world) => world.worldId === this.currentWorld.worldId);
+    if (!currentExists) this.worlds.unshift(this.currentWorld);
+    if (!this.worlds.some((world) => world.worldId === this.selectedWorldId)) {
+      this.selectedWorldId =
+        this.worlds.find((world) => world.worldId === this.currentWorld.worldId)?.worldId ??
+        this.worlds[0]?.worldId ??
+        null;
+    }
+
+    this.worldListEl.replaceChildren();
+    for (const world of this.worlds) {
+      const entry = document.createElement('button');
+      entry.type = 'button';
+      entry.className = 'world-entry';
+      entry.classList.toggle('selected', world.worldId === this.selectedWorldId);
+      entry.dataset.worldId = world.worldId;
+      entry.setAttribute('role', 'option');
+      entry.setAttribute('aria-selected', String(world.worldId === this.selectedWorldId));
+
+      const icon = document.createElement('span');
+      icon.className = 'world-icon';
+      icon.textContent = '◆';
+      const details = document.createElement('span');
+      const name = document.createElement('span');
+      name.className = 'world-name';
+      name.textContent = world.worldName;
+      const meta = document.createElement('span');
+      meta.className = 'world-meta';
+      const date = world.savedAt > 0 ? new Date(world.savedAt).toLocaleString() : 'Not saved yet';
+      meta.textContent = `${date} · Seed: ${world.seed} · ${world.editCount} edits`;
+      details.append(name, document.createElement('br'), meta);
+      entry.append(icon, details);
+      entry.addEventListener('click', () => {
+        this.selectedWorldId = world.worldId;
+        this.updateWorldSelection();
+      });
+      entry.addEventListener('dblclick', () => this.playSelectedWorld());
+      this.worldListEl.append(entry);
+    }
+
+    const empty = this.worlds.length === 0;
+    this.worldEmptyEl.classList.toggle('hidden', !empty);
+    this.worldListEl.classList.toggle('hidden', empty);
+    this.worldPlayEl.disabled = empty;
+    this.worldDeleteEl.disabled = empty;
+    this.updateWorldSelection();
+  }
+
+  private updateWorldSelection(): void {
+    for (const entry of this.worldListEl.querySelectorAll<HTMLElement>('.world-entry')) {
+      const selected = entry.dataset.worldId === this.selectedWorldId;
+      entry.classList.toggle('selected', selected);
+      entry.setAttribute('aria-selected', String(selected));
+    }
+  }
+
+  private playSelectedWorld(): void {
+    const selected = this.worlds.find((world) => world.worldId === this.selectedWorldId);
+    if (!selected) return;
+    if (selected.worldId === this.currentWorld.worldId) {
+      this.requestPlay();
+      return;
+    }
+    this.openWorld(selected.worldId, selected.worldName, selected.seed);
+  }
+
+  private createWorld(): void {
+    const worldName = this.worldNameEl.value.trim().slice(0, 48) || 'New World';
+    const seed = this.worldSeedEl.value.trim().slice(0, 64) || this.randomSeed();
+    const worldId = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    this.openWorld(worldId, worldName, seed);
+  }
+
+  private deleteSelectedWorld(): void {
+    const selected = this.worlds.find((world) => world.worldId === this.selectedWorldId);
+    if (!selected) return;
+    if (!window.confirm(`Delete “${selected.worldName}” forever? This cannot be undone.`)) return;
+    this.onDeleteWorld(selected);
+    if (selected.worldId !== this.currentWorld.worldId) {
+      this.selectedWorldId = null;
+      this.refreshWorldList();
+    }
+  }
+
+  private openWorld(worldId: string, worldName: string, seed: string): void {
+    this.onBeforeWorldSwitch(this.hasEnteredWorld || this.currentWorld.savedAt > 0);
+    const url = new URL(window.location.href);
+    url.search = '';
+    url.searchParams.set('world', worldId);
+    url.searchParams.set('name', worldName);
+    url.searchParams.set('seed', seed);
+    window.location.href = url.toString();
+  }
+
+  private nextWorldName(): string {
+    const names = new Set(WorldPersistence.listWorlds().map((world) => world.worldName));
+    let index = 1;
+    let candidate = 'New World';
+    while (names.has(candidate)) candidate = `New World (${++index})`;
+    return candidate;
+  }
+
+  private randomSeed(): string {
+    const values = new Uint32Array(2);
+    crypto.getRandomValues(values);
+    return `${values[0].toString(36)}${values[1].toString(36)}`;
+  }
+
   private requestPlay(): void {
     this.audio.unlock();
     this.hasEnteredWorld = true;
+    this.onWorldStarted();
     if (this.inventoryModal.isOpen) this.inventoryModal.close();
     this.input.requestPointerLock();
   }
@@ -200,7 +345,11 @@ export class GameOverlayController {
       element.classList.toggle('hidden', name !== menu);
     }
     this.overlayEl.classList.remove('hidden', 'mode-title', 'mode-pause');
-    const titleMode = menu === 'title' || ((menu === 'options' || menu === 'controls') && this.rootMenu === 'title');
+    const titleMode =
+      menu === 'title' ||
+      menu === 'worlds' ||
+      menu === 'create-world' ||
+      ((menu === 'options' || menu === 'controls') && this.rootMenu === 'title');
     this.overlayEl.classList.add(titleMode ? 'mode-title' : 'mode-pause');
     document.body.classList.add('menu-open');
     document.body.classList.toggle('title-menu', titleMode);

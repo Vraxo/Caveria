@@ -6,9 +6,25 @@ import { CHUNK_HEIGHT } from '../world/Chunk';
 export const SAVE_VERSION = 1;
 export type SerializedVoxelEdit = [x: number, y: number, z: number, block: BlockId];
 
+const SAVE_PREFIX = `caveria:world:v${SAVE_VERSION}:`;
+const ID_SAVE_PREFIX = `${SAVE_PREFIX}id:`;
+const LEGACY_WORLD_PREFIX = 'legacy:';
+
+export interface WorldSummary {
+  worldId: string;
+  worldName: string;
+  seed: string;
+  savedAt: number;
+  createdAt: number;
+  editCount: number;
+}
+
 export interface CaveriaSaveData {
   version: number;
+  worldId: string;
+  worldName: string;
   seed: string;
+  createdAt: number;
   savedAt: number;
   player: {
     x: number;
@@ -31,12 +47,57 @@ export interface CaveriaSaveData {
   worldEdits: SerializedVoxelEdit[];
 }
 
-/** Versioned, seed-scoped local save storage. Terrain is regenerated; only edits are stored. */
+/** Versioned multi-world local storage. Terrain is regenerated; only metadata and edits are stored. */
 export class WorldPersistence {
   private readonly storageKey: string;
 
-  constructor(public readonly seedLabel: string) {
-    this.storageKey = `caveria:world:v${SAVE_VERSION}:${encodeURIComponent(seedLabel)}`;
+  constructor(
+    public readonly seedLabel: string,
+    public readonly worldId = `${LEGACY_WORLD_PREFIX}${seedLabel}`,
+    public readonly worldName = seedLabel
+  ) {
+    this.storageKey = WorldPersistence.keyForWorld(worldId, seedLabel);
+  }
+
+  public static listWorlds(): WorldSummary[] {
+    const worlds: WorldSummary[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(SAVE_PREFIX)) continue;
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const parsed = JSON.parse(raw) as Partial<CaveriaSaveData>;
+        if (parsed.version !== SAVE_VERSION || typeof parsed.seed !== 'string') continue;
+
+        const legacy = !key.startsWith(ID_SAVE_PREFIX);
+        const worldId =
+          typeof parsed.worldId === 'string' && parsed.worldId.length > 0
+            ? parsed.worldId
+            : legacy
+              ? `${LEGACY_WORLD_PREFIX}${parsed.seed}`
+              : decodeURIComponent(key.slice(ID_SAVE_PREFIX.length));
+        const worldName =
+          typeof parsed.worldName === 'string' && parsed.worldName.trim().length > 0
+            ? parsed.worldName.trim().slice(0, 48)
+            : parsed.seed === 'caveria' ? 'Caveria World' : parsed.seed;
+        worlds.push({
+          worldId,
+          worldName,
+          seed: parsed.seed,
+          savedAt: WorldPersistence.finite(parsed.savedAt, 0),
+          createdAt: WorldPersistence.finite(parsed.createdAt, parsed.savedAt ?? Date.now()),
+          editCount: Array.isArray(parsed.worldEdits) ? parsed.worldEdits.length : 0,
+        });
+      } catch (error) {
+        console.warn(`[Caveria] Ignoring unreadable saved world ${key}.`, error);
+      }
+    }
+    return worlds.sort((a, b) => b.savedAt - a.savedAt);
+  }
+
+  public static deleteWorld(worldId: string, seed: string): void {
+    localStorage.removeItem(WorldPersistence.keyForWorld(worldId, seed));
   }
 
   public load(): CaveriaSaveData | null {
@@ -66,9 +127,18 @@ export class WorldPersistence {
     localStorage.removeItem(this.storageKey);
   }
 
+  private static keyForWorld(worldId: string, seed: string): string {
+    return worldId.startsWith(LEGACY_WORLD_PREFIX)
+      ? `${SAVE_PREFIX}${encodeURIComponent(seed)}`
+      : `${ID_SAVE_PREFIX}${encodeURIComponent(worldId)}`;
+  }
+
+  private static finite(value: unknown, fallback: number): number {
+    return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+  }
+
   private sanitize(raw: Partial<CaveriaSaveData>): CaveriaSaveData {
-    const finite = (value: unknown, fallback: number): number =>
-      typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+    const finite = WorldPersistence.finite;
     const player = raw.player ?? {
       x: 8.5,
       y: 90,
@@ -113,7 +183,13 @@ export class WorldPersistence {
 
     return {
       version: SAVE_VERSION,
+      worldId: this.worldId,
+      worldName:
+        typeof raw.worldName === 'string' && raw.worldName.trim().length > 0
+          ? raw.worldName.trim().slice(0, 48)
+          : this.worldName,
       seed: this.seedLabel,
+      createdAt: finite(raw.createdAt, finite(raw.savedAt, Date.now())),
       savedAt: finite(raw.savedAt, Date.now()),
       player: {
         x: worldCoord(player.x, 8.5),
