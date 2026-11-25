@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Caveria — Voxel Sandbox</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        user-select: none;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #87ceeb;
+        font-family: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+        color: #f8fafc;
+      }
+
+      #game-container {
+        position: fixed;
+        inset: 0;
+      }
+
+      canvas#game-canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      /* Crosshair */
+      #crosshair {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        width: 18px;
+        height: 18px;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        z-index: 10;
+        mix-blend-mode: difference;
+      }
+      #crosshair::before,
+      #crosshair::after {
+        content: '';
+        position: absolute;
+        background: rgba(255, 255, 255, 0.92);
+      }
+      #crosshair::before {
+        top: 8px;
+        left: 0;
+        width: 18px;
+        height: 2px;
+      }
+      #crosshair::after {
+        top: 0;
+        left: 8px;
+        width: 2px;
+        height: 18px;
+      }
+
+      /* Underwater screen tint */
+      #water-tint {
+        position: fixed;
+        inset: 0;
+        background: rgba(16, 78, 158, 0.42);
+        pointer-events: none;
+        z-index: 5;
+        display: none;
+      }
+      #water-tint.active {
+        display: block;
+      }
+
+      /* Debug HUD (F3) */
+      #debug-hud {
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        z-index: 12;
+        pointer-events: none;
+        background: rgba(15, 23, 42, 0.62);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 6px;
+        padding: 8px 12px;
+        font-size: 12px;
+        line-height: 1.5;
+        text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
+        white-space: pre;
+      }
+      #debug-hud.hidden {
+        display: none;
+      }
+
+      /* Mode pill top-right */
+      #status-pill {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        z-index: 12;
+        pointer-events: none;
+        background: rgba(15, 23, 42, 0.62);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 12px;
+        text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
+      }
+
+      /* Hotbar */
+      #hotbar-wrapper {
+        position: fixed;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 12;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        pointer-events: none;
+      }
+
+      #selected-block-label {
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        padding: 3px 10px;
+        border-radius: 4px;
+        background: rgba(15, 23, 42, 0.65);
+        text-shadow: 1px 1px 0 #000;
+      }
+
+      #hotbar {
+        display: flex;
+        gap: 4px;
+        padding: 5px;
+        background: rgba(20, 24, 31, 0.82);
+        border: 2px solid rgba(255, 255, 255, 0.22);
+        border-radius: 6px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      }
+
+      .hotbar-slot {
+        position: relative;
+        width: 48px;
+        height: 48px;
+        background: rgba(0, 0, 0, 0.45);
+        border: 2px solid rgba(255, 255, 255, 0.16);
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.08s ease, border-color 0.08s ease;
+      }
+
+      .hotbar-slot.active {
+        border-color: #facc15;
+        background: rgba(250, 204, 21, 0.14);
+        transform: translateY(-2px) scale(1.05);
+        box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.65);
+      }
+
+      .hotbar-slot canvas {
+        width: 34px;
+        height: 34px;
+        image-rendering: pixelated;
+      }
+
+      .hotbar-key {
+        position: absolute;
+        top: 2px;
+        left: 4px;
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.72);
+        text-shadow: 1px 1px 0 #000;
+      }
+
+      /* Pause / Start Overlay */
+      #overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 30;
+        background: radial-gradient(circle at center, rgba(15, 23, 42, 0.58), rgba(2, 6, 23, 0.84));
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+
+      #overlay.hidden {
+        display: none;
+      }
+
+      .overlay-card {
+        max-width: 480px;
+        width: calc(100% - 32px);
+        background: rgba(15, 23, 42, 0.9);
+        border: 2px solid rgba(255, 255, 255, 0.18);
+        border-radius: 10px;
+        padding: 28px 30px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+        text-align: center;
+      }
+
+      .overlay-title {
+        font-size: 32px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        color: #4ade80;
+        text-shadow: 0 3px 0 #14532d;
+        margin-bottom: 6px;
+      }
+
+      .overlay-subtitle {
+        font-size: 13px;
+        color: #94a3b8;
+        margin-bottom: 20px;
+      }
+
+      .play-btn {
+        display: inline-block;
+        width: 100%;
+        padding: 12px 20px;
+        font-family: inherit;
+        font-size: 15px;
+        font-weight: 700;
+        color: #052e16;
+        background: #4ade80;
+        border: none;
+        border-bottom: 4px solid #16a34a;
+        border-radius: 6px;
+        cursor: pointer;
+        margin-bottom: 20px;
+        transition: filter 0.12s ease;
+      }
+
+      .play-btn:hover {
+        filter: brightness(1.07);
+      }
+
+      .controls-grid {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 8px 16px;
+        text-align: left;
+        font-size: 12px;
+        color: #cbd5e1;
+        background: rgba(2, 6, 23, 0.55);
+        padding: 14px 16px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .key-badge {
+        color: #facc15;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game-container">
+      <canvas id="game-canvas"></canvas>
+    </div>
+
+    <div id="water-tint"></div>
+    <div id="crosshair"></div>
+
+    <div id="debug-hud"></div>
+    <div id="status-pill">Walk Mode · [F] Fly · [F3] Debug</div>
+
+    <div id="hotbar-wrapper">
+      <div id="selected-block-label">Grass Block</div>
+      <div id="hotbar"></div>
+    </div>
+
+    <div id="overlay">
+      <div class="overlay-card">
+        <div class="overlay-title">CAVERIA</div>
+        <div class="overlay-subtitle">TypeScript + Three.js Voxel Vertical Slice</div>
+        <button id="play-button" class="play-btn" type="button">Click to Play</button>
+        <div class="controls-grid">
+          <span class="key-badge">W A S D</span><span>Move around</span>
+          <span class="key-badge">Space</span><span>Jump / Swim up (Fly up)</span>
+          <span class="key-badge">Ctrl / Shift</span><span>Sprint (Shift descends in Fly)</span>
+          <span class="key-badge">Left Click</span><span>Break block</span>
+          <span class="key-badge">Right Click</span><span>Place selected block</span>
+          <span class="key-badge">1–9 / Scroll</span><span>Select hotbar block</span>
+          <span class="key-badge">Middle Click</span><span>Pick targeted block</span>
+          <span class="key-badge">F / F3 / Esc</span><span>Toggle Fly / Debug HUD / Pause</span>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
