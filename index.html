@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Caveria — Voxel Sandbox</title>
+    <title>Caveria — Voxel Survival Sandbox</title>
     <style>
       * {
         box-sizing: border-box;
@@ -17,7 +17,7 @@
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background: #87ceeb;
+        background: #7ec4f8;
         font-family: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
         color: #f8fafc;
       }
@@ -33,7 +33,7 @@
         height: 100%;
       }
 
-      /* Crosshair */
+      /* Crosshair + Mining Progress Ring */
       #crosshair {
         position: fixed;
         top: 50%;
@@ -62,6 +62,32 @@
         left: 8px;
         width: 2px;
         height: 18px;
+      }
+
+      #mining-bar {
+        position: fixed;
+        top: calc(50% + 16px);
+        left: 50%;
+        width: 44px;
+        height: 5px;
+        transform: translateX(-50%);
+        background: rgba(15, 23, 42, 0.72);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 3px;
+        overflow: hidden;
+        pointer-events: none;
+        z-index: 11;
+      }
+      #mining-bar.hidden {
+        display: none;
+      }
+      #mining-bar-fill {
+        height: 100%;
+        width: 0%;
+        background: #facc15;
+      }
+      #mining-bar-fill.no-harvest {
+        background: #ef4444;
       }
 
       /* Underwater screen tint */
@@ -112,7 +138,7 @@
         text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.85);
       }
 
-      /* Hotbar */
+      /* Hotbar & Shared Item Slots */
       #hotbar-wrapper {
         position: fixed;
         bottom: 16px;
@@ -146,17 +172,24 @@
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
       }
 
-      .hotbar-slot {
+      .hotbar-slot,
+      .inv-slot {
         position: relative;
         width: 48px;
         height: 48px;
-        background: rgba(0, 0, 0, 0.45);
+        background: rgba(8, 12, 20, 0.62);
         border: 2px solid rgba(255, 255, 255, 0.16);
         border-radius: 4px;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: transform 0.08s ease, border-color 0.08s ease;
+        transition: transform 0.08s ease, border-color 0.08s ease, background 0.08s ease;
+      }
+
+      .inv-slot:hover {
+        border-color: rgba(250, 204, 21, 0.72);
+        background: rgba(255, 255, 255, 0.1);
+        cursor: pointer;
       }
 
       .hotbar-slot.active {
@@ -166,10 +199,36 @@
         box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.65);
       }
 
-      .hotbar-slot canvas {
+      .slot-icon {
         width: 34px;
         height: 34px;
         image-rendering: pixelated;
+        pointer-events: none;
+      }
+
+      .slot-count {
+        position: absolute;
+        bottom: 2px;
+        right: 4px;
+        font-size: 11px;
+        font-weight: 800;
+        color: #f8fafc;
+        text-shadow: 1px 1px 0 #000, -1px -1px 0 #000;
+        pointer-events: none;
+      }
+
+      .slot-durability-bg {
+        position: absolute;
+        bottom: 3px;
+        left: 5px;
+        right: 5px;
+        height: 3px;
+        background: rgba(0, 0, 0, 0.85);
+        pointer-events: none;
+      }
+
+      .slot-durability-fill {
+        height: 100%;
       }
 
       .hotbar-key {
@@ -177,8 +236,152 @@
         top: 2px;
         left: 4px;
         font-size: 10px;
-        color: rgba(255, 255, 255, 0.72);
+        color: rgba(255, 255, 255, 0.65);
         text-shadow: 1px 1px 0 #000;
+        pointer-events: none;
+      }
+
+      /* Inventory & Crafting Modal (E) */
+      #inventory-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 25;
+        background: rgba(2, 6, 23, 0.68);
+        backdrop-filter: blur(3px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #inventory-modal.hidden {
+        display: none;
+      }
+
+      .inv-window {
+        background: rgba(22, 29, 43, 0.96);
+        border: 2px solid rgba(255, 255, 255, 0.24);
+        border-radius: 10px;
+        padding: 20px 24px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.72);
+        max-width: 540px;
+        width: calc(100% - 24px);
+      }
+
+      .inv-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+      }
+
+      .inv-title {
+        font-size: 15px;
+        font-weight: 800;
+        color: #4ade80;
+        letter-spacing: 0.04em;
+      }
+
+      .inv-close {
+        background: rgba(255, 255, 255, 0.08);
+        color: #cbd5e1;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 4px;
+        padding: 4px 10px;
+        font-family: inherit;
+        font-size: 11px;
+        cursor: pointer;
+      }
+      .inv-close:hover {
+        background: rgba(255, 255, 255, 0.16);
+      }
+
+      .craft-area {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+        background: rgba(8, 12, 22, 0.52);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 14px;
+        margin-bottom: 10px;
+      }
+
+      #craft-grid {
+        display: grid;
+        gap: 4px;
+      }
+
+      .craft-arrow {
+        font-size: 24px;
+        color: #94a3b8;
+        font-weight: 800;
+      }
+
+      #craft-output-slot {
+        width: 56px;
+        height: 56px;
+        border-width: 2px;
+      }
+      #craft-output-slot.craft-ready {
+        border-color: #4ade80;
+        background: rgba(74, 222, 128, 0.14);
+      }
+
+      #recipe-book-hint {
+        font-size: 11px;
+        line-height: 1.45;
+        color: #94a3b8;
+        margin-bottom: 14px;
+        padding: 6px 10px;
+        background: rgba(15, 23, 42, 0.65);
+        border-radius: 5px;
+        border-left: 3px solid #facc15;
+      }
+
+      .inv-section-label {
+        font-size: 11px;
+        color: #94a3b8;
+        margin-bottom: 5px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      #inv-backpack-grid {
+        display: grid;
+        grid-template-columns: repeat(9, 48px);
+        gap: 4px;
+        justify-content: center;
+        margin-bottom: 12px;
+      }
+
+      #inv-hotbar-grid {
+        display: grid;
+        grid-template-columns: repeat(9, 48px);
+        gap: 4px;
+        justify-content: center;
+      }
+
+      .inv-footer-tip {
+        margin-top: 10px;
+        text-align: center;
+        font-size: 11px;
+        color: #64748b;
+      }
+
+      /* Floating Cursor Stack */
+      #cursor-item {
+        position: fixed;
+        width: 44px;
+        height: 44px;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #cursor-item.hidden {
+        display: none;
       }
 
       /* Pause / Start Overlay */
@@ -199,12 +402,12 @@
       }
 
       .overlay-card {
-        max-width: 480px;
+        max-width: 500px;
         width: calc(100% - 32px);
-        background: rgba(15, 23, 42, 0.9);
+        background: rgba(15, 23, 42, 0.92);
         border: 2px solid rgba(255, 255, 255, 0.18);
         border-radius: 10px;
-        padding: 28px 30px;
+        padding: 26px 28px;
         box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
         text-align: center;
       }
@@ -221,7 +424,7 @@
       .overlay-subtitle {
         font-size: 13px;
         color: #94a3b8;
-        margin-bottom: 20px;
+        margin-bottom: 18px;
       }
 
       .play-btn {
@@ -237,7 +440,7 @@
         border-bottom: 4px solid #16a34a;
         border-radius: 6px;
         cursor: pointer;
-        margin-bottom: 20px;
+        margin-bottom: 18px;
         transition: filter 0.12s ease;
       }
 
@@ -248,7 +451,7 @@
       .controls-grid {
         display: grid;
         grid-template-columns: auto 1fr;
-        gap: 8px 16px;
+        gap: 7px 16px;
         text-align: left;
         font-size: 12px;
         color: #cbd5e1;
@@ -271,30 +474,61 @@
 
     <div id="water-tint"></div>
     <div id="crosshair"></div>
+    <div id="mining-bar" class="hidden"><div id="mining-bar-fill"></div></div>
 
     <div id="debug-hud"></div>
-    <div id="status-pill">Walk Mode · [F] Fly · [F3] Debug</div>
+    <div id="status-pill">Survival · [E] Inventory · [C] Creative · [F] Fly</div>
 
     <div id="hotbar-wrapper">
-      <div id="selected-block-label">Grass Block</div>
+      <div id="selected-block-label">Torch</div>
       <div id="hotbar"></div>
     </div>
 
+    <!-- Inventory & Crafting Screen (E or Right-Click Crafting Table) -->
+    <div id="inventory-modal" class="hidden">
+      <div class="inv-window">
+        <div class="inv-header">
+          <div id="craft-section-title" class="inv-title">Hand Crafting (2×2)</div>
+          <button id="inv-close-btn" class="inv-close" type="button">[E / Esc] Resume</button>
+        </div>
+
+        <div class="craft-area">
+          <div id="craft-grid"></div>
+          <div class="craft-arrow">➔</div>
+          <div id="craft-output-slot" class="inv-slot" title="Crafted Result"></div>
+        </div>
+
+        <div id="recipe-book-hint"></div>
+
+        <div class="inv-section-label">Backpack</div>
+        <div id="inv-backpack-grid"></div>
+
+        <div class="inv-section-label">Hotbar</div>
+        <div id="inv-hotbar-grid"></div>
+
+        <div class="inv-footer-tip">
+          Left-Click: Pick/Place · Right-Click: Split/Place 1 · Shift-Click: Quick Move / Craft Stack
+        </div>
+      </div>
+    </div>
+
+    <div id="cursor-item" class="hidden"></div>
+
+    <!-- Pause / Welcome Overlay -->
     <div id="overlay">
       <div class="overlay-card">
         <div class="overlay-title">CAVERIA</div>
-        <div class="overlay-subtitle">TypeScript + Three.js Voxel Vertical Slice</div>
+        <div class="overlay-subtitle">Voxel Survival &amp; Crafting Sandbox</div>
         <button id="play-button" class="play-btn" type="button">Click to Play</button>
         <div class="controls-grid">
-          <span class="key-badge">W A S D</span><span>Move around</span>
-          <span class="key-badge">Space</span><span>Jump / Swim up (Fly up)</span>
-          <span class="key-badge">Ctrl / Shift</span><span>Sprint (Shift descends in Fly)</span>
-          <span class="key-badge">Left Click</span><span>Break block</span>
-          <span class="key-badge">Right Click</span><span>Place selected block</span>
-          <span class="key-badge">1–9 / Scroll</span><span>Select hotbar block (5 = Torch)</span>
-          <span class="key-badge">Middle Click</span><span>Pick targeted block</span>
-          <span class="key-badge">T / [ / ]</span><span>Skip time (+3h) / Rewind / Fast-forward</span>
-          <span class="key-badge">F / F3 / Esc</span><span>Toggle Fly / Debug HUD / Pause</span>
+          <span class="key-badge">W A S D / Space</span><span>Move, Sprint (Ctrl/Shift), Jump</span>
+          <span class="key-badge">Hold Left Click</span><span>Mine blocks (use tools for Stone &amp; Ores!)</span>
+          <span class="key-badge">Right Click</span><span>Place block / Use Crafting Table</span>
+          <span class="key-badge">E</span><span>Open Inventory &amp; 2×2 Hand Crafting</span>
+          <span class="key-badge">Q</span><span>Toss 1 held item</span>
+          <span class="key-badge">1–9 / Scroll</span><span>Select hotbar slot</span>
+          <span class="key-badge">C / F</span><span>Toggle Creative Mode / Toggle Fly</span>
+          <span class="key-badge">T / [ / ] / F3</span><span>Time controls / Debug HUD</span>
         </div>
       </div>
     </div>

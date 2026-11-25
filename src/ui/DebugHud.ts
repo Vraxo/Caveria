@@ -26,7 +26,8 @@ export class DebugHud {
     world: World,
     dayNight: DayNightCycle,
     hit: VoxelHit | null,
-    seedLabel: string
+    seedLabel: string,
+    creativeMode: boolean
   ): void {
     this.frames++;
     this.accumTime += dt;
@@ -57,12 +58,21 @@ export class DebugHud {
       ? `${BLOCKS[hit.blockId].name} (${hit.blockX}, ${hit.blockY}, ${hit.blockZ})`
       : 'None';
 
+    const gameModeStr = creativeMode ? 'Creative' : 'Survival';
+    const moveModeStr = player.flyMode ? 'Fly' : 'Walk';
+    const biomeStr = world.terrainGen.getBiomeLabelAt(
+      Math.floor(player.position.x),
+      Math.floor(player.position.y),
+      Math.floor(player.position.z)
+    );
+
     this.el.textContent = [
-      `Caveria 0.2.0 (${this.fps} FPS)`,
+      `Caveria 0.4.0 (${this.fps} FPS)`,
       `XYZ: ${px} / ${py} / ${pz}`,
+      `Biome: ${biomeStr}`,
       `Chunk: ${cx}, ${cz} (${world.loadedChunkCount} loaded)`,
       `Time: ${dayNight.getFormattedClock()} | Light: Sky ${skyLight} / Block ${blockLight}`,
-      `Mode: ${player.flyMode ? 'Fly' : 'Walk'} | Grounded: ${player.onGround ? 'Yes' : 'No'}`,
+      `Mode: ${gameModeStr} (${moveModeStr}) | Grounded: ${player.onGround ? 'Yes' : 'No'}`,
       `Target: ${targetStr}`,
       `Seed: ${seedLabel}`,
     ].join('\n');
