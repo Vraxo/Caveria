@@ -152,6 +152,14 @@ export class Player {
     return dir;
   }
 
+  public restoreTransform(position: THREE.Vector3, yaw: number, pitch: number): void {
+    this.position.copy(position);
+    this.yaw = yaw;
+    this.pitch = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, pitch));
+    this.velocity.set(0, 0, 0);
+    this.syncCamera();
+  }
+
   private syncCamera(): void {
     this.camera.position.set(
       this.position.x,

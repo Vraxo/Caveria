@@ -158,6 +158,43 @@
         border-color: rgba(255, 255, 255, 0.2);
       }
 
+      #save-status {
+        position: fixed;
+        top: 82px;
+        right: 12px;
+        z-index: 31;
+        padding: 6px 10px;
+        border-radius: 5px;
+        background: rgba(20, 83, 45, 0.9);
+        border: 1px solid rgba(74, 222, 128, 0.5);
+        color: #dcfce7;
+        font-size: 11px;
+        opacity: 0;
+        transform: translateY(-4px);
+        transition: opacity 0.18s ease, transform 0.18s ease;
+        pointer-events: none;
+      }
+      #save-status.visible { opacity: 1; transform: translateY(0); }
+      #save-status.error { background: rgba(127, 29, 29, 0.92); border-color: #f87171; }
+
+      .save-actions {
+        display: flex;
+        gap: 8px;
+        margin: -6px 0 14px;
+      }
+      .save-action {
+        flex: 1;
+        padding: 7px 10px;
+        border-radius: 4px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.07);
+        color: #cbd5e1;
+        font: 700 11px ui-monospace, monospace;
+        cursor: pointer;
+      }
+      .save-action:hover { background: rgba(255, 255, 255, 0.14); }
+      .save-action.danger { color: #fca5a5; }
+
       /* Hotbar & Shared Item Slots */
       #hotbar-wrapper {
         position: fixed;
@@ -499,6 +536,7 @@
     <div id="debug-hud"></div>
     <div id="status-pill">Survival · [E] Inventory · [C] Creative · [F] Fly</div>
     <button id="audio-toggle" type="button" title="Toggle procedural audio">🔊 Sound On [M]</button>
+    <div id="save-status" aria-live="polite"></div>
 
     <div id="hotbar-wrapper">
       <div id="selected-block-label">Torch</div>
@@ -541,6 +579,10 @@
         <div class="overlay-title">CAVERIA</div>
         <div class="overlay-subtitle">Voxel Survival &amp; Crafting Sandbox</div>
         <button id="play-button" class="play-btn" type="button">Click to Play</button>
+        <div class="save-actions">
+          <button id="save-now" class="save-action" type="button">Save World Now</button>
+          <button id="reset-world" class="save-action danger" type="button">Reset Saved World</button>
+        </div>
         <div class="controls-grid">
           <span class="key-badge">W A S D / Space</span><span>Move, Sprint (Ctrl/Shift), Jump</span>
           <span class="key-badge">Hold Left Click</span><span>Mine blocks (use tools for Stone &amp; Ores!)</span>
@@ -550,7 +592,8 @@
           <span class="key-badge">1–9 / Scroll</span><span>Select hotbar slot</span>
           <span class="key-badge">C / F</span><span>Toggle Creative Mode / Toggle Fly</span>
           <span class="key-badge">M</span><span>Mute / unmute procedural retro audio</span>
-          <span class="key-badge">T / [ / ] / F3</span><span>Time controls / Debug HUD</span>
+          <span class="key-badge">Autosave</span><span>Position, inventory, time, settings &amp; voxel edits every 10s</span>
+          <span class="key-badge">T / [ / ] / F3</span><span>Time controls / Pipeline stats / Debug HUD</span>
         </div>
       </div>
     </div>

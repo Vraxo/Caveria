@@ -67,10 +67,11 @@ export class DebugHud {
     );
 
     this.el.textContent = [
-      `Caveria 0.5.0 (${this.fps} FPS)`,
+      `Caveria 0.6.0 (${this.fps} FPS)`,
       `XYZ: ${px} / ${py} / ${pz}`,
       `Biome: ${biomeStr}`,
-      `Chunk: ${cx}, ${cz} (${world.loadedChunkCount} loaded)`,
+      `Chunk: ${cx}, ${cz} (${world.loadedChunkCount} loaded, ${world.pendingChunkCount} queued)`,
+      `Pipeline: ${world.workerPipelineActive ? 'Web Worker' : 'Main-thread fallback'} | Saved edits: ${world.editCount}`,
       `Time: ${dayNight.getFormattedClock()} | Light: Sky ${skyLight} / Block ${blockLight}`,
       `Mode: ${gameModeStr} (${moveModeStr}) | Grounded: ${player.onGround ? 'Yes' : 'No'}`,
       `Target: ${targetStr}`,
