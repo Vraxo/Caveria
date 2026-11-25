@@ -108,6 +108,31 @@ export class TerrainGen {
       }
     }
 
+    // Pass 1.5: Rare glowing Cavern Crystals clinging to deep cave walls/ceilings (y < 36)
+    for (let y = 3; y < 36; y++) {
+      for (let lz = 1; lz < CHUNK_SIZE - 1; lz++) {
+        const wz = baseZ + lz;
+        for (let lx = 1; lx < CHUNK_SIZE - 1; lx++) {
+          if (chunk.get(lx, y, lz) !== BlockId.Stone) continue;
+          // Must touch open cave air on at least one face
+          const touchesAir =
+            chunk.get(lx + 1, y, lz) === BlockId.Air ||
+            chunk.get(lx - 1, y, lz) === BlockId.Air ||
+            chunk.get(lx, y + 1, lz) === BlockId.Air ||
+            chunk.get(lx, y - 1, lz) === BlockId.Air ||
+            chunk.get(lx, y, lz + 1) === BlockId.Air ||
+            chunk.get(lx, y, lz - 1) === BlockId.Air;
+          if (!touchesAir) continue;
+
+          const wx = baseX + lx;
+          const crystalNoise = this.oreNoise.noise3D(wx * 0.21 - 40, y * 0.21 + 90, wz * 0.21 + 30);
+          if (crystalNoise > 0.815) {
+            chunk.set(lx, y, lz, BlockId.GlowCrystal);
+          }
+        }
+      }
+    }
+
     // Pass 2: Oak trees (kept away from chunk border so leaves don't clip across chunks)
     for (let lz = 2; lz < CHUNK_SIZE - 2; lz++) {
       const wz = baseZ + lz;

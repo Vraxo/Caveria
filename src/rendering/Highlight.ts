@@ -1,17 +1,17 @@
 import * as THREE from 'three';
 import { VoxelHit } from '../player/Raycaster';
+import { BLOCKS } from '../world/Block';
 
 export class BlockHighlight {
   public readonly mesh: THREE.LineSegments;
 
   constructor(scene: THREE.Scene) {
-    // Slightly larger than 1x1x1 to prevent z-fighting with voxel faces
-    const box = new THREE.BoxGeometry(1.006, 1.006, 1.006);
+    const box = new THREE.BoxGeometry(1, 1, 1);
     const edges = new THREE.EdgesGeometry(box);
     const mat = new THREE.LineBasicMaterial({
-      color: 0x0f172a,
+      color: 0xf8fafc,
       transparent: true,
-      opacity: 0.75,
+      opacity: 0.65,
     });
 
     this.mesh = new THREE.LineSegments(edges, mat);
@@ -27,6 +27,13 @@ export class BlockHighlight {
       return;
     }
     this.mesh.visible = true;
-    this.mesh.position.set(hit.blockX + 0.5, hit.blockY + 0.5, hit.blockZ + 0.5);
+    const shape = BLOCKS[hit.blockId].shape;
+    if (shape === 'torch') {
+      this.mesh.scale.set(0.26, 0.66, 0.26);
+      this.mesh.position.set(hit.blockX + 0.5, hit.blockY + 0.33, hit.blockZ + 0.5);
+    } else {
+      this.mesh.scale.set(1.006, 1.006, 1.006);
+      this.mesh.position.set(hit.blockX + 0.5, hit.blockY + 0.5, hit.blockZ + 0.5);
+    }
   }
 }

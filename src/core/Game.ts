@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Player } from '../player/Player';
 import { VoxelHit, raycastVoxel } from '../player/Raycaster';
 import { BreakParticles } from '../rendering/BreakParticles';
+import { DayNightCycle } from '../rendering/DayNightCycle';
 import { BlockHighlight } from '../rendering/Highlight';
 import { TextureAtlas } from '../rendering/TextureAtlas';
 import { DebugHud } from '../ui/DebugHud';
@@ -12,8 +13,8 @@ import { hashString } from '../world/Noise';
 import { World } from '../world/World';
 import { Input } from './Input';
 
-const SKY_COLOR = 0x87ceeb;
-const UNDERWATER_FOG_COLOR = 0x104e9e;
+const INITIAL_SKY_COLOR = 0x7ec4f8;
+const UNDERWATER_FOG_COLOR = new THREE.Color(0x0b3c7c);
 
 export class Game {
   private readonly renderer: THREE.WebGLRenderer;
@@ -22,6 +23,7 @@ export class Game {
   private readonly input: Input;
   private readonly atlas: TextureAtlas;
   private readonly world: World;
+  private readonly dayNight: DayNightCycle;
   private readonly player: Player;
   private readonly highlight: BlockHighlight;
   private readonly particles: BreakParticles;
@@ -44,22 +46,21 @@ export class Game {
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setClearColor(SKY_COLOR);
+    this.renderer.setClearColor(INITIAL_SKY_COLOR);
 
     this.scene = new THREE.Scene();
     const renderDistance = 5;
     const fogFar = renderDistance * CHUNK_SIZE;
-    this.scene.fog = new THREE.Fog(SKY_COLOR, fogFar * 0.58, fogFar * 0.98);
+    this.scene.fog = new THREE.Fog(INITIAL_SKY_COLOR, fogFar * 0.58, fogFar * 0.98);
 
     this.camera = new THREE.PerspectiveCamera(
       75,
       window.innerWidth / window.innerHeight,
       0.1,
-      fogFar * 1.4
+      260
     );
 
-    // Subtle sun billboard in sky
-    this.addSkySun();
+    this.dayNight = new DayNightCycle(this.scene);
 
     // Parse optional ?seed=... query parameter
     const params = new URLSearchParams(window.location.search);
@@ -85,6 +86,7 @@ export class Game {
     this.waterTintEl = document.getElementById('water-tint')!;
 
     this.setupOverlayAndEvents();
+    this.updateStatusPill();
   }
 
   public start(): void {
@@ -116,23 +118,9 @@ export class Game {
     });
   }
 
-  private addSkySun(): void {
-    const sunGeo = new THREE.PlaneGeometry(34, 34);
-    const sunMat = new THREE.MeshBasicMaterial({
-      color: 0xfff7cc,
-      fog: false,
-      depthWrite: false,
-    });
-    const sun = new THREE.Mesh(sunGeo, sunMat);
-    sun.position.set(120, 210, -160);
-    sun.lookAt(0, 0, 0);
-    this.scene.add(sun);
-  }
-
   private loop(now: number): void {
     const rawDt = (now - this.lastTime) / 1000;
     this.lastTime = now;
-    // Clamp delta to avoid physics tunneling after tab switches
     const dt = Math.min(rawDt, 0.05);
 
     this.update(dt);
@@ -154,10 +142,22 @@ export class Game {
         this.updateStatusPill();
       }
 
+      // Day/Night time controls:
+      // [T] jumps ahead 3 in-game hours (great for previewing sunset/night/dawn)
+      // Hold [ or ] to scrub time backward/forward smoothly
+      if (this.input.consumeKeyPress('KeyT')) {
+        this.dayNight.advanceTime(0.125);
+      }
+      if (this.input.isKeyDown('BracketLeft')) {
+        this.dayNight.advanceTime(-dt * 0.22);
+      }
+      if (this.input.isKeyDown('BracketRight')) {
+        this.dayNight.advanceTime(dt * 0.22);
+      }
+
       this.player.updateLook(this.input);
       this.hotbar.update(this.input);
 
-      // Fixed sub-steps if dt is large so AABB collision stays rock-solid
       const maxStep = 1 / 90;
       let remaining = dt;
       while (remaining > 0) {
@@ -176,10 +176,19 @@ export class Game {
       this.handleBlockActions();
     }
 
+    this.dayNight.update(dt, this.player.position);
+    this.syncShaderLightUniforms();
     this.world.updateStreaming(this.player.position.x, this.player.position.z);
     this.particles.update(dt);
     this.updateAtmosphere();
-    this.debugHud.update(dt, this.player, this.world, this.currentHit, this.seedLabel);
+    this.debugHud.update(dt, this.player, this.world, this.dayNight, this.currentHit, this.seedLabel);
+  }
+
+  private syncShaderLightUniforms(): void {
+    const u = this.world.lightUniforms;
+    u.uSkyBrightness.value = this.dayNight.skyBrightness;
+    u.uSkyTint.value.copy(this.dayNight.skyLightTint);
+    u.uTorchFlicker.value = this.dayNight.torchFlicker;
   }
 
   private handleBlockActions(): void {
@@ -189,13 +198,14 @@ export class Game {
       if (BLOCKS[blockId].breakable) {
         this.world.setBlock(blockX, blockY, blockZ, BlockId.Air);
         this.particles.spawnBurst(blockX, blockY, blockZ, blockId);
-        this.currentHit = raycastVoxel(
-          this.world,
-          this.player.getEyePosition(),
-          this.player.getForwardDirection(),
-          6.0
-        );
-        this.highlight.update(this.currentHit);
+
+        // If a torch was standing on top of the broken block, pop it off too
+        if (this.world.getBlock(blockX, blockY + 1, blockZ) === BlockId.Torch) {
+          this.world.setBlock(blockX, blockY + 1, blockZ, BlockId.Air);
+          this.particles.spawnBurst(blockX, blockY + 1, blockZ, BlockId.Torch);
+        }
+
+        this.refreshRaycast();
       }
     }
 
@@ -211,22 +221,39 @@ export class Game {
       const placeZ = this.currentHit.blockZ + this.currentHit.normalZ;
 
       if (placeY >= 0 && placeY < CHUNK_HEIGHT) {
+        const selected = this.hotbar.selectedBlock;
+        const selectedDef = BLOCKS[selected];
         const existing = this.world.getBlock(placeX, placeY, placeZ);
+
+        // Torches cannot be placed underwater or floating in mid-air without a solid block beneath
+        if (selected === BlockId.Torch) {
+          const below = this.world.getBlock(placeX, placeY - 1, placeZ);
+          if (existing === BlockId.Air && BLOCKS[below].solid) {
+            this.world.setBlock(placeX, placeY, placeZ, selected);
+            this.refreshRaycast();
+          }
+          return;
+        }
+
         if (
           (existing === BlockId.Air || existing === BlockId.Water) &&
-          !this.player.intersectsBlock(placeX, placeY, placeZ)
+          (!selectedDef.solid || !this.player.intersectsBlock(placeX, placeY, placeZ))
         ) {
-          this.world.setBlock(placeX, placeY, placeZ, this.hotbar.selectedBlock);
-          this.currentHit = raycastVoxel(
-            this.world,
-            this.player.getEyePosition(),
-            this.player.getForwardDirection(),
-            6.0
-          );
-          this.highlight.update(this.currentHit);
+          this.world.setBlock(placeX, placeY, placeZ, selected);
+          this.refreshRaycast();
         }
       }
     }
+  }
+
+  private refreshRaycast(): void {
+    this.currentHit = raycastVoxel(
+      this.world,
+      this.player.getEyePosition(),
+      this.player.getForwardDirection(),
+      6.0
+    );
+    this.highlight.update(this.currentHit);
   }
 
   private updateAtmosphere(): void {
@@ -236,13 +263,16 @@ export class Game {
     const fog = this.scene.fog as THREE.Fog;
     const maxDist = this.world.renderDistance * CHUNK_SIZE;
     if (underwater) {
-      this.renderer.setClearColor(UNDERWATER_FOG_COLOR);
-      fog.color.setHex(UNDERWATER_FOG_COLOR);
+      const tintedWater = UNDERWATER_FOG_COLOR.clone().multiplyScalar(
+        0.35 + 0.65 * this.dayNight.skyBrightness
+      );
+      this.renderer.setClearColor(tintedWater);
+      fog.color.copy(tintedWater);
       fog.near = 2;
       fog.far = 26;
     } else {
-      this.renderer.setClearColor(SKY_COLOR);
-      fog.color.setHex(SKY_COLOR);
+      this.renderer.setClearColor(this.dayNight.skyColor);
+      fog.color.copy(this.dayNight.skyColor);
       fog.near = maxDist * 0.58;
       fog.far = maxDist * 0.98;
     }
@@ -250,6 +280,6 @@ export class Game {
 
   private updateStatusPill(): void {
     const mode = this.player.flyMode ? 'Fly Mode' : 'Walk Mode';
-    this.statusPillEl.textContent = `${mode} · [F] Fly · [F3] Debug`;
+    this.statusPillEl.textContent = `${mode} · [F] Fly · [T] Time · [F3] Debug`;
   }
 }
