@@ -139,6 +139,12 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
     outputId: ItemId.WoodenShovel,
     outputCount: 1,
   },
+  {
+    name: 'Wooden Sword',
+    pattern: [[P], [P], [S]],
+    outputId: ItemId.WoodenSword,
+    outputCount: 1,
+  },
 
   // Stone Tools
   {
@@ -177,6 +183,12 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
     outputId: ItemId.StoneShovel,
     outputCount: 1,
   },
+  {
+    name: 'Stone Sword',
+    pattern: [[C], [C], [S]],
+    outputId: ItemId.StoneSword,
+    outputCount: 1,
+  },
 
   // Deepslate Pickaxe -> Stone Pickaxe
   {
@@ -209,6 +221,18 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
       [_, S, _],
     ],
     outputId: ItemId.CrystalPickaxe,
+    outputCount: 1,
+  },
+  {
+    name: 'Crystal Sword',
+    pattern: [[X], [X], [S]],
+    outputId: ItemId.CrystalSword,
+    outputCount: 1,
+  },
+  {
+    name: 'Crystal Sword (Amethyst)',
+    pattern: [[A], [A], [S]],
+    outputId: ItemId.CrystalSword,
     outputCount: 1,
   },
 ];

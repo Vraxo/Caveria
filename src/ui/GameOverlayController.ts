@@ -69,6 +69,7 @@ export class GameOverlayController {
   private activeMenu: MenuView = 'title';
   private controlsReturnMenu: MenuView = 'pause';
   private hasEnteredWorld = false;
+  private deathScreenActive = false;
   private worlds: WorldSummary[] = [];
   private selectedWorldId: string | null = null;
   private readonly fovValues = [60, 75, 90];
@@ -105,6 +106,16 @@ export class GameOverlayController {
     this.audio.playInventoryClose();
     this.inventoryModal.close();
     this.requestPlay();
+  }
+
+  public setDeathScreenActive(active: boolean): void {
+    this.deathScreenActive = active;
+    if (active) this.hideMenus();
+  }
+
+  public returnToTitle(): void {
+    this.hasEnteredWorld = false;
+    this.showMenu('title');
   }
 
   public updateStatus(creativeMode: boolean, flyMode: boolean): void {
@@ -193,7 +204,9 @@ export class GameOverlayController {
 
     this.input.onPointerLockChange((locked) => {
       if (locked) this.hideMenus();
-      else if (!this.inventoryModal.isOpen) this.showMenu(this.hasEnteredWorld ? 'pause' : 'title');
+      else if (!this.inventoryModal.isOpen && !this.deathScreenActive) {
+        this.showMenu(this.hasEnteredWorld ? 'pause' : 'title');
+      }
     });
 
     window.addEventListener('keydown', (event) => this.handleMenuKey(event));

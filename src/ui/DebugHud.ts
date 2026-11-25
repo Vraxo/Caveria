@@ -2,7 +2,7 @@ import { Player } from '../player/Player';
 import { VoxelHit } from '../player/Raycaster';
 import { DayNightCycle } from '../rendering/DayNightCycle';
 import { WeatherSystem } from '../rendering/WeatherSystem';
-import { CrystalMiteManager } from '../entities/CrystalMiteManager';
+import { MobManager } from '../entities/MobManager';
 import { BLOCKS } from '../content/BlockRegistry';
 import { World } from '../world/World';
 
@@ -28,7 +28,7 @@ export class DebugHud {
     world: World,
     dayNight: DayNightCycle,
     weather: WeatherSystem,
-    mobs: CrystalMiteManager,
+    mobs: MobManager,
     hit: VoxelHit | null,
     seedLabel: string,
     creativeMode: boolean
@@ -79,7 +79,7 @@ export class DebugHud {
       `Time: ${dayNight.getFormattedClock()} | Weather: ${weather.localWeather}`,
       `Light: Sky ${skyLight} / Block ${blockLight} | Exposure: ${weather.exposedToSky ? 'Open' : 'Sheltered'}`,
       `Mode: ${gameModeStr} (${moveModeStr}) | Grounded: ${player.onGround ? 'Yes' : 'No'}`,
-      `Mobs: ${mobs.count} Crystal Mite${mobs.count === 1 ? '' : 's'}`,
+      `Mobs: ${mobs.mites.count} mites / ${mobs.crawlers.count} crawlers`,
       `Target: ${targetStr}`,
       `Seed: ${seedLabel}`,
     ].join('\n');

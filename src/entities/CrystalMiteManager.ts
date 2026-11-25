@@ -9,7 +9,9 @@ import { DroppedItemManager } from '../rendering/DroppedItems';
 import { World } from '../world/World';
 
 export interface CrystalMiteHit {
+  kind: 'crystal-mite';
   id: number;
+  name: 'Crystal Mite';
   distance: number;
   health: number;
   maxHealth: number;
@@ -170,19 +172,26 @@ export class CrystalMiteManager {
       const distance = origin.distanceTo(hitPoint);
       if (distance > maxDistance || distance >= blockDistance) continue;
       if (!closest || distance < closest.distance) {
-        closest = { id: mite.id, distance, health: mite.health, maxHealth: MAX_HEALTH };
+        closest = {
+          kind: 'crystal-mite',
+          id: mite.id,
+          name: 'Crystal Mite',
+          distance,
+          health: mite.health,
+          maxHealth: MAX_HEALTH,
+        };
       }
     }
     return closest;
   }
 
-  public damage(id: number, direction: THREE.Vector3): boolean {
+  public damage(id: number, amount: number, direction: THREE.Vector3): boolean {
     const index = this.mites.findIndex((mite) => mite.id === id);
     if (index < 0) return false;
     const mite = this.mites[index];
     if (mite.hurtTimer > 0) return false;
 
-    mite.health--;
+    mite.health -= Math.max(1, amount);
     mite.hurtTimer = 0.28;
     mite.velocity.x += direction.x * 3.8;
     mite.velocity.y = 3.3;

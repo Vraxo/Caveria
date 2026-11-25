@@ -37,6 +37,9 @@ export class AudioManager {
   public playCrystalMiteChirp(): void { this.creatures.playCrystalMiteChirp(); }
   public playCrystalMiteHit(): void { this.creatures.playCrystalMiteHit(); }
   public playCrystalMiteDeath(): void { this.creatures.playCrystalMiteDeath(); }
+  public playCaveCrawlerGrowl(): void { this.creatures.playCaveCrawlerGrowl(); }
+  public playCaveCrawlerHit(): void { this.creatures.playCaveCrawlerHit(); }
+  public playCaveCrawlerDeath(): void { this.creatures.playCaveCrawlerDeath(); }
 
   public playPickup(): void { this.ui.playPickup(); }
   public playCrystalPickup(): void { this.ui.playCrystalPickup(); }

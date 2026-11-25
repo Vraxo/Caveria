@@ -33,6 +33,7 @@ export interface CaveriaSaveData {
     yaw: number;
     pitch: number;
     flyMode: boolean;
+    health: number;
   };
   inventory: Array<ItemStack | null>;
   selectedHotbar: number;
@@ -146,6 +147,7 @@ export class WorldPersistence {
       yaw: 0,
       pitch: 0,
       flyMode: false,
+      health: 20,
     };
     const worldCoord = (value: unknown, fallback: number): number =>
       Math.max(-1_000_000, Math.min(1_000_000, finite(value, fallback)));
@@ -198,6 +200,7 @@ export class WorldPersistence {
         yaw: finite(player.yaw, 0),
         pitch: Math.max(-Math.PI / 2, Math.min(Math.PI / 2, finite(player.pitch, 0))),
         flyMode: Boolean(player.flyMode),
+        health: Math.max(1, Math.min(20, Math.round(finite(player.health, 20)))),
       },
       inventory,
       selectedHotbar: Math.max(0, Math.min(8, Math.floor(finite(raw.selectedHotbar, 0)))),
