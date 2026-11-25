@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { Input } from '../core/Input';
+import { CrystalMiteHit, CrystalMiteManager } from '../entities/CrystalMiteManager';
 import { Inventory } from '../items/Inventory';
 import { ITEMS, ItemStack, createStack, getBlockDrop, getMiningStats } from '../items/Item';
 import { Player } from '../player/Player';
@@ -27,6 +28,7 @@ interface BlockInteractionDependencies {
   drops: DroppedItemManager;
   heldItemView: HeldItemView;
   audio: AudioManager;
+  mobs: CrystalMiteManager;
   onOpenWorkbench: () => void;
 }
 
@@ -44,13 +46,16 @@ export class BlockInteractionController {
   private readonly drops: DroppedItemManager;
   private readonly heldItemView: HeldItemView;
   private readonly audio: AudioManager;
+  private readonly mobs: CrystalMiteManager;
   private readonly onOpenWorkbench: () => void;
   private readonly highlight: BlockHighlight;
   private readonly miningOverlay: MiningOverlay;
   private readonly miningBarEl: HTMLElement;
   private readonly miningBarFillEl: HTMLElement;
+  private readonly mobTargetEl: HTMLElement;
 
   private hit: VoxelHit | null = null;
+  private mobTarget: CrystalMiteHit | null = null;
   private miningTargetKey = '';
   private miningElapsed = 0;
   private miningCooldown = 0;
@@ -65,11 +70,13 @@ export class BlockInteractionController {
     this.drops = deps.drops;
     this.heldItemView = deps.heldItemView;
     this.audio = deps.audio;
+    this.mobs = deps.mobs;
     this.onOpenWorkbench = deps.onOpenWorkbench;
     this.highlight = new BlockHighlight(deps.scene);
     this.miningOverlay = new MiningOverlay(deps.scene);
     this.miningBarEl = document.getElementById('mining-bar')!;
     this.miningBarFillEl = document.getElementById('mining-bar-fill')!;
+    this.mobTargetEl = document.getElementById('mob-target-label')!;
   }
 
   public get currentHit(): VoxelHit | null {
@@ -77,22 +84,36 @@ export class BlockInteractionController {
   }
 
   public get activelyMining(): boolean {
-    return this.input.isMouseDown(0) && this.hit !== null;
+    return this.input.isMouseDown(0) && this.hit !== null && this.mobTarget === null;
   }
 
   public updateTarget(): void {
-    this.hit = raycastVoxel(
-      this.world,
-      this.player.getEyePosition(),
-      this.player.getForwardDirection(),
-      6.0
-    );
-    this.highlight.update(this.hit);
+    const eye = this.player.getEyePosition();
+    const direction = this.player.getForwardDirection();
+    this.hit = raycastVoxel(this.world, eye, direction, 6.0);
+    this.mobTarget = this.mobs.raycast(eye, direction, 4.5, this.hit?.distance ?? 6.0);
+    this.highlight.update(this.mobTarget ? null : this.hit);
+    this.mobTargetEl.classList.toggle('hidden', !this.mobTarget);
+    if (this.mobTarget) {
+      this.mobTargetEl.textContent =
+        `Crystal Mite  ${'♥'.repeat(this.mobTarget.health)}${'♡'.repeat(this.mobTarget.maxHealth - this.mobTarget.health)}`;
+    }
   }
 
   public update(dt: number, creativeMode: boolean): void {
     if (this.miningCooldown > 0) {
       this.miningCooldown = Math.max(0, this.miningCooldown - dt);
+    }
+
+    if (this.mobTarget) {
+      this.cancelMining();
+      if (this.input.consumeMousePress(0) && this.miningCooldown <= 0) {
+        this.heldItemView.triggerSwing();
+        if (this.mobs.damage(this.mobTarget.id, this.player.getForwardDirection())) {
+          this.miningCooldown = 0.3;
+        }
+      }
+      return;
     }
 
     this.updateMining(dt, creativeMode);
@@ -104,6 +125,14 @@ export class BlockInteractionController {
     if (this.input.consumeMousePress(2) && this.hit) {
       this.handleInteractionOrPlacement(creativeMode);
     }
+  }
+
+  public clearTarget(): void {
+    this.cancelMining();
+    this.hit = null;
+    this.mobTarget = null;
+    this.highlight.update(null);
+    this.mobTargetEl.classList.add('hidden');
   }
 
   public cancelMining(): void {
