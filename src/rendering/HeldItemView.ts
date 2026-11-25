@@ -21,6 +21,7 @@ export class HeldItemView {
   private equipProgress = 1;
   private placeProgress = 0;
   private placing = false;
+  private crouchDrop = 0;
 
   constructor(camera: THREE.PerspectiveCamera, atlas: TextureAtlas) {
     this.atlas = atlas;
@@ -97,9 +98,16 @@ export class HeldItemView {
     this.itemPivot.add(sprite);
   }
 
-  public update(dt: number, horizontalSpeed: number, isMining: boolean): void {
+  public update(
+    dt: number,
+    horizontalSpeed: number,
+    isMining: boolean,
+    crouching = false
+  ): void {
     this.elapsed += dt;
     this.equipProgress = Math.min(1, this.equipProgress + dt * 5.8);
+    const targetCrouchDrop = crouching ? 0.11 : 0;
+    this.crouchDrop += (targetCrouchDrop - this.crouchDrop) * (1 - Math.exp(-14 * dt));
 
     if (isMining && !this.swinging) {
       this.swinging = true;
@@ -148,7 +156,7 @@ export class HeldItemView {
 
     this.root.position.set(
       0.38 + bobX + idleX - swing * 0.13,
-      -0.32 - bobY + idleY - swing * 0.075 - equipDrop + place * 0.025,
+      -0.32 - this.crouchDrop - bobY + idleY - swing * 0.075 - equipDrop + place * 0.025,
       -0.52 - swing * 0.13 - place * 0.16
     );
     this.root.rotation.set(

@@ -46,7 +46,8 @@ export function moveWithVoxelCollision(
   pos: THREE.Vector3,
   vel: THREE.Vector3,
   dt: number,
-  collider: PlayerCollider
+  collider: PlayerCollider,
+  preventEdgeFall = false
 ): { onGround: boolean } {
   let onGround = false;
 
@@ -63,7 +64,8 @@ export function moveWithVoxelCollision(
     vel.y = 0;
   }
 
-  // Resolve X axis
+  // Resolve X axis, then prevent a crouching grounded player from leaving all support.
+  const previousX = pos.x;
   pos.x += vel.x * dt;
   if (collidesWithWorld(world, pos, collider)) {
     if (vel.x > 0) {
@@ -74,9 +76,13 @@ export function moveWithVoxelCollision(
       pos.x = Math.floor(left) + 1 + collider.halfWidth + EPS;
     }
     vel.x = 0;
+  } else if (preventEdgeFall && onGround && !hasGroundSupport(world, pos, collider)) {
+    pos.x = previousX;
+    vel.x = 0;
   }
 
-  // Resolve Z axis
+  // Resolve Z axis with the same crouch edge protection.
+  const previousZ = pos.z;
   pos.z += vel.z * dt;
   if (collidesWithWorld(world, pos, collider)) {
     if (vel.z > 0) {
@@ -87,9 +93,34 @@ export function moveWithVoxelCollision(
       pos.z = Math.floor(back) + 1 + collider.halfWidth + EPS;
     }
     vel.z = 0;
+  } else if (preventEdgeFall && onGround && !hasGroundSupport(world, pos, collider)) {
+    pos.z = previousZ;
+    vel.z = 0;
   }
 
   return { onGround };
+}
+
+export function canOccupyCollider(
+  world: World,
+  pos: THREE.Vector3,
+  collider: PlayerCollider
+): boolean {
+  return !collidesWithWorld(world, pos, collider);
+}
+
+function hasGroundSupport(world: World, pos: THREE.Vector3, collider: PlayerCollider): boolean {
+  const minX = Math.floor(pos.x - collider.halfWidth + EPS);
+  const maxX = Math.floor(pos.x + collider.halfWidth - EPS);
+  const y = Math.floor(pos.y - EPS);
+  const minZ = Math.floor(pos.z - collider.halfWidth + EPS);
+  const maxZ = Math.floor(pos.z + collider.halfWidth - EPS);
+  for (let z = minZ; z <= maxZ; z++) {
+    for (let x = minX; x <= maxX; x++) {
+      if (isBlockSolid(world.getBlock(x, y, z))) return true;
+    }
+  }
+  return false;
 }
 
 function collidesWithWorld(world: World, pos: THREE.Vector3, collider: PlayerCollider): boolean {

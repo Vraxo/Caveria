@@ -2,12 +2,22 @@ import * as THREE from 'three';
 import { Input } from '../core/Input';
 import { BlockId } from '../content/BlockId';
 import { World } from '../world/World';
-import { PlayerCollider, doesBlockIntersectPlayer, moveWithVoxelCollision } from './Physics';
+import {
+  PlayerCollider,
+  canOccupyCollider,
+  doesBlockIntersectPlayer,
+  moveWithVoxelCollision,
+} from './Physics';
 
 const GRAVITY = 28.0;
 const JUMP_SPEED = 9.0;
 const WALK_SPEED = 4.6;
 const SPRINT_SPEED = 6.8;
+const CROUCH_SPEED = 2.15;
+const STANDING_HEIGHT = 1.8;
+const CROUCHING_HEIGHT = 1.5;
+const STANDING_EYE_HEIGHT = 1.62;
+const CROUCHING_EYE_HEIGHT = 1.27;
 const FLY_SPEED = 11.5;
 const FLY_SPRINT_SPEED = 20.0;
 const MOUSE_SENSITIVITY = 0.0022;
@@ -19,14 +29,15 @@ export class Player {
   public readonly velocity = new THREE.Vector3();
   public readonly collider: PlayerCollider = {
     halfWidth: 0.3,
-    height: 1.8,
+    height: STANDING_HEIGHT,
   };
-  public readonly eyeHeight = 1.62;
+  public eyeHeight = STANDING_EYE_HEIGHT;
 
   public yaw = 0;
   public pitch = 0;
   public onGround = false;
   public flyMode = false;
+  public crouching = false;
 
   constructor(camera: THREE.PerspectiveCamera, spawnPos: THREE.Vector3) {
     this.camera = camera;
@@ -69,6 +80,12 @@ export class Player {
     }
 
     if (this.flyMode) {
+      const standingCollider: PlayerCollider = {
+        halfWidth: this.collider.halfWidth,
+        height: STANDING_HEIGHT,
+      };
+      this.crouching = !canOccupyCollider(world, this.position, standingCollider);
+      this.collider.height = this.crouching ? CROUCHING_HEIGHT : STANDING_HEIGHT;
       const sprinting = input.isKeyDown('ControlLeft') || input.isKeyDown('ControlRight');
       const speed = sprinting ? FLY_SPRINT_SPEED : FLY_SPEED;
 
@@ -83,14 +100,14 @@ export class Player {
       moveWithVoxelCollision(world, this.position, this.velocity, dt, this.collider);
       this.onGround = false;
     } else {
+      this.updateCrouch(input, world);
       const inWater = this.isInWater(world);
       const sprinting =
-        input.isKeyDown('ControlLeft') ||
-        input.isKeyDown('ControlRight') ||
-        input.isKeyDown('ShiftLeft') ||
-        input.isKeyDown('ShiftRight');
+        !this.crouching &&
+        (input.isKeyDown('ControlLeft') || input.isKeyDown('ControlRight'));
 
-      const speed = (sprinting ? SPRINT_SPEED : WALK_SPEED) * (inWater ? 0.65 : 1.0);
+      const baseSpeed = this.crouching ? CROUCH_SPEED : sprinting ? SPRINT_SPEED : WALK_SPEED;
+      const speed = baseSpeed * (inWater ? 0.65 : 1.0);
 
       // Smooth responsive horizontal acceleration
       const accel = this.onGround ? 18.0 : 9.0;
@@ -107,13 +124,20 @@ export class Player {
       } else {
         this.velocity.y -= GRAVITY * dt;
         this.velocity.y = Math.max(this.velocity.y, -48.0);
-        if (this.onGround && input.isKeyDown('Space')) {
+        if (this.onGround && input.isKeyDown('Space') && !this.crouching) {
           this.velocity.y = JUMP_SPEED;
           this.onGround = false;
         }
       }
 
-      const res = moveWithVoxelCollision(world, this.position, this.velocity, dt, this.collider);
+      const res = moveWithVoxelCollision(
+        world,
+        this.position,
+        this.velocity,
+        dt,
+        this.collider,
+        this.crouching
+      );
       this.onGround = res.onGround;
 
       // Safety net if player somehow falls below bedrock
@@ -123,6 +147,9 @@ export class Player {
       }
     }
 
+    const targetEyeHeight = this.crouching ? CROUCHING_EYE_HEIGHT : STANDING_EYE_HEIGHT;
+    const eyeBlend = 1 - Math.exp(-14 * dt);
+    this.eyeHeight += (targetEyeHeight - this.eyeHeight) * eyeBlend;
     this.syncCamera();
   }
 
@@ -158,6 +185,26 @@ export class Player {
     this.pitch = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, pitch));
     this.velocity.set(0, 0, 0);
     this.syncCamera();
+  }
+
+  private updateCrouch(input: Input, world: World): void {
+    const shiftHeld = input.isKeyDown('ShiftLeft') || input.isKeyDown('ShiftRight');
+    if (shiftHeld) {
+      this.crouching = true;
+      this.collider.height = CROUCHING_HEIGHT;
+      return;
+    }
+
+    if (!this.crouching) return;
+
+    const standingCollider: PlayerCollider = {
+      halfWidth: this.collider.halfWidth,
+      height: STANDING_HEIGHT,
+    };
+    if (canOccupyCollider(world, this.position, standingCollider)) {
+      this.crouching = false;
+      this.collider.height = STANDING_HEIGHT;
+    }
   }
 
   private syncCamera(): void {
