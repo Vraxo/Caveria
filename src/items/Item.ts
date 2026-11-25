@@ -40,6 +40,9 @@ export enum ItemId {
   CrystalShard = 102,
   AmethystShard = 103,
   CaveChitin = 104,
+  CaveBerries = 105,
+  RoastedCaveShroom = 106,
+  CaveStew = 107,
 
   // Wooden Tools (tier 1)
   WoodenPickaxe = 110,
@@ -71,6 +74,9 @@ export interface ItemDefinition {
   miningSpeed: number;
   /** Melee damage dealt to mobs; empty hands deal 1. */
   attackDamage?: number;
+  /** Hunger points and saturation restored when eaten. */
+  nutrition?: number;
+  saturation?: number;
   maxDurability?: number;
 }
 
@@ -116,7 +122,11 @@ export const ITEMS: Record<number, ItemDefinition> = {
   [ItemId.DeepSlate]: blockItem(BlockId.DeepSlate),
   [ItemId.MossStone]: blockItem(BlockId.MossStone),
   [ItemId.AmethystCrystal]: blockItem(BlockId.AmethystCrystal),
-  [ItemId.CaveShroom]: blockItem(BlockId.CaveShroom),
+  [ItemId.CaveShroom]: {
+    ...blockItem(BlockId.CaveShroom),
+    nutrition: 2,
+    saturation: 0.8,
+  },
   [ItemId.DripstoneSpike]: blockItem(BlockId.DripstoneSpike),
   [ItemId.CaveVine]: blockItem(BlockId.CaveVine),
 
@@ -164,6 +174,39 @@ export const ITEMS: Record<number, ItemDefinition> = {
     toolCategory: 'none',
     toolTier: 0,
     miningSpeed: 1.0,
+  },
+  [ItemId.CaveBerries]: {
+    id: ItemId.CaveBerries,
+    name: 'Cave Berries',
+    maxStack: 64,
+    placeBlockId: null,
+    toolCategory: 'none',
+    toolTier: 0,
+    miningSpeed: 1,
+    nutrition: 3,
+    saturation: 1.5,
+  },
+  [ItemId.RoastedCaveShroom]: {
+    id: ItemId.RoastedCaveShroom,
+    name: 'Roasted Cave Shroom',
+    maxStack: 64,
+    placeBlockId: null,
+    toolCategory: 'none',
+    toolTier: 0,
+    miningSpeed: 1,
+    nutrition: 6,
+    saturation: 5,
+  },
+  [ItemId.CaveStew]: {
+    id: ItemId.CaveStew,
+    name: 'Cave Stew',
+    maxStack: 16,
+    placeBlockId: null,
+    toolCategory: 'none',
+    toolTier: 0,
+    miningSpeed: 1,
+    nutrition: 8,
+    saturation: 8,
   },
 
   // Wooden Tools
@@ -280,6 +323,13 @@ export function getAttackDamage(stack: ItemStack | null): number {
   return stack ? (ITEMS[stack.id].attackDamage ?? 1) : 1;
 }
 
+export function getFoodStats(stack: ItemStack | null): { nutrition: number; saturation: number } | null {
+  if (!stack) return null;
+  const definition = ITEMS[stack.id];
+  if (definition.nutrition === undefined) return null;
+  return { nutrition: definition.nutrition, saturation: definition.saturation ?? 0 };
+}
+
 export function createStack(id: ItemId, count = 1): ItemStack {
   const def = ITEMS[id];
   const stack: ItemStack = { id, count };
@@ -345,9 +395,15 @@ export function getBlockDrop(blockId: BlockId): ItemStack | null {
     case BlockId.AmethystCrystal:
       return createStack(ItemId.AmethystShard, 2);
     case BlockId.OakLeaves:
-    case BlockId.SpruceLeaves:
-      // 28% chance to drop a handy Stick!
-      return Math.random() < 0.28 ? createStack(ItemId.Stick, 1) : null;
+    case BlockId.SpruceLeaves: {
+      const roll = Math.random();
+      if (roll < 0.2) return createStack(ItemId.CaveBerries, 1 + (Math.random() < 0.25 ? 1 : 0));
+      return roll < 0.42 ? createStack(ItemId.Stick, 1) : null;
+    }
+    case BlockId.CaveVine:
+      return Math.random() < 0.72
+        ? createStack(ItemId.CaveBerries, 1 + (Math.random() < 0.35 ? 1 : 0))
+        : createStack(ItemId.CaveVine, 1);
     default:
       return createStack(blockId as unknown as ItemId, 1);
   }

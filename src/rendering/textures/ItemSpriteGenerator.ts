@@ -147,6 +147,37 @@ export class ItemSpriteGenerator {
         px(5, 5, [224, 94, 58, 255]);
         px(10, 5, [224, 94, 58, 255]);
         break;
+      case ItemId.CaveBerries:
+        for (const [x, y] of [[5, 7], [8, 6], [10, 9], [6, 11]] as Array<[number, number]>) {
+          px(x, y, [110, 26, 150, 255]);
+          px(x + 1, y, [188, 64, 220, 255]);
+          px(x, y + 1, [150, 38, 192, 255]);
+          px(x + 1, y + 1, [84, 20, 122, 255]);
+        }
+        px(7, 4, [76, 148, 62, 255]);
+        px(7, 5, [68, 126, 52, 255]);
+        px(6, 5, [92, 166, 72, 255]);
+        break;
+      case ItemId.RoastedCaveShroom:
+        for (let y = 4; y <= 9; y++) for (let x = 3; x <= 12; x++) {
+          if (Math.abs(x - 7.5) + Math.abs(y - 6.5) * 1.4 < 5.8) {
+            px(x, y, y < 6 ? [232, 142, 72, 255] : [174, 76, 42, 255]);
+          }
+        }
+        for (let y = 9; y <= 13; y++) for (let x = 6; x <= 9; x++) px(x, y, [198, 154, 104, 255]);
+        px(5, 6, [255, 198, 104, 255]);
+        px(10, 7, [112, 48, 32, 255]);
+        break;
+      case ItemId.CaveStew:
+        for (let y = 7; y <= 13; y++) for (let x = 3; x <= 12; x++) {
+          if (Math.abs(x - 7.5) + Math.abs(y - 10) * 0.65 < 5.3) {
+            px(x, y, y < 9 ? [208, 94, 62, 255] : [112, 66, 48, 255]);
+          }
+        }
+        for (let x = 4; x <= 11; x++) px(x, 7, [238, 152, 74, 255]);
+        px(6, 6, [188, 64, 220, 255]);
+        px(9, 6, [228, 178, 112, 255]);
+        break;
       case ItemId.AmethystShard:
         for (let y = 2; y <= 13; y++) {
           for (let x = 4; x <= 11; x++) {

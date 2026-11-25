@@ -3,8 +3,9 @@ import { AudioManager } from '../audio/AudioManager';
 import { Input } from '../core/Input';
 import { MobHit, MobManager } from '../entities/MobManager';
 import { Inventory } from '../items/Inventory';
-import { ITEMS, ItemStack, createStack, getAttackDamage, getBlockDrop, getMiningStats } from '../items/Item';
+import { ITEMS, ItemStack, createStack, getAttackDamage, getBlockDrop, getFoodStats, getMiningStats } from '../items/Item';
 import { Player } from '../player/Player';
+import { PlayerVitals } from '../player/PlayerVitals';
 import { VoxelHit, raycastVoxel } from '../player/Raycaster';
 import { BreakParticles } from '../rendering/BreakParticles';
 import { DroppedItemManager } from '../rendering/DroppedItems';
@@ -29,6 +30,7 @@ interface BlockInteractionDependencies {
   heldItemView: HeldItemView;
   audio: AudioManager;
   mobs: MobManager;
+  vitals: PlayerVitals;
   onOpenWorkbench: () => void;
 }
 
@@ -47,6 +49,7 @@ export class BlockInteractionController {
   private readonly heldItemView: HeldItemView;
   private readonly audio: AudioManager;
   private readonly mobs: MobManager;
+  private readonly vitals: PlayerVitals;
   private readonly onOpenWorkbench: () => void;
   private readonly highlight: BlockHighlight;
   private readonly miningOverlay: MiningOverlay;
@@ -59,6 +62,7 @@ export class BlockInteractionController {
   private miningTargetKey = '';
   private miningElapsed = 0;
   private miningCooldown = 0;
+  private foodCooldown = 0;
 
   constructor(deps: BlockInteractionDependencies) {
     this.world = deps.world;
@@ -71,6 +75,7 @@ export class BlockInteractionController {
     this.heldItemView = deps.heldItemView;
     this.audio = deps.audio;
     this.mobs = deps.mobs;
+    this.vitals = deps.vitals;
     this.onOpenWorkbench = deps.onOpenWorkbench;
     this.highlight = new BlockHighlight(deps.scene);
     this.miningOverlay = new MiningOverlay(deps.scene);
@@ -104,6 +109,11 @@ export class BlockInteractionController {
     if (this.miningCooldown > 0) {
       this.miningCooldown = Math.max(0, this.miningCooldown - dt);
     }
+    this.foodCooldown = Math.max(0, this.foodCooldown - dt);
+
+    if (this.input.consumeMousePress(2)) {
+      this.handleUse(creativeMode, this.mobTarget === null);
+    }
 
     if (this.mobTarget) {
       this.cancelMining();
@@ -112,6 +122,7 @@ export class BlockInteractionController {
         const held = this.hotbar.selectedStack;
         if (this.mobs.damage(this.mobTarget, getAttackDamage(held), this.player.getForwardDirection())) {
           this.miningCooldown = 0.42;
+          if (!creativeMode) this.vitals.addExhaustion(0.12);
           if (held && ITEMS[held.id].maxDurability !== undefined) {
             if (this.inventory.damageTool(this.hotbar.selectedIndex)) this.audio.playToolBreak();
           }
@@ -126,9 +137,6 @@ export class BlockInteractionController {
       this.hotbar.pickBlock(this.hit.blockId, creativeMode);
     }
 
-    if (this.input.consumeMousePress(2) && this.hit) {
-      this.handleInteractionOrPlacement(creativeMode);
-    }
   }
 
   public clearTarget(): void {
@@ -231,7 +239,24 @@ export class BlockInteractionController {
     this.miningCooldown = 0.14;
   }
 
-  private handleInteractionOrPlacement(creativeMode: boolean): void {
+  private handleUse(creativeMode: boolean, allowWorldUse: boolean): void {
+    const held = this.hotbar.selectedStack;
+    const food = getFoodStats(held);
+    if (
+      held &&
+      food &&
+      this.foodCooldown <= 0 &&
+      this.vitals.eat(food.nutrition, food.saturation)
+    ) {
+      if (!creativeMode) this.inventory.consumeOne(this.hotbar.selectedIndex);
+      this.foodCooldown = 0.55;
+      this.heldItemView.triggerPlace();
+      this.audio.playEat();
+      return;
+    }
+    if (food && this.foodCooldown > 0) return;
+    if (!allowWorldUse) return;
+
     if (!this.hit) return;
     const sneaking =
       this.input.isKeyDown('ShiftLeft') || this.input.isKeyDown('ShiftRight');
@@ -241,7 +266,6 @@ export class BlockInteractionController {
       return;
     }
 
-    const held = this.hotbar.selectedStack;
     if (!held) return;
     const itemDefinition = ITEMS[held.id];
     if (itemDefinition.placeBlockId === null) return;
@@ -288,7 +312,10 @@ export class BlockInteractionController {
     this.world.setBlock(x, y, z, block);
     this.heldItemView.triggerPlace();
     this.audio.playPlace(block);
-    if (!creativeMode) this.inventory.consumeOne(this.hotbar.selectedIndex);
+    if (!creativeMode) {
+      this.inventory.consumeOne(this.hotbar.selectedIndex);
+      this.vitals.addExhaustion(0.01);
+    }
     this.updateTarget();
   }
 
@@ -297,6 +324,7 @@ export class BlockInteractionController {
     this.world.setBlock(blockX, blockY, blockZ, BlockId.Air);
     this.particles.spawnBurst(blockX, blockY, blockZ, blockId);
     this.audio.playBreak(blockId);
+    if (!creativeMode) this.vitals.addExhaustion(0.025);
 
     if (spawnDropItem) {
       const drop = getBlockDrop(blockId);

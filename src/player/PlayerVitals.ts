@@ -1,19 +1,27 @@
-export type DamageCause = 'mob' | 'fall' | 'drowning';
+export type DamageCause = 'mob' | 'fall' | 'drowning' | 'starvation';
 
 const MAX_HEALTH = 20;
+const MAX_HUNGER = 20;
 const MAX_AIR = 10;
+const EXHAUSTION_PER_POINT = 4;
 
-/** Player health, invulnerability, air supply, HUD rendering, and death state. */
+/** Player health, hunger, air supply, damage rules, HUD rendering, and death state. */
 export class PlayerVitals {
   public health = MAX_HEALTH;
+  public hunger = MAX_HUNGER;
+  public saturation = 5;
   public dead = false;
   public invulnerable = false;
 
   private air = MAX_AIR;
+  private exhaustion = 0;
   private invulnerabilityTimer = 0;
   private drowningDamageTimer = 0;
+  private starvationTimer = 4;
+  private regenerationTimer = 4;
   private flashTimer = 0;
   private readonly heartsEl = document.getElementById('health-hearts')!;
+  private readonly hungerEl = document.getElementById('hunger-pips')!;
   private readonly airEl = document.getElementById('air-meter')!;
   private readonly flashEl = document.getElementById('damage-flash')!;
   private readonly deathEl = document.getElementById('death-screen')!;
@@ -26,26 +34,25 @@ export class PlayerVitals {
   ) {
     document.getElementById('respawn-button')!.addEventListener('click', () => this.respawn());
     document.getElementById('death-title-button')!.addEventListener('click', () => {
-      this.health = MAX_HEALTH;
-      this.air = MAX_AIR;
-      this.dead = false;
-      this.invulnerabilityTimer = 1.5;
+      this.resetForRespawn();
       this.deathEl.classList.add('hidden');
-      this.render();
-      this.renderAir(false);
       this.onTitle();
     });
     this.render();
+    this.renderHunger();
   }
 
-  public get maxHealth(): number {
-    return MAX_HEALTH;
-  }
+  public get maxHealth(): number { return MAX_HEALTH; }
+  public get maxHunger(): number { return MAX_HUNGER; }
+  public get canSprint(): boolean { return this.hunger > 0; }
 
-  public restore(health: number | undefined): void {
+  public restore(health: number | undefined, hunger?: number, saturation?: number): void {
     this.health = Math.max(1, Math.min(MAX_HEALTH, Math.round(health ?? MAX_HEALTH)));
+    this.hunger = Math.max(0, Math.min(MAX_HUNGER, Math.round(hunger ?? MAX_HUNGER)));
+    this.saturation = Math.max(0, Math.min(this.hunger, saturation ?? Math.min(5, this.hunger)));
     this.dead = false;
     this.render();
+    this.renderHunger();
   }
 
   public update(dt: number, underwater: boolean, creativeMode: boolean): void {
@@ -69,12 +76,71 @@ export class PlayerVitals {
       this.drowningDamageTimer = 0;
     }
     this.renderAir(underwater && !creativeMode);
+
+    if (creativeMode) {
+      this.regenerationTimer = 4;
+      this.starvationTimer = 4;
+      return;
+    }
+
+    // Even sheltering indefinitely has a very small metabolic cost.
+    this.addExhaustion(dt * 0.005);
+    if (this.hunger >= 18 && this.health < MAX_HEALTH) {
+      this.regenerationTimer -= dt;
+      if (this.regenerationTimer <= 0) {
+        this.health++;
+        this.addExhaustion(3);
+        this.regenerationTimer = 4;
+        this.render();
+      }
+    } else {
+      this.regenerationTimer = 4;
+    }
+
+    if (this.hunger <= 0) {
+      this.starvationTimer -= dt;
+      if (this.starvationTimer <= 0) {
+        this.starvationTimer = 4;
+        // Normal survival starvation creates danger but does not kill by itself.
+        if (this.health > 1) this.damage(1, 'starvation');
+      }
+    } else {
+      this.starvationTimer = 4;
+    }
+  }
+
+  public addExhaustion(amount: number): void {
+    if (this.dead || this.invulnerable || amount <= 0) return;
+    this.exhaustion += amount;
+    let changed = false;
+    while (this.exhaustion >= EXHAUSTION_PER_POINT) {
+      this.exhaustion -= EXHAUSTION_PER_POINT;
+      if (this.saturation > 0) this.saturation = Math.max(0, this.saturation - 1);
+      else if (this.hunger > 0) this.hunger--;
+      changed = true;
+    }
+    if (changed) this.renderHunger();
+  }
+
+  public addMovementExhaustion(distance: number, sprinting: boolean, swimming: boolean): void {
+    const rate = swimming ? 0.025 : sprinting ? 0.08 : 0.008;
+    this.addExhaustion(Math.max(0, distance) * rate);
+  }
+
+  public eat(nutrition: number, saturation: number): boolean {
+    if (this.dead || nutrition <= 0 || this.hunger >= MAX_HUNGER) return false;
+    this.hunger = Math.min(MAX_HUNGER, this.hunger + nutrition);
+    this.saturation = Math.min(this.hunger, this.saturation + Math.max(0, saturation));
+    this.starvationTimer = 4;
+    this.renderHunger();
+    return true;
   }
 
   public damage(amount: number, cause: DamageCause): boolean {
     if (this.dead || this.invulnerable || this.invulnerabilityTimer > 0 || amount <= 0) return false;
     this.health = Math.max(0, this.health - amount);
     this.invulnerabilityTimer = 0.65;
+    this.regenerationTimer = 4;
     this.flashTimer = 0.14;
     this.render();
     if (this.health <= 0) this.die(cause);
@@ -94,20 +160,30 @@ export class PlayerVitals {
         ? 'You ran out of air in the depths.'
         : cause === 'fall'
           ? 'You discovered gravity the hard way.'
-          : 'A Cave Crawler claimed another explorer.';
+          : cause === 'starvation'
+            ? 'The caves offered no meal.'
+            : 'A Cave Crawler claimed another explorer.';
     this.deathEl.classList.remove('hidden');
     this.onDeath();
   }
 
   private respawn(): void {
+    this.resetForRespawn();
+    this.deathEl.classList.add('hidden');
+    this.onRespawn();
+  }
+
+  private resetForRespawn(): void {
     this.health = MAX_HEALTH;
+    this.hunger = MAX_HUNGER;
+    this.saturation = 5;
     this.air = MAX_AIR;
+    this.exhaustion = 0;
     this.dead = false;
     this.invulnerabilityTimer = 1.5;
-    this.deathEl.classList.add('hidden');
     this.render();
+    this.renderHunger();
     this.renderAir(false);
-    this.onRespawn();
   }
 
   private render(): void {
@@ -120,6 +196,19 @@ export class PlayerVitals {
       if (remaining <= 0) element.classList.add('empty');
       else if (remaining === 1) element.classList.add('half');
       this.heartsEl.append(element);
+    }
+  }
+
+  private renderHunger(): void {
+    this.hungerEl.replaceChildren();
+    for (let pip = 0; pip < MAX_HUNGER / 2; pip++) {
+      const element = document.createElement('span');
+      element.className = 'hunger-pip';
+      element.textContent = '◆';
+      const remaining = this.hunger - pip * 2;
+      if (remaining <= 0) element.classList.add('empty');
+      else if (remaining === 1) element.classList.add('half');
+      this.hungerEl.append(element);
     }
   }
 

@@ -151,16 +151,29 @@
         gap: 3px;
         pointer-events: none;
       }
-      #health-hearts { display: flex; gap: 2px; }
-      .heart {
+      #health-hearts, #hunger-pips { display: flex; gap: 2px; }
+      .heart, .hunger-pip {
         width: 18px;
-        color: #ef3340;
         font: 18px/1 sans-serif;
+      }
+      .heart {
+        color: #ef3340;
         text-shadow: 1px 1px 0 #400, -1px -1px 0 #200;
       }
       .heart.empty { color: #351b22; }
       .heart.half {
         background: linear-gradient(90deg, #ef3340 50%, #351b22 50%);
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent;
+      }
+      .hunger-pip {
+        color: #d97706;
+        text-shadow: 1px 1px 0 #451a03, -1px -1px 0 #271105;
+      }
+      .hunger-pip.empty { color: #3b291c; }
+      .hunger-pip.half {
+        background: linear-gradient(90deg, #d97706 50%, #3b291c 50%);
         background-clip: text;
         -webkit-background-clip: text;
         color: transparent;
@@ -813,6 +826,7 @@
     <div id="debug-hud"></div>
     <div id="vitals-hud">
       <div id="health-hearts" aria-label="Player health"></div>
+      <div id="hunger-pips" aria-label="Player hunger"></div>
       <div id="air-meter" class="hidden" aria-label="Remaining air"></div>
     </div>
     <div id="damage-flash"></div>
@@ -942,7 +956,7 @@
           <span class="key-badge">Space</span><span>Jump · Ascend while flying</span>
           <span class="key-badge">Ctrl / Shift</span><span>Sprint / Crouch · Shift descends while flying</span>
           <span class="key-badge">Left Click</span><span>Mine or attack</span>
-          <span class="key-badge">Right Click</span><span>Place block or use workstation</span>
+          <span class="key-badge">Right Click</span><span>Eat held food, place blocks, or use workstations</span>
           <span class="key-badge">E / Q</span><span>Inventory / Toss held item</span>
           <span class="key-badge">1–9 / Scroll</span><span>Select hotbar slot</span>
           <span class="key-badge">C / F</span><span>Creative mode / Fly mode</span>

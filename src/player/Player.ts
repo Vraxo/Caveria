@@ -57,7 +57,13 @@ export class Player {
     this.syncCamera();
   }
 
-  public updatePhysics(dt: number, input: Input, world: World, movementSpeedScale = 1): void {
+  public updatePhysics(
+    dt: number,
+    input: Input,
+    world: World,
+    movementSpeedScale = 1,
+    canSprint = true
+  ): void {
     const forwardInput =
       (input.isKeyDown('KeyW') || input.isKeyDown('ArrowUp') ? 1 : 0) -
       (input.isKeyDown('KeyS') || input.isKeyDown('ArrowDown') ? 1 : 0);
@@ -103,6 +109,7 @@ export class Player {
       this.updateCrouch(input, world);
       const inWater = this.isInWater(world);
       const sprinting =
+        canSprint &&
         !this.crouching &&
         (input.isKeyDown('ControlLeft') || input.isKeyDown('ControlRight'));
 

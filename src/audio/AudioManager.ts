@@ -49,6 +49,7 @@ export class AudioManager {
   public playInventoryClose(): void { this.ui.playInventoryClose(); }
   public playCraft(): void { this.ui.playCraft(); }
   public playToss(): void { this.ui.playToss(); }
+  public playEat(): void { this.ui.playEat(); }
   public playToolBreak(): void { this.ui.playToolBreak(); }
   public playModeToggle(): void { this.ui.playModeToggle(); }
   public playThunder(intensity: number): void { this.ambience.playThunder(intensity); }
