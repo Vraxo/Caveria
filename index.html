@@ -441,86 +441,192 @@
         display: none;
       }
 
-      /* Pause / Start Overlay */
+      /* Voxel title and pause menus, inspired by classic sandbox menu structure. */
       #overlay {
         position: fixed;
         inset: 0;
         z-index: 30;
-        background: radial-gradient(circle at center, rgba(15, 23, 42, 0.58), rgba(2, 6, 23, 0.84));
-        backdrop-filter: blur(4px);
         display: flex;
         align-items: center;
         justify-content: center;
-        cursor: pointer;
+        overflow: hidden;
+      }
+      #overlay::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(rgba(4, 10, 18, 0.28), rgba(4, 10, 18, 0.5)),
+          repeating-linear-gradient(0deg, rgba(255,255,255,0.018) 0 1px, transparent 1px 4px);
+        pointer-events: none;
+      }
+      #overlay.mode-pause::before {
+        background: rgba(2, 6, 12, 0.68);
+        backdrop-filter: blur(2px);
+      }
+      #overlay.hidden { display: none; }
+
+      body.menu-open #crosshair,
+      body.menu-open #mining-bar,
+      body.menu-open #hotbar-wrapper,
+      body.menu-open #status-pill,
+      body.menu-open #audio-toggle,
+      body.menu-open #debug-hud { display: none; }
+      body.title-menu canvas#game-canvas {
+        filter: saturate(0.82) brightness(0.8);
+        transform: scale(1.035);
+        animation: title-drift 18s ease-in-out infinite alternate;
+      }
+      @keyframes title-drift {
+        from { transform: scale(1.035) translate3d(-0.4%, -0.2%, 0); }
+        to { transform: scale(1.065) translate3d(0.5%, 0.3%, 0); }
       }
 
-      #overlay.hidden {
-        display: none;
-      }
-
-      .overlay-card {
-        max-width: 500px;
-        width: calc(100% - 32px);
-        background: rgba(15, 23, 42, 0.92);
-        border: 2px solid rgba(255, 255, 255, 0.18);
-        border-radius: 10px;
-        padding: 26px 28px;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      .menu-screen {
+        position: relative;
+        z-index: 1;
+        width: min(420px, calc(100% - 32px));
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
         text-align: center;
       }
+      .menu-screen.hidden { display: none; }
+      .title-screen { width: min(480px, calc(100% - 32px)); }
 
-      .overlay-title {
-        font-size: 32px;
+      .caveria-logo {
+        position: relative;
+        margin: 0 auto 42px;
+        font-family: Impact, Haettenschweiler, 'Arial Black', sans-serif;
+        font-size: clamp(50px, 8vw, 84px);
+        line-height: 0.82;
+        letter-spacing: 0.055em;
+        color: #d9e2df;
+        -webkit-text-stroke: 2px #17231f;
+        text-shadow:
+          0 3px 0 #798984,
+          0 7px 0 #31423c,
+          0 11px 0 #17221e,
+          6px 13px 12px rgba(0, 0, 0, 0.72);
+      }
+      .caveria-logo::after {
+        content: '';
+        position: absolute;
+        left: 5%;
+        right: 5%;
+        bottom: -15px;
+        height: 5px;
+        background: repeating-linear-gradient(90deg, #4c8a49 0 14px, #376c39 14px 25px);
+        border: 2px solid #1e3d24;
+        box-shadow: 0 3px 0 #102719;
+      }
+      .menu-splash {
+        position: absolute;
+        right: -18px;
+        bottom: -32px;
+        color: #ffe84b;
+        font: 800 clamp(12px, 2.2vw, 18px)/1 ui-monospace, monospace;
+        text-shadow: 2px 2px 0 #5c4100;
+        transform: rotate(-12deg);
+        white-space: nowrap;
+        animation: splash-pulse 0.85s ease-in-out infinite alternate;
+      }
+      @keyframes splash-pulse {
+        from { scale: 0.96; }
+        to { scale: 1.04; }
+      }
+
+      .menu-heading {
+        margin-bottom: 26px;
+        color: #fff;
+        font-size: 24px;
         font-weight: 800;
-        letter-spacing: 0.08em;
-        color: #4ade80;
-        text-shadow: 0 3px 0 #14532d;
-        margin-bottom: 6px;
+        text-shadow: 3px 3px 0 #000;
       }
-
-      .overlay-subtitle {
-        font-size: 13px;
-        color: #94a3b8;
-        margin-bottom: 18px;
-      }
-
-      .play-btn {
-        display: inline-block;
-        width: 100%;
-        padding: 12px 20px;
-        font-family: inherit;
-        font-size: 15px;
-        font-weight: 700;
-        color: #052e16;
-        background: #4ade80;
-        border: none;
-        border-bottom: 4px solid #16a34a;
-        border-radius: 6px;
+      .menu-stack { display: grid; gap: 8px; }
+      .menu-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .voxel-button {
+        position: relative;
+        min-height: 44px;
+        padding: 8px 14px;
+        border: 2px solid #111;
+        border-top-color: #9a9a9a;
+        border-left-color: #858585;
+        border-radius: 0;
+        background:
+          linear-gradient(rgba(255,255,255,0.04), rgba(0,0,0,0.08)),
+          repeating-linear-gradient(135deg, #555 0 3px, #505050 3px 6px);
+        box-shadow: inset 0 0 0 2px #6d6d6d, 2px 3px 0 rgba(0,0,0,0.62);
+        color: #fff;
+        font: 700 14px/1.15 ui-monospace, monospace;
+        text-shadow: 2px 2px 0 #252525;
         cursor: pointer;
-        margin-bottom: 18px;
-        transition: filter 0.12s ease;
+      }
+      .voxel-button:hover,
+      .voxel-button:focus-visible {
+        outline: none;
+        border-color: #fff;
+        box-shadow: inset 0 0 0 2px #7795ff, 2px 3px 0 rgba(0,0,0,0.62);
+        background: repeating-linear-gradient(135deg, #667bc2 0 3px, #5d71b5 3px 6px);
+        color: #fff8a8;
+      }
+      .voxel-button:active { transform: translateY(2px); box-shadow: inset 0 0 0 2px #6076c2; }
+      .voxel-button.danger:hover { background: repeating-linear-gradient(135deg, #934646 0 3px, #843d3d 3px 6px); }
+      .menu-spacer { height: 14px; }
+
+      .menu-footer {
+        position: fixed;
+        z-index: 2;
+        left: 10px;
+        right: 10px;
+        bottom: 8px;
+        display: flex;
+        justify-content: space-between;
+        color: #e2e8f0;
+        font-size: 11px;
+        text-shadow: 1px 1px 0 #000;
+        pointer-events: none;
+      }
+      .menu-hint {
+        margin-top: 16px;
+        color: #cbd5e1;
+        font-size: 11px;
+        text-shadow: 1px 1px 0 #000;
       }
 
-      .play-btn:hover {
-        filter: brightness(1.07);
+      .options-list {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
       }
+      .options-list .wide { grid-column: 1 / -1; }
 
       .controls-grid {
         display: grid;
         grid-template-columns: auto 1fr;
-        gap: 7px 16px;
-        text-align: left;
+        gap: 8px 18px;
+        max-height: min(52vh, 390px);
+        overflow-y: auto;
+        margin-bottom: 12px;
+        padding: 16px;
+        border: 2px solid #111;
+        background: rgba(17, 24, 31, 0.92);
+        color: #e5e7eb;
         font-size: 12px;
-        color: #cbd5e1;
-        background: rgba(2, 6, 23, 0.55);
-        padding: 14px 16px;
-        border-radius: 6px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        text-align: left;
+        box-shadow: inset 0 0 0 2px #4b5563;
       }
+      .key-badge { color: #ffe55c; font-weight: 800; }
 
-      .key-badge {
-        color: #facc15;
-        font-weight: 700;
+      @media (max-height: 650px) {
+        .caveria-logo { margin-bottom: 28px; font-size: 52px; }
+        .menu-splash { bottom: -25px; }
+        .menu-heading { margin-bottom: 14px; }
+        .voxel-button { min-height: 38px; }
+        .menu-spacer { height: 8px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        body.title-menu canvas#game-canvas, .menu-splash { animation: none; }
       }
     </style>
   </head>
@@ -573,28 +679,71 @@
 
     <div id="cursor-item" class="hidden"></div>
 
-    <!-- Pause / Welcome Overlay -->
-    <div id="overlay">
-      <div class="overlay-card">
-        <div class="overlay-title">CAVERIA</div>
-        <div class="overlay-subtitle">Voxel Survival &amp; Crafting Sandbox</div>
-        <button id="play-button" class="play-btn" type="button">Click to Play</button>
-        <div class="save-actions">
-          <button id="save-now" class="save-action" type="button">Save World Now</button>
-          <button id="reset-world" class="save-action danger" type="button">Reset Saved World</button>
+    <!-- Title, pause, options, and controls menus -->
+    <div id="overlay" class="mode-title">
+      <section id="title-menu" class="menu-screen title-screen">
+        <div class="caveria-logo">
+          CAVERIA
+          <span id="menu-splash" class="menu-splash">Dig deeper!</span>
         </div>
+        <div class="menu-stack">
+          <button id="play-button" class="voxel-button" type="button">Play World</button>
+          <button id="reset-world" class="voxel-button" type="button">Reset Current World</button>
+          <div class="menu-spacer"></div>
+          <div class="menu-row">
+            <button id="title-options-button" class="voxel-button" type="button">Options...</button>
+            <button id="quit-game-button" class="voxel-button danger" type="button">Quit Game</button>
+          </div>
+        </div>
+        <div class="menu-hint">A voxel survival &amp; crafting sandbox</div>
+      </section>
+
+      <section id="pause-menu" class="menu-screen hidden">
+        <div class="menu-heading">Game Menu</div>
+        <div class="menu-stack">
+          <button id="resume-button" class="voxel-button" type="button">Back to Game</button>
+          <div class="menu-row">
+            <button id="pause-options-button" class="voxel-button" type="button">Options...</button>
+            <button id="controls-button" class="voxel-button" type="button">Controls...</button>
+          </div>
+          <div class="menu-spacer"></div>
+          <button id="save-now" class="voxel-button" type="button">Save and Quit to Title</button>
+        </div>
+      </section>
+
+      <section id="options-menu" class="menu-screen hidden">
+        <div class="menu-heading">Options</div>
+        <div class="options-list">
+          <button id="menu-audio-button" class="voxel-button" type="button">Sound: On</button>
+          <button id="fov-button" class="voxel-button" type="button">FOV: 75</button>
+          <button id="fullscreen-button" class="voxel-button" type="button">Fullscreen: Off</button>
+          <button id="options-controls-button" class="voxel-button" type="button">Controls...</button>
+          <button id="options-done-button" class="voxel-button wide" type="button">Done</button>
+        </div>
+      </section>
+
+      <section id="controls-menu" class="menu-screen hidden">
+        <div class="menu-heading">Controls</div>
         <div class="controls-grid">
-          <span class="key-badge">W A S D / Space</span><span>Move / Jump · Ctrl: Sprint · Shift: Crouch (Descend while flying)</span>
-          <span class="key-badge">Hold Left Click</span><span>Mine blocks (use tools for Stone &amp; Ores!)</span>
-          <span class="key-badge">Right Click</span><span>Place block / Use Crafting Table</span>
-          <span class="key-badge">E</span><span>Open Inventory &amp; 2×2 Hand Crafting</span>
-          <span class="key-badge">Q</span><span>Toss 1 held item</span>
+          <span class="key-badge">W A S D</span><span>Move</span>
+          <span class="key-badge">Space</span><span>Jump · Ascend while flying</span>
+          <span class="key-badge">Ctrl / Shift</span><span>Sprint / Crouch · Shift descends while flying</span>
+          <span class="key-badge">Left Click</span><span>Mine or attack</span>
+          <span class="key-badge">Right Click</span><span>Place block or use workstation</span>
+          <span class="key-badge">E / Q</span><span>Inventory / Toss held item</span>
           <span class="key-badge">1–9 / Scroll</span><span>Select hotbar slot</span>
-          <span class="key-badge">C / F</span><span>Toggle Creative Mode / Toggle Fly</span>
-          <span class="key-badge">M</span><span>Mute / unmute procedural retro audio</span>
-          <span class="key-badge">Autosave</span><span>Position, inventory, time, settings &amp; voxel edits every 10s</span>
-          <span class="key-badge">T / Y / [ / ] / F3</span><span>Time / Cycle weather / Pipeline stats / Debug HUD</span>
+          <span class="key-badge">C / F</span><span>Creative mode / Fly mode</span>
+          <span class="key-badge">T / Y</span><span>Advance time / Cycle weather</span>
+          <span class="key-badge">[ / ]</span><span>Reverse / advance time continuously</span>
+          <span class="key-badge">M / F3</span><span>Mute audio / Debug HUD</span>
+          <span class="key-badge">Esc</span><span>Pause or return</span>
         </div>
+        <button id="controls-done-button" class="voxel-button" type="button">Done</button>
+      </section>
+
+      <div class="menu-footer">
+        <span>Caveria 0.6.0</span>
+        <span>Original Caveria interface · Inspired by classic voxel sandboxes</span>
       </div>
     </div>
 
