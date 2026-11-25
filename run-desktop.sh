@@ -26,8 +26,8 @@ if ! electron_is_ready; then
 
   if ! electron_is_ready; then
     echo "Electron package is present, but its runtime was not downloaded."
-    echo "Running the reviewed Electron installer directly..."
-    node node_modules/electron/install.js
+    echo "Running Caveria's verified Electron runtime installer..."
+    node desktop/install-electron-runtime.cjs
   fi
 
   if ! electron_is_ready; then

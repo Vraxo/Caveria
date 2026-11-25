@@ -21,8 +21,8 @@ if errorlevel 1 goto install_failed
 if exist "node_modules\electron\dist\electron.exe" goto dependencies_ready
 
 echo Electron package is present, but its runtime was not downloaded.
-echo Running the reviewed Electron installer directly...
-call node "node_modules\electron\install.js"
+echo Running Caveria's verified Electron runtime installer...
+call node "desktop\install-electron-runtime.cjs"
 if errorlevel 1 goto install_failed
 if not exist "node_modules\electron\dist\electron.exe" goto install_failed
 
