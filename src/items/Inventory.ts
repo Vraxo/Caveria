@@ -28,6 +28,18 @@ export class Inventory {
     return this.slots[index] ?? null;
   }
 
+  public restore(savedSlots: Array<ItemStack | null>): void {
+    for (let i = 0; i < TOTAL_INVENTORY_SLOTS; i++) {
+      const stack = savedSlots[i];
+      this.slots[i] = stack ? { ...stack } : null;
+    }
+    this.notify();
+  }
+
+  public snapshot(): Array<ItemStack | null> {
+    return this.slots.map((stack) => (stack ? { ...stack } : null));
+  }
+
   public setSlot(index: number, stack: ItemStack | null): void {
     if (index < 0 || index >= TOTAL_INVENTORY_SLOTS) return;
     this.slots[index] = stack && stack.count > 0 ? stack : null;

@@ -11,6 +11,7 @@ import {
 } from '../items/Item';
 import { Player } from '../player/Player';
 import { VoxelHit, raycastVoxel } from '../player/Raycaster';
+import { SAVE_VERSION, WorldPersistence } from '../persistence/WorldPersistence';
 import { BreakParticles } from '../rendering/BreakParticles';
 import { DayNightCycle } from '../rendering/DayNightCycle';
 import { DroppedItemManager } from '../rendering/DroppedItems';
@@ -45,6 +46,7 @@ export class Game {
   private readonly drops: DroppedItemManager;
   private readonly heldItemView: HeldItemView;
   private readonly audio: AudioManager;
+  private readonly persistence: WorldPersistence;
 
   private readonly inventory: Inventory;
   private readonly hotbar: Hotbar;
@@ -57,9 +59,13 @@ export class Game {
   private readonly miningBarEl: HTMLElement;
   private readonly miningBarFillEl: HTMLElement;
   private readonly audioToggleEl: HTMLButtonElement;
+  private readonly saveStatusEl: HTMLElement;
   private readonly seedLabel: string;
 
   private lastTime = performance.now();
+  private autosaveElapsed = 0;
+  private saveStatusTimer = 0;
+  private suppressSave = false;
   private footstepDistance = 0;
   private wasInWater = false;
   private currentHit: VoxelHit | null = null;
@@ -100,16 +106,33 @@ export class Game {
     const rawSeed = params.get('seed') ?? 'caveria';
     this.seedLabel = rawSeed;
     const numericSeed = hashString(rawSeed);
+    this.persistence = new WorldPersistence(rawSeed);
+    const savedGame = this.persistence.load();
 
     this.input = new Input(canvas);
     this.atlas = new TextureAtlas();
-    this.world = new World(this.scene, this.atlas, numericSeed, renderDistance);
+    this.world = new World(
+      this.scene,
+      this.atlas,
+      numericSeed,
+      renderDistance,
+      savedGame?.worldEdits ?? []
+    );
 
-    const spawnPos = this.world.findSpawnPoint();
+    const generatedSpawn = this.world.findSpawnPoint();
+    const spawnPos = savedGame
+      ? new THREE.Vector3(savedGame.player.x, savedGame.player.y, savedGame.player.z)
+      : generatedSpawn;
     this.world.generateInitialArea(spawnPos.x, spawnPos.z, 3);
 
     this.player = new Player(this.camera, spawnPos);
+    if (savedGame) {
+      this.player.restoreTransform(spawnPos, savedGame.player.yaw, savedGame.player.pitch);
+      this.player.flyMode = savedGame.player.flyMode;
+      this.dayNight.timeOfDay = savedGame.timeOfDay;
+    }
     this.audio = new AudioManager();
+    if (savedGame) this.audio.setMuted(savedGame.muted);
     this.highlight = new BlockHighlight(this.scene);
     this.miningOverlay = new MiningOverlay(this.scene);
     this.particles = new BreakParticles(this.scene);
@@ -120,7 +143,12 @@ export class Game {
     this.heldItemView = new HeldItemView(this.camera, this.atlas);
 
     this.inventory = new Inventory();
+    if (savedGame) this.inventory.restore(savedGame.inventory);
     this.hotbar = new Hotbar(this.inventory, this.atlas);
+    if (savedGame) {
+      this.hotbar.selectIndex(savedGame.selectedHotbar);
+      this.creativeMode = savedGame.creativeMode;
+    }
     this.inventoryModal = new InventoryModal(
       this.inventory,
       this.atlas,
@@ -135,10 +163,16 @@ export class Game {
     this.miningBarEl = document.getElementById('mining-bar')!;
     this.miningBarFillEl = document.getElementById('mining-bar-fill')!;
     this.audioToggleEl = document.getElementById('audio-toggle') as HTMLButtonElement;
+    this.saveStatusEl = document.getElementById('save-status')!;
 
     this.setupOverlayAndEvents();
     this.updateStatusPill();
     this.updateAudioToggle();
+    if (savedGame) {
+      this.saveStatusEl.textContent = `✓ World restored · ${this.world.editCount} voxel edits`;
+      this.saveStatusEl.classList.add('visible');
+      this.saveStatusTimer = 3.5;
+    }
   }
 
   public start(): void {
@@ -168,6 +202,26 @@ export class Game {
       this.audio.unlock();
       this.audio.toggleMute();
       this.updateAudioToggle();
+      this.saveGame(false);
+    });
+
+    document.getElementById('save-now')!.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.audio.playUiClick();
+      this.saveGame(true);
+    });
+    document.getElementById('reset-world')!.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (window.confirm(`Delete the saved world for seed “${this.seedLabel}”?`)) {
+        this.suppressSave = true;
+        this.persistence.clear();
+        window.location.reload();
+      }
+    });
+
+    window.addEventListener('beforeunload', () => this.saveGame(false));
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') this.saveGame(false);
     });
 
     // Modal interactions get tiny tactile ticks; crafting output gets a brighter chord.
@@ -221,6 +275,16 @@ export class Game {
   }
 
   private update(dt: number): void {
+    this.autosaveElapsed += dt;
+    if (this.autosaveElapsed >= 10) {
+      this.autosaveElapsed = 0;
+      this.saveGame(false);
+    }
+    if (this.saveStatusTimer > 0) {
+      this.saveStatusTimer -= dt;
+      if (this.saveStatusTimer <= 0) this.saveStatusEl.classList.remove('visible', 'error');
+    }
+
     if (this.input.consumeKeyPress('KeyM')) {
       this.audio.unlock();
       this.audio.toggleMute();
@@ -557,6 +621,38 @@ export class Game {
       vel,
       1.15
     );
+  }
+
+  private saveGame(showFeedback: boolean): void {
+    if (this.suppressSave) return;
+    const saved = this.persistence.save({
+      version: SAVE_VERSION,
+      seed: this.seedLabel,
+      savedAt: Date.now(),
+      player: {
+        x: this.player.position.x,
+        y: this.player.position.y,
+        z: this.player.position.z,
+        yaw: this.player.yaw,
+        pitch: this.player.pitch,
+        flyMode: this.player.flyMode,
+      },
+      inventory: this.inventory.snapshot(),
+      selectedHotbar: this.hotbar.selectedIndex,
+      creativeMode: this.creativeMode,
+      timeOfDay: this.dayNight.timeOfDay,
+      muted: this.audio.muted,
+      worldEdits: this.world.exportEdits(),
+    });
+
+    if (showFeedback || !saved) {
+      this.saveStatusEl.textContent = saved
+        ? `✓ World saved · ${this.world.editCount} voxel edits`
+        : '⚠ Save failed · browser storage unavailable';
+      this.saveStatusEl.classList.toggle('error', !saved);
+      this.saveStatusEl.classList.add('visible');
+      this.saveStatusTimer = saved ? 2.4 : 5;
+    }
   }
 
   private updateMovementAudio(dt: number, wasGrounded: boolean, impactVelocity: number): void {

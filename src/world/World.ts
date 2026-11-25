@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { SerializedVoxelEdit } from '../persistence/WorldPersistence';
 import { TextureAtlas } from '../rendering/TextureAtlas';
 import {
   VoxelLightUniforms,
@@ -8,6 +9,7 @@ import {
 import { BlockId } from './Block';
 import { CHUNK_HEIGHT, CHUNK_SIZE, Chunk } from './Chunk';
 import { buildChunkGeometries } from './ChunkMesher';
+import { ChunkPipeline } from './ChunkPipeline';
 import { initializeChunkLighting, updateLightingAtEdit } from './Lighting';
 import { TerrainGen } from './TerrainGen';
 
@@ -19,15 +21,27 @@ export class World {
   public readonly lightUniforms: VoxelLightUniforms;
 
   private readonly chunks = new Map<string, Chunk>();
+  private readonly chunkPipeline: ChunkPipeline;
+  private readonly pendingChunks = new Set<string>();
+  /** Sparse player edits grouped by chunk, indexed using the chunk's linear voxel index. */
+  private readonly editsByChunk = new Map<string, Map<number, BlockId>>();
   private readonly opaqueMaterial: THREE.MeshBasicMaterial;
   private readonly waterMaterial: THREE.MeshBasicMaterial;
 
-  constructor(scene: THREE.Scene, atlas: TextureAtlas, seed: number, renderDistance = 5) {
+  constructor(
+    scene: THREE.Scene,
+    atlas: TextureAtlas,
+    seed: number,
+    renderDistance = 5,
+    savedEdits: SerializedVoxelEdit[] = []
+  ) {
     this.scene = scene;
     this.atlas = atlas;
     this.terrainGen = new TerrainGen(seed);
+    this.chunkPipeline = new ChunkPipeline(seed);
     this.renderDistance = renderDistance;
     this.lightUniforms = createVoxelLightUniforms();
+    this.importEdits(savedEdits);
 
     this.opaqueMaterial = new THREE.MeshBasicMaterial({
       map: atlas.texture,
@@ -50,6 +64,35 @@ export class World {
 
   public get loadedChunkCount(): number {
     return this.chunks.size;
+  }
+
+  public get pendingChunkCount(): number {
+    return this.pendingChunks.size;
+  }
+
+  public get workerPipelineActive(): boolean {
+    return this.chunkPipeline.active;
+  }
+
+  public get editCount(): number {
+    let count = 0;
+    for (const edits of this.editsByChunk.values()) count += edits.size;
+    return count;
+  }
+
+  public exportEdits(): SerializedVoxelEdit[] {
+    const result: SerializedVoxelEdit[] = [];
+    for (const [key, edits] of this.editsByChunk) {
+      const [cx, cz] = key.split(',').map(Number);
+      for (const [index, block] of edits) {
+        const y = Math.floor(index / (CHUNK_SIZE * CHUNK_SIZE));
+        const rem = index - y * CHUNK_SIZE * CHUNK_SIZE;
+        const lz = Math.floor(rem / CHUNK_SIZE);
+        const lx = rem % CHUNK_SIZE;
+        result.push([cx * CHUNK_SIZE + lx, y, cz * CHUNK_SIZE + lz, block]);
+      }
+    }
+    return result;
   }
 
   public static worldToChunkCoord(n: number): number {
@@ -105,7 +148,9 @@ export class World {
 
     const lx = World.worldToLocalCoord(x);
     const lz = World.worldToLocalCoord(z);
+    if (chunk.get(lx, y, lz) === id) return true;
     chunk.set(lx, y, lz, id);
+    this.recordEdit(cx, cz, lx, y, lz, id);
 
     // Recompute local skylight & block light around the edited voxel
     const affectedKeys = updateLightingAtEdit(x, y, z, (qcx, qcz) => this.getChunk(qcx, qcz));
@@ -191,12 +236,14 @@ export class World {
     }
     desired.sort((a, b) => a.distSq - b.distSq);
 
-    // Generate & light up to 2 new chunks per frame
+    // Queue up to 2 terrain jobs per frame. Generation happens in a Web Worker;
+    // lighting and Three.js mesh attachment remain deterministic on the main thread.
     let genBudget = 2;
     for (const item of desired) {
       if (genBudget <= 0) break;
-      if (!this.chunks.has(Chunk.key(item.cx, item.cz))) {
-        this.ensureChunkData(item.cx, item.cz, true);
+      const key = Chunk.key(item.cx, item.cz);
+      if (!this.chunks.has(key) && !this.pendingChunks.has(key)) {
+        this.requestChunkData(item.cx, item.cz);
         genBudget--;
       }
     }
@@ -234,12 +281,10 @@ export class World {
     if (!chunk) {
       chunk = new Chunk(cx, cz);
       this.terrainGen.populateChunk(chunk);
+      this.applySavedEdits(chunk);
       this.chunks.set(key, chunk);
 
-      this.markChunkDirty(cx - 1, cz);
-      this.markChunkDirty(cx + 1, cz);
-      this.markChunkDirty(cx, cz - 1);
-      this.markChunkDirty(cx, cz + 1);
+      this.markAdjacentChunksDirty(cx, cz);
 
       if (computeLightImmediately) {
         initializeChunkLighting(
@@ -250,6 +295,73 @@ export class World {
       }
     }
     return chunk;
+  }
+
+  private requestChunkData(cx: number, cz: number): void {
+    const key = Chunk.key(cx, cz);
+    this.pendingChunks.add(key);
+
+    if (!this.chunkPipeline.active) {
+      this.pendingChunks.delete(key);
+      this.ensureChunkData(cx, cz, true);
+      return;
+    }
+
+    void this.chunkPipeline
+      .generate(cx, cz)
+      .then((generated) => {
+        this.pendingChunks.delete(key);
+        if (this.chunks.has(key)) return;
+
+        const chunk = new Chunk(generated.cx, generated.cz);
+        chunk.data.set(generated.data);
+        this.applySavedEdits(chunk);
+        this.chunks.set(key, chunk);
+        this.markAdjacentChunksDirty(cx, cz);
+        initializeChunkLighting(
+          chunk,
+          (qcx, qcz) => this.getChunk(qcx, qcz),
+          (mcx, mcz) => this.markChunkDirty(mcx, mcz)
+        );
+      })
+      .catch(() => {
+        this.pendingChunks.delete(key);
+        if (!this.chunks.has(key)) this.ensureChunkData(cx, cz, true);
+      });
+  }
+
+  private importEdits(edits: SerializedVoxelEdit[]): void {
+    for (const [x, y, z, block] of edits) {
+      const cx = World.worldToChunkCoord(x);
+      const cz = World.worldToChunkCoord(z);
+      const lx = World.worldToLocalCoord(x);
+      const lz = World.worldToLocalCoord(z);
+      this.recordEdit(cx, cz, lx, y, lz, block);
+    }
+  }
+
+  private recordEdit(cx: number, cz: number, lx: number, y: number, lz: number, id: BlockId): void {
+    const key = Chunk.key(cx, cz);
+    let edits = this.editsByChunk.get(key);
+    if (!edits) {
+      edits = new Map<number, BlockId>();
+      this.editsByChunk.set(key, edits);
+    }
+    edits.set((y * CHUNK_SIZE + lz) * CHUNK_SIZE + lx, id);
+  }
+
+  private applySavedEdits(chunk: Chunk): void {
+    const edits = this.editsByChunk.get(Chunk.key(chunk.cx, chunk.cz));
+    if (!edits) return;
+    for (const [index, block] of edits) chunk.data[index] = block;
+    chunk.dirty = true;
+  }
+
+  private markAdjacentChunksDirty(cx: number, cz: number): void {
+    this.markChunkDirty(cx - 1, cz);
+    this.markChunkDirty(cx + 1, cz);
+    this.markChunkDirty(cx, cz - 1);
+    this.markChunkDirty(cx, cz + 1);
   }
 
   private markChunkDirty(cx: number, cz: number): void {
