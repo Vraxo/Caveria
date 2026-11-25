@@ -11,6 +11,7 @@ if [ ! -x "node_modules/.bin/vite" ]; then
   echo "Local Vite installation is missing or incomplete."
   echo "Installing development dependencies without deleting existing modules..."
   npm install --include=dev --no-audit --no-fund
+  npm rebuild esbuild
   if [ ! -x "node_modules/.bin/vite" ]; then
     echo "[ERROR] Vite installation is incomplete."
     exit 1

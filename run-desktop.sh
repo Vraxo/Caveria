@@ -17,6 +17,7 @@ if [ "$electron_ready" = false ]; then
   echo "Desktop dependencies are missing or incomplete."
   echo "Installing development dependencies without deleting existing modules..."
   npm install --include=dev --no-audit --no-fund
+  npm rebuild electron esbuild electron-winstaller
   if ! node -e \
     "const fs = require('node:fs'); process.exit(fs.existsSync(require('electron')) ? 0 : 1)"; then
     echo "[ERROR] Electron installation is incomplete."

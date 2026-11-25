@@ -15,6 +15,8 @@ echo Local Vite installation is missing or incomplete.
 echo Installing development dependencies without deleting existing modules...
 call npm install --include=dev --no-audit --no-fund
 if errorlevel 1 goto install_failed
+call npm rebuild esbuild
+if errorlevel 1 goto install_failed
 if not exist "node_modules\.bin\vite.cmd" goto install_failed
 
 :dependencies_ready
