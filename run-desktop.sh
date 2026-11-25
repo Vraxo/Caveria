@@ -7,19 +7,30 @@ if ! command -v npm >/dev/null 2>&1; then
   exit 1
 fi
 
-electron_ready=false
-if [ -x "node_modules/.bin/electron" ] && node -e \
-  "const fs = require('node:fs'); process.exit(fs.existsSync(require('electron')) ? 0 : 1)"; then
-  electron_ready=true
-fi
+electron_is_ready() {
+  node -e "
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const root = path.dirname(require.resolve('electron/package.json'));
+    const executable = fs.readFileSync(path.join(root, 'path.txt'), 'utf8');
+    process.exit(fs.existsSync(path.join(root, 'dist', executable)) ? 0 : 1);
+  " 2>/dev/null
+}
 
-if [ "$electron_ready" = false ]; then
+if ! electron_is_ready; then
   echo "Desktop dependencies are missing or incomplete."
   echo "Installing development dependencies without deleting existing modules..."
+  unset ELECTRON_SKIP_BINARY_DOWNLOAD || true
   npm install --include=dev --no-audit --no-fund
   npm rebuild electron esbuild electron-winstaller
-  if ! node -e \
-    "const fs = require('node:fs'); process.exit(fs.existsSync(require('electron')) ? 0 : 1)"; then
+
+  if ! electron_is_ready; then
+    echo "Electron package is present, but its runtime was not downloaded."
+    echo "Running the reviewed Electron installer directly..."
+    node node_modules/electron/install.js
+  fi
+
+  if ! electron_is_ready; then
     echo "[ERROR] Electron installation is incomplete."
     exit 1
   fi

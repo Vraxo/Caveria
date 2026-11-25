@@ -13,9 +13,16 @@ if exist "node_modules\electron\dist\electron.exe" goto dependencies_ready
 
 echo Desktop dependencies are missing or incomplete.
 echo Installing development dependencies without deleting existing modules...
+set "ELECTRON_SKIP_BINARY_DOWNLOAD="
 call npm install --include=dev --no-audit --no-fund
 if errorlevel 1 goto install_failed
 call npm rebuild electron esbuild electron-winstaller
+if errorlevel 1 goto install_failed
+if exist "node_modules\electron\dist\electron.exe" goto dependencies_ready
+
+echo Electron package is present, but its runtime was not downloaded.
+echo Running the reviewed Electron installer directly...
+call node "node_modules\electron\install.js"
 if errorlevel 1 goto install_failed
 if not exist "node_modules\electron\dist\electron.exe" goto install_failed
 
