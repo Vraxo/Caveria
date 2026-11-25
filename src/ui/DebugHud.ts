@@ -59,7 +59,7 @@ export class DebugHud {
       : 'None';
 
     const gameModeStr = creativeMode ? 'Creative' : 'Survival';
-    const moveModeStr = player.flyMode ? 'Fly' : 'Walk';
+    const moveModeStr = player.flyMode ? 'Fly' : player.crouching ? 'Crouch' : 'Walk';
     const biomeStr = world.terrainGen.getBiomeLabelAt(
       Math.floor(player.position.x),
       Math.floor(player.position.y),

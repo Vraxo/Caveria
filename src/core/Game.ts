@@ -271,7 +271,7 @@ export class Game {
       this.interactions.activelyMining;
 
     this.heldItemView.setEquipped(this.hotbar.selectedStack);
-    this.heldItemView.update(dt, horizSpeed, activelyMining);
+    this.heldItemView.update(dt, horizSpeed, activelyMining, this.player.crouching);
 
     this.drops.update(dt, this.world, this.player.position, this.inventory);
     this.dayNight.update(dt, this.player.position);
