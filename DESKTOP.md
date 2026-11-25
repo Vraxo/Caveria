@@ -18,6 +18,12 @@ The equivalent npm command is:
 npm run desktop
 ```
 
+## Run with F5 in VS Code
+
+After the one-time dependency setup, open the repository folder in VS Code and press **F5**. The default `Play Caveria (Desktop)` launch profile builds the current source and opens it directly in Electron. It does not reinstall dependencies or create an installer.
+
+Use the Run and Debug dropdown if you want to select the optional Chrome or Edge profiles instead.
+
 ## Build a Windows installer
 
 On Windows, run:
