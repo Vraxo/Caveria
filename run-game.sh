@@ -7,9 +7,14 @@ if ! command -v npm >/dev/null 2>&1; then
   exit 1
 fi
 
-if [ ! -d "node_modules" ]; then
-  echo "Installing dependencies for the first time..."
-  npm install
+if [ ! -x "node_modules/.bin/vite" ]; then
+  echo "Local Vite installation is missing or incomplete."
+  echo "Installing locked development dependencies..."
+  if [ -f "package-lock.json" ]; then
+    npm ci --include=dev
+  else
+    npm install --include=dev
+  fi
 fi
 
-npx vite --host 0.0.0.0 --open
+npm run dev -- --open

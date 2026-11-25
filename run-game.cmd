@@ -14,16 +14,21 @@ if errorlevel 1 (
     exit /b 1
 )
 
-if not exist "node_modules" (
-    echo Installing dependencies for the first time...
-    call npm install
+if not exist "node_modules\.bin\vite.cmd" (
+    echo Local Vite installation is missing or incomplete.
+    echo Installing locked development dependencies...
+    if exist "package-lock.json" (
+        call npm ci --include=dev
+    ) else (
+        call npm install --include=dev
+    )
     if errorlevel 1 (
-        echo [ERROR] npm install failed.
+        echo [ERROR] Dependency installation failed.
         pause
         exit /b 1
     )
 )
 
 echo Launching Vite dev server and opening browser...
-call npx vite --host 0.0.0.0 --open
+call npm run dev -- --open
 pause
