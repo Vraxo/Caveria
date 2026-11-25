@@ -43,6 +43,7 @@ export class AudioManager {
   public playToss(): void { this.ui.playToss(); }
   public playToolBreak(): void { this.ui.playToolBreak(); }
   public playModeToggle(): void { this.ui.playModeToggle(); }
+  public playThunder(intensity: number): void { this.ambience.playThunder(intensity); }
 
   public updateAmbient(dt: number, state: AmbientState): void {
     this.ambience.update(dt, state);

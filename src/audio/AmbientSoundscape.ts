@@ -5,6 +5,9 @@ export interface AmbientState {
   underground: boolean;
   underwater: boolean;
   skyBrightness: number;
+  precipitation?: number;
+  storm?: boolean;
+  exposedToSky?: boolean;
 }
 
 /** Persistent wind bed and scheduled environmental one-shots. */
@@ -12,6 +15,9 @@ export class AmbientSoundscape {
   private windSource: AudioBufferSourceNode | null = null;
   private windFilter: BiquadFilterNode | null = null;
   private windGain: GainNode | null = null;
+  private rainSource: AudioBufferSourceNode | null = null;
+  private rainFilter: BiquadFilterNode | null = null;
+  private rainGain: GainNode | null = null;
   private birdTimer = 2.5;
   private dripTimer = 1.2;
   private cricketTimer = 0.8;
@@ -40,13 +46,38 @@ export class AmbientSoundscape {
     this.windGain.connect(destination);
     source.start();
     this.windSource = source;
+
+    const rainSource = context.createBufferSource();
+    rainSource.buffer = noise;
+    rainSource.loop = true;
+    rainSource.playbackRate.value = 1.35;
+    this.rainFilter = context.createBiquadFilter();
+    this.rainFilter.type = 'highpass';
+    this.rainFilter.frequency.value = 1050;
+    this.rainGain = context.createGain();
+    this.rainGain.gain.value = 0;
+    rainSource.connect(this.rainFilter);
+    this.rainFilter.connect(this.rainGain);
+    this.rainGain.connect(destination);
+    rainSource.start();
+    this.rainSource = rainSource;
   }
 
   public update(dt: number, state: AmbientState): void {
     const context = this.engine.context;
     if (!context || !this.windGain || !this.windFilter) return;
     const time = context.currentTime;
-    let windTarget = 0.045 + state.skyBrightness * 0.05;
+    const precipitation = state.precipitation ?? 0;
+    const weatherAudibility = state.underground
+      ? 0.08
+      : state.exposedToSky === false
+        ? 0.28
+        : 1;
+    if (this.rainGain && this.rainFilter) {
+      this.rainGain.gain.setTargetAtTime(precipitation * weatherAudibility * 0.16, time, 0.35);
+      this.rainFilter.frequency.setTargetAtTime(state.underwater ? 2600 : 1050, time, 0.4);
+    }
+    let windTarget = 0.045 + state.skyBrightness * 0.05 + (state.storm ? precipitation * 0.09 : 0);
     if (state.underground) windTarget = 0.012;
     if (state.underwater) windTarget = 0.02;
     const gust = 1 + Math.sin(time * 0.35) * 0.35 + Math.sin(time * 0.13 + 1.7) * 0.25;
@@ -60,7 +91,7 @@ export class AmbientSoundscape {
     this.birdTimer -= dt;
     if (this.birdTimer <= 0) {
       this.birdTimer = this.synth.rand(2.2, 7.5);
-      if (!state.underground && !state.underwater && state.skyBrightness > 0.55) this.playBird();
+      if (!state.underground && !state.underwater && state.skyBrightness > 0.55 && precipitation < 0.15) this.playBird();
     }
     this.dripTimer -= dt;
     if (this.dripTimer <= 0) {
@@ -70,7 +101,7 @@ export class AmbientSoundscape {
     this.cricketTimer -= dt;
     if (this.cricketTimer <= 0) {
       this.cricketTimer = this.synth.rand(0.5, 1.4);
-      if (!state.underground && !state.underwater && state.skyBrightness < 0.3) this.playCricket();
+      if (!state.underground && !state.underwater && state.skyBrightness < 0.3 && precipitation < 0.15) this.playCricket();
     }
     this.bubbleTimer -= dt;
     if (this.bubbleTimer <= 0) {
@@ -79,11 +110,50 @@ export class AmbientSoundscape {
     }
   }
 
+  public playThunder(intensity: number): void {
+    const gain = Math.max(0.05, Math.min(1, intensity));
+    this.synth.noiseBurst({
+      duration: 2.8,
+      filterType: 'lowpass',
+      freq: 420,
+      freqEnd: 55,
+      gain: 0.22 * gain,
+      attack: 0.025,
+      delay: 0.18,
+      bus: 'ambient',
+    });
+    this.synth.noiseBurst({
+      duration: 1.5,
+      filterType: 'bandpass',
+      freq: 900,
+      freqEnd: 120,
+      q: 0.45,
+      gain: 0.1 * gain,
+      attack: 0.01,
+      delay: 0.12,
+      bus: 'ambient',
+    });
+    this.synth.tone({
+      type: 'sine',
+      freq: 82,
+      freqEnd: 34,
+      duration: 2.3,
+      gain: 0.13 * gain,
+      attack: 0.02,
+      delay: 0.16,
+      bus: 'ambient',
+    });
+  }
+
   public dispose(): void {
     try { this.windSource?.stop(); } catch { /* already stopped */ }
+    try { this.rainSource?.stop(); } catch { /* already stopped */ }
     this.windSource = null;
     this.windFilter = null;
     this.windGain = null;
+    this.rainSource = null;
+    this.rainFilter = null;
+    this.rainGain = null;
   }
 
   private playBird(): void {
