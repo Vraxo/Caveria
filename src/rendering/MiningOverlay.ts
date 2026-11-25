@@ -55,6 +55,9 @@ export class MiningOverlay {
     if (shape === 'torch') {
       this.mesh.scale.set(0.26, 0.66, 0.26);
       this.mesh.position.set(hit.blockX + 0.5, hit.blockY + 0.33, hit.blockZ + 0.5);
+    } else if (shape === 'cross') {
+      this.mesh.scale.set(0.76, 0.92, 0.76);
+      this.mesh.position.set(hit.blockX + 0.5, hit.blockY + 0.46, hit.blockZ + 0.5);
     } else {
       this.mesh.scale.set(1, 1, 1);
       this.mesh.position.set(hit.blockX + 0.5, hit.blockY + 0.5, hit.blockZ + 0.5);

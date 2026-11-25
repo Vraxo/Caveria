@@ -382,9 +382,17 @@ export class Game {
       if (placeY < 0 || placeY >= CHUNK_HEIGHT) return;
       const existing = this.world.getBlock(placeX, placeY, placeZ);
 
-      if (placeBlock === BlockId.Torch) {
+      if (placeBlockDef.shape === 'torch' || placeBlockDef.shape === 'cross') {
         const below = this.world.getBlock(placeX, placeY - 1, placeZ);
-        if (existing === BlockId.Air && BLOCKS[below].solid) {
+        const above = this.world.getBlock(placeX, placeY + 1, placeZ);
+        const canSupport =
+          placeBlock === BlockId.CaveVine
+            ? BLOCKS[above].solid || above === BlockId.CaveVine
+            : placeBlock === BlockId.DripstoneSpike
+            ? BLOCKS[below].solid || BLOCKS[above].solid
+            : BLOCKS[below].solid;
+
+        if (existing === BlockId.Air && canSupport) {
           this.world.setBlock(placeX, placeY, placeZ, placeBlock);
           this.heldItemView.triggerSwing();
           if (!this.creativeMode) {
@@ -421,18 +429,35 @@ export class Game {
       }
     }
 
-    // Pop any torch resting directly above
-    if (this.world.getBlock(blockX, blockY + 1, blockZ) === BlockId.Torch) {
+    // Pop any torch or floor flora resting directly above
+    const aboveId = this.world.getBlock(blockX, blockY + 1, blockZ);
+    if (aboveId === BlockId.Torch || aboveId === BlockId.CaveShroom) {
       this.world.setBlock(blockX, blockY + 1, blockZ, BlockId.Air);
-      this.particles.spawnBurst(blockX, blockY + 1, blockZ, BlockId.Torch);
+      this.particles.spawnBurst(blockX, blockY + 1, blockZ, aboveId);
       if (!this.creativeMode) {
         this.drops.spawnDrop(
           blockX + 0.5,
           blockY + 1.35,
           blockZ + 0.5,
-          createStack(BlockId.Torch as number, 1)
+          createStack(aboveId as number, 1)
         );
       }
+    }
+
+    // Cascade break hanging glow vines directly below
+    let vy = blockY - 1;
+    while (vy >= 1 && this.world.getBlock(blockX, vy, blockZ) === BlockId.CaveVine) {
+      this.world.setBlock(blockX, vy, blockZ, BlockId.Air);
+      this.particles.spawnBurst(blockX, vy, blockZ, BlockId.CaveVine);
+      if (!this.creativeMode) {
+        this.drops.spawnDrop(
+          blockX + 0.5,
+          vy + 0.45,
+          blockZ + 0.5,
+          createStack(BlockId.CaveVine as number, 1)
+        );
+      }
+      vy--;
     }
 
     this.refreshRaycast();

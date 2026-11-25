@@ -28,6 +28,18 @@ export class BreakParticles {
     [BlockId.Torch]: 0xffb347,
     [BlockId.GlowCrystal]: 0x7ef2ff,
     [BlockId.CraftingTable]: 0x9c7240,
+    [BlockId.Sandstone]: 0xdac994,
+    [BlockId.Cactus]: 0x3b8a2e,
+    [BlockId.SnowGrass]: 0xf2f8ff,
+    [BlockId.SnowBlock]: 0xf8fbff,
+    [BlockId.SpruceLog]: 0x42301d,
+    [BlockId.SpruceLeaves]: 0x2a5c44,
+    [BlockId.DeepSlate]: 0x363942,
+    [BlockId.MossStone]: 0x4b9c38,
+    [BlockId.AmethystCrystal]: 0xc062f2,
+    [BlockId.CaveShroom]: 0x44eccb,
+    [BlockId.DripstoneSpike]: 0x9c8470,
+    [BlockId.CaveVine]: 0x8ad854,
   };
 
   constructor(scene: THREE.Scene) {

@@ -166,12 +166,12 @@ export class DroppedItemManager {
       return new THREE.Mesh(geo, this.atlasBlockMaterial);
     }
 
-    // Flat 2D pixel sprite for tools, torches, sticks, coal, crystal shards
+    // Flat 2D pixel sprite for tools, torches, cross flora, sticks, coal, crystal shards
     let mat = this.spriteMatCache.get(itemId);
     if (!mat) {
       let canvas: HTMLCanvasElement;
-      if (def.placeBlockId === BlockId.Torch) {
-        canvas = this.atlas.createBlockIcon(BlockId.Torch);
+      if (def.placeBlockId !== null) {
+        canvas = this.atlas.createBlockIcon(def.placeBlockId);
       } else {
         canvas = this.atlas.getOrCreateItemSprite16(itemId);
       }

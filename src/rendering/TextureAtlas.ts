@@ -4,8 +4,8 @@ import { BLOCKS, BlockId, TileIndex } from '../world/Block';
 import { mulberry32 } from '../world/Noise';
 
 export const TILE_SIZE = 16;
-export const ATLAS_COLS = 5;
-export const ATLAS_ROWS = 4;
+export const ATLAS_COLS = 6;
+export const ATLAS_ROWS = 6;
 export const ATLAS_PIXEL_WIDTH = ATLAS_COLS * TILE_SIZE;
 export const ATLAS_PIXEL_HEIGHT = ATLAS_ROWS * TILE_SIZE;
 
@@ -102,10 +102,10 @@ export class TextureAtlas {
     const ic = icon.getContext('2d')!;
     ic.imageSmoothingEnabled = false;
 
-    if (def.shape === 'torch') {
-      const torchTile = this.tileCanvases.get(TileIndex.Torch);
-      if (torchTile) {
-        ic.drawImage(torchTile, 0, 0, 16, 16, 4, 3, 24, 26);
+    if (def.shape === 'torch' || def.shape === 'cross') {
+      const spriteTile = this.tileCanvases.get(def.faces[0]);
+      if (spriteTile) {
+        ic.drawImage(spriteTile, 0, 0, 16, 16, 3, 2, 26, 28);
       }
       return icon;
     }
@@ -287,6 +287,18 @@ export class TextureAtlas {
             if (dx * 1.6 + dy < 6.2) {
               const core = dx + dy < 2.6;
               px(x, y, core ? [232, 254, 255, 255] : [82, 224, 245, 255]);
+            }
+          }
+        }
+        break;
+      case ItemId.AmethystShard:
+        for (let y = 2; y <= 13; y++) {
+          for (let x = 4; x <= 11; x++) {
+            const dx = Math.abs(x - 7.5);
+            const dy = Math.abs(y - 7.5);
+            if (dx * 1.6 + dy < 6.2) {
+              const core = dx + dy < 2.6;
+              px(x, y, core ? [248, 224, 255, 255] : [188, 96, 242, 255]);
             }
           }
         }
@@ -698,6 +710,257 @@ export class TextureAtlas {
             const seam = y % 4 === 3;
             const base: [number, number, number] = seam ? [124, 94, 56] : [178, 142, 90];
             px(x, y, varyColor(base, n));
+          }
+        }
+      }
+    });
+
+    // Sandstone Top
+    this.drawTile(TileIndex.SandstoneTop, (px, rng) => {
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) {
+          const border = x === 0 || x === 15 || y === 0 || y === 15;
+          const n = (rng() - 0.5) * 12;
+          const d = border ? -14 : 0;
+          px(x, y, [clampByte(226 + n + d), clampByte(214 + n + d), clampByte(160 + n + d), 255]);
+        }
+      }
+    });
+
+    // Sandstone Side (layered desert sedimentary bands)
+    this.drawTile(TileIndex.SandstoneSide, (px, rng) => {
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) {
+          const n = (rng() - 0.5) * 10;
+          if (y === 3 || y === 4) {
+            px(x, y, [clampByte(192 + n), clampByte(176 + n), clampByte(124 + n), 255]);
+          } else if (y === 10) {
+            px(x, y, [clampByte(204 + n), clampByte(188 + n), clampByte(136 + n), 255]);
+          } else if (y < 3) {
+            px(x, y, [clampByte(232 + n), clampByte(220 + n), clampByte(168 + n), 255]);
+          } else {
+            px(x, y, [clampByte(218 + n), clampByte(204 + n), clampByte(150 + n), 255]);
+          }
+        }
+      }
+    });
+
+    // Cactus Top
+    this.drawTile(TileIndex.CactusTop, (px, rng) => {
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) {
+          const d = Math.max(Math.abs(x - 7.5), Math.abs(y - 7.5));
+          const n = (rng() - 0.5) * 12;
+          if (d < 2.5) {
+            px(x, y, [clampByte(138 + n), clampByte(186 + n), clampByte(96 + n), 255]);
+          } else if (d > 6.5) {
+            px(x, y, [clampByte(36 + n), clampByte(98 + n), clampByte(34 + n), 255]);
+          } else {
+            px(x, y, [clampByte(56 + n), clampByte(136 + n), clampByte(46 + n), 255]);
+          }
+        }
+      }
+    });
+
+    // Cactus Side (vertical ribs + pale spines)
+    this.drawTile(TileIndex.CactusSide, (px, rng) => {
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) {
+          const rib = x % 4 === 0 ? -18 : x % 4 === 2 ? 12 : 0;
+          const spine = (x === 1 && y % 5 === 2) || (x === 14 && y % 5 === 4) || (x === 6 && y % 6 === 1);
+          if (spine) {
+            px(x, y, [226, 232, 188, 255]);
+          } else {
+            const n = (rng() - 0.5) * 10 + rib;
+            px(x, y, [clampByte(54 + n * 0.6), clampByte(134 + n), clampByte(44 + n * 0.5), 255]);
+          }
+        }
+      }
+    });
+
+    // Snow Top
+    this.drawTile(TileIndex.SnowTop, (px, rng) => {
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) {
+          const sparkle = (rng() - 0.5) * 12;
+          px(x, y, [clampByte(242 + sparkle), clampByte(248 + sparkle), clampByte(255), 255]);
+        }
+      }
+    });
+
+    // Snow Grass Side (crisp snow overhang over dirt)
+    this.drawTile(TileIndex.SnowGrassSide, (px, rng) => {
+      const overhang = [4, 5, 4, 3, 5, 6, 4, 3, 4, 5, 4, 3, 5, 4, 3, 4];
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) {
+          if (y < overhang[x]) {
+            const n = (rng() - 0.5) * 10;
+            const rim = y === overhang[x] - 1 ? -16 : 0;
+            px(x, y, [clampByte(238 + n + rim), clampByte(246 + n + rim), clampByte(255 + rim), 255]);
+          } else {
+            const base = dirtPixels[y][x];
+            const shadow = y === overhang[x] ? -18 : 0;
+            px(x, y, [
+              clampByte(base[0] + shadow),
+              clampByte(base[1] + shadow),
+              clampByte(base[2] + shadow),
+              255,
+            ]);
+          }
+        }
+      }
+    });
+
+    // Spruce Log Side (rich dark alpine bark)
+    this.drawTile(TileIndex.SpruceLogSide, (px, rng) => {
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) {
+          const ridge = Math.sin(x * 1.5) * 10;
+          const n = (rng() - 0.5) * 12 + ridge;
+          px(x, y, [clampByte(64 + n * 0.8), clampByte(46 + n * 0.7), clampByte(28 + n * 0.5), 255]);
+        }
+      }
+    });
+
+    // Spruce Leaves (frosted blue-green pine needles)
+    this.drawTile(TileIndex.SpruceLeaves, (px, rng) => {
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) {
+          const hole = rng() < 0.14 && (x + y) % 2 === 1;
+          if (hole) {
+            px(x, y, [0, 0, 0, 0]);
+          } else {
+            const frost = rng() > 0.88 ? 38 : 0;
+            const n = (rng() - 0.5) * 22;
+            px(x, y, [
+              clampByte(36 + n * 0.5 + frost),
+              clampByte(88 + n + frost),
+              clampByte(64 + n * 0.7 + frost),
+              255,
+            ]);
+          }
+        }
+      }
+    });
+
+    // Deepslate (dark layered subterranean slate rock)
+    this.drawTile(TileIndex.DeepSlate, (px, rng) => {
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) {
+          const cleavage = Math.sin((y * 1.4 + (x % 4) * 0.4)) * 9;
+          const n = (rng() - 0.5) * 14 + cleavage;
+          px(x, y, [clampByte(52 + n), clampByte(55 + n), clampByte(64 + n), 255]);
+        }
+      }
+    });
+
+    // Lush Moss Stone (vibrant velvety cavern moss)
+    this.drawTile(TileIndex.MossStone, (px, rng) => {
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) {
+          const patch = Math.sin(x * 0.7) * Math.cos(y * 0.7) * 14;
+          const spore = rng() > 0.93 ? 28 : 0;
+          const n = (rng() - 0.5) * 18 + patch;
+          px(x, y, [
+            clampByte(64 + n * 0.6 + spore * 0.6),
+            clampByte(148 + n + spore),
+            clampByte(52 + n * 0.5),
+            255,
+          ]);
+        }
+      }
+    });
+
+    // Amethyst Crystal Geode (vivid violet-magenta crystalline facets)
+    this.drawTile(TileIndex.AmethystCrystal, (px, rng) => {
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) {
+          const cx = Math.abs(x - 7.5);
+          const cy = Math.abs(y - 7.5);
+          const diamond = cx + cy;
+          const border = x === 0 || x === 15 || y === 0 || y === 15;
+          const facet = ((x * 5 + y * 3) % 7) * 6;
+          const n = (rng() - 0.5) * 16;
+          if (border) {
+            px(x, y, [clampByte(92 + n), clampByte(42 + n), clampByte(138 + n), 255]);
+          } else if (diamond < 4.2) {
+            px(x, y, [clampByte(246 + n), clampByte(210 + n), clampByte(255), 255]);
+          } else if (diamond < 8.5) {
+            px(x, y, [clampByte(188 + facet + n), clampByte(96 + n), clampByte(238 + n), 255]);
+          } else {
+            px(x, y, [clampByte(132 + facet + n), clampByte(58 + n), clampByte(188 + n), 255]);
+          }
+        }
+      }
+    });
+
+    // Bioluminescent Cave Glowshroom (cross-quad sprite)
+    this.drawTile(TileIndex.CaveShroom, (px) => {
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) {
+          // Pale stem from y=9..15, x=7..8
+          if (y >= 9 && y <= 15 && x >= 7 && x <= 8) {
+            px(x, y, x === 7 ? [196, 224, 218, 255] : [148, 182, 178, 255]);
+          } else if (y >= 4 && y <= 9) {
+            // Glowing dome cap
+            const halfW = y === 4 ? 2 : y === 5 ? 4 : y <= 7 ? 5 : 6;
+            if (Math.abs(x - 7.5) <= halfW) {
+              const spot = (x === 6 && y === 6) || (x === 9 && y === 7) || (x === 7 && y === 5);
+              if (spot) {
+                px(x, y, [238, 255, 248, 255]);
+              } else if (y === 9) {
+                px(x, y, [48, 198, 172, 255]);
+              } else {
+                px(x, y, [68, 238, 206, 255]);
+              }
+            } else {
+              px(x, y, [0, 0, 0, 0]);
+            }
+          } else {
+            px(x, y, [0, 0, 0, 0]);
+          }
+        }
+      }
+    });
+
+    // Dripstone Spike (tapered limestone stalagmite/stalactite cross sprite)
+    this.drawTile(TileIndex.DripstoneSpike, (px, rng) => {
+      for (let y = 0; y < 16; y++) {
+        // Width tapers toward top AND bottom slightly so it works great as rocky cavern spire
+        const distFromMid = Math.abs(y - 11);
+        const halfW = y < 2 ? 0.6 : Math.max(0.8, 5.2 - (15 - y) * 0.32);
+        void distFromMid;
+        for (let x = 0; x < 16; x++) {
+          if (Math.abs(x - 7.5) <= halfW && y >= 1) {
+            const n = (rng() - 0.5) * 16;
+            const edge = Math.abs(x - 7.5) > halfW - 1 ? -18 : 0;
+            px(x, y, [
+              clampByte(156 + n + edge),
+              clampByte(132 + n + edge),
+              clampByte(112 + n + edge),
+              255,
+            ]);
+          } else {
+            px(x, y, [0, 0, 0, 0]);
+          }
+        }
+      }
+    });
+
+    // Hanging Glow Vine (luminous golden-green cavern tendrils)
+    this.drawTile(TileIndex.CaveVine, (px, rng) => {
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) {
+          const strandA = Math.abs(x - (5 + Math.sin(y * 0.5) * 1.2)) < 1.0 && y < 14;
+          const strandB = Math.abs(x - (10 + Math.cos(y * 0.45) * 1.2)) < 1.0 && y < 15;
+          const berry = (x === 5 && y === 9) || (x === 10 && y === 6) || (x === 10 && y === 12);
+          if (berry) {
+            px(x, y, [255, 232, 108, 255]);
+          } else if (strandA || strandB) {
+            const n = (rng() - 0.5) * 18;
+            px(x, y, [clampByte(72 + n), clampByte(168 + n), clampByte(62 + n), 255]);
+          } else {
+            px(x, y, [0, 0, 0, 0]);
           }
         }
       }

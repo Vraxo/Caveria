@@ -60,10 +60,16 @@ export class DebugHud {
 
     const gameModeStr = creativeMode ? 'Creative' : 'Survival';
     const moveModeStr = player.flyMode ? 'Fly' : 'Walk';
+    const biomeStr = world.terrainGen.getBiomeLabelAt(
+      Math.floor(player.position.x),
+      Math.floor(player.position.y),
+      Math.floor(player.position.z)
+    );
 
     this.el.textContent = [
-      `Caveria 0.3.0 (${this.fps} FPS)`,
+      `Caveria 0.4.0 (${this.fps} FPS)`,
       `XYZ: ${px} / ${py} / ${pz}`,
+      `Biome: ${biomeStr}`,
       `Chunk: ${cx}, ${cz} (${world.loadedChunkCount} loaded)`,
       `Time: ${dayNight.getFormattedClock()} | Light: Sky ${skyLight} / Block ${blockLight}`,
       `Mode: ${gameModeStr} (${moveModeStr}) | Grounded: ${player.onGround ? 'Yes' : 'No'}`,

@@ -19,11 +19,24 @@ export enum ItemId {
   Torch = BlockId.Torch,
   GlowCrystal = BlockId.GlowCrystal,
   CraftingTable = BlockId.CraftingTable,
+  Sandstone = BlockId.Sandstone,
+  Cactus = BlockId.Cactus,
+  SnowGrass = BlockId.SnowGrass,
+  SnowBlock = BlockId.SnowBlock,
+  SpruceLog = BlockId.SpruceLog,
+  SpruceLeaves = BlockId.SpruceLeaves,
+  DeepSlate = BlockId.DeepSlate,
+  MossStone = BlockId.MossStone,
+  AmethystCrystal = BlockId.AmethystCrystal,
+  CaveShroom = BlockId.CaveShroom,
+  DripstoneSpike = BlockId.DripstoneSpike,
+  CaveVine = BlockId.CaveVine,
 
   // Materials
   Stick = 100,
   Coal = 101,
   CrystalShard = 102,
+  AmethystShard = 103,
 
   // Wooden Tools (tier 1)
   WoodenPickaxe = 110,
@@ -86,6 +99,18 @@ export const ITEMS: Record<number, ItemDefinition> = {
   [ItemId.Torch]: blockItem(BlockId.Torch),
   [ItemId.GlowCrystal]: blockItem(BlockId.GlowCrystal),
   [ItemId.CraftingTable]: blockItem(BlockId.CraftingTable),
+  [ItemId.Sandstone]: blockItem(BlockId.Sandstone),
+  [ItemId.Cactus]: blockItem(BlockId.Cactus),
+  [ItemId.SnowGrass]: blockItem(BlockId.SnowGrass),
+  [ItemId.SnowBlock]: blockItem(BlockId.SnowBlock),
+  [ItemId.SpruceLog]: blockItem(BlockId.SpruceLog),
+  [ItemId.SpruceLeaves]: blockItem(BlockId.SpruceLeaves),
+  [ItemId.DeepSlate]: blockItem(BlockId.DeepSlate),
+  [ItemId.MossStone]: blockItem(BlockId.MossStone),
+  [ItemId.AmethystCrystal]: blockItem(BlockId.AmethystCrystal),
+  [ItemId.CaveShroom]: blockItem(BlockId.CaveShroom),
+  [ItemId.DripstoneSpike]: blockItem(BlockId.DripstoneSpike),
+  [ItemId.CaveVine]: blockItem(BlockId.CaveVine),
 
   [ItemId.Stick]: {
     id: ItemId.Stick,
@@ -107,7 +132,16 @@ export const ITEMS: Record<number, ItemDefinition> = {
   },
   [ItemId.CrystalShard]: {
     id: ItemId.CrystalShard,
-    name: 'Crystal Shard',
+    name: 'Azure Shard',
+    maxStack: 64,
+    placeBlockId: null,
+    toolCategory: 'none',
+    toolTier: 0,
+    miningSpeed: 1.0,
+  },
+  [ItemId.AmethystShard]: {
+    id: ItemId.AmethystShard,
+    name: 'Amethyst Shard',
     maxStack: 64,
     placeBlockId: null,
     toolCategory: 'none',
@@ -246,6 +280,7 @@ export function getBlockDrop(blockId: BlockId): ItemStack | null {
     case BlockId.Glass: // Glass shatters without silk touch
       return null;
     case BlockId.Grass:
+    case BlockId.SnowGrass:
       return createStack(ItemId.Dirt, 1);
     case BlockId.Stone:
       return createStack(ItemId.Cobblestone, 1);
@@ -253,8 +288,11 @@ export function getBlockDrop(blockId: BlockId): ItemStack | null {
       return createStack(ItemId.Coal, 1);
     case BlockId.GlowCrystal:
       return createStack(ItemId.CrystalShard, 2);
+    case BlockId.AmethystCrystal:
+      return createStack(ItemId.AmethystShard, 2);
     case BlockId.OakLeaves:
-      // 25% chance to drop a handy Stick!
+    case BlockId.SpruceLeaves:
+      // 28% chance to drop a handy Stick!
       return Math.random() < 0.28 ? createStack(ItemId.Stick, 1) : null;
     default:
       return createStack(blockId as unknown as ItemId, 1);

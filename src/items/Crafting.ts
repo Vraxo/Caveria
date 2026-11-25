@@ -11,15 +11,23 @@ export interface CraftingRecipe {
 const P = ItemId.OakPlanks;
 const S = ItemId.Stick;
 const C = ItemId.Cobblestone;
+const D = ItemId.DeepSlate;
 const K = ItemId.Coal;
 const X = ItemId.CrystalShard;
+const A = ItemId.AmethystShard;
 const _ = null;
 
 export const RECIPES: ReadonlyArray<CraftingRecipe> = [
-  // 1x1: Log -> 4 Planks
+  // 1x1: Oak or Spruce Log -> 4 Planks
   {
     name: 'Oak Planks',
     pattern: [[ItemId.OakLog]],
+    outputId: ItemId.OakPlanks,
+    outputCount: 4,
+  },
+  {
+    name: 'Planks (Spruce)',
+    pattern: [[ItemId.SpruceLog]],
     outputId: ItemId.OakPlanks,
     outputCount: 4,
   },
@@ -54,9 +62,9 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
     outputId: ItemId.Torch,
     outputCount: 6,
   },
-  // 2x2: 4 Crystal Shards -> 1 Cavern Crystal Block
+  // 2x2: 4 Crystal Shards -> 1 Azure Crystal Block
   {
-    name: 'Cavern Crystal',
+    name: 'Azure Crystal',
     pattern: [
       [X, X],
       [X, X],
@@ -64,15 +72,32 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
     outputId: ItemId.GlowCrystal,
     outputCount: 1,
   },
-  // 2x2: 4 Sand -> 2 Glass (handy sandstone-kiln shortcut until furnaces exist!)
+  // 2x2: 4 Amethyst Shards -> 1 Amethyst Geode Block
   {
-    name: 'Glass',
+    name: 'Amethyst Geode',
+    pattern: [
+      [A, A],
+      [A, A],
+    ],
+    outputId: ItemId.AmethystCrystal,
+    outputCount: 1,
+  },
+  // 1x2: Amethyst Shard over Stick -> 6 Torches
+  {
+    name: 'Torches (Amethyst)',
+    pattern: [[A], [S]],
+    outputId: ItemId.Torch,
+    outputCount: 6,
+  },
+  // 2x2: 4 Sand -> 1 Sandstone
+  {
+    name: 'Sandstone',
     pattern: [
       [ItemId.Sand, ItemId.Sand],
       [ItemId.Sand, ItemId.Sand],
     ],
-    outputId: ItemId.Glass,
-    outputCount: 2,
+    outputId: ItemId.Sandstone,
+    outputCount: 1,
   },
 
   // --- 3x3 Crafting Table Tool Recipes ---
@@ -153,11 +178,33 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
     outputCount: 1,
   },
 
-  // Crystal Pickaxe (Caveria tier-3!)
+  // Deepslate Pickaxe -> Stone Pickaxe
+  {
+    name: 'Stone Pickaxe (Deepslate)',
+    pattern: [
+      [D, D, D],
+      [_, S, _],
+      [_, S, _],
+    ],
+    outputId: ItemId.StonePickaxe,
+    outputCount: 1,
+  },
+
+  // Crystal Pickaxe (Caveria tier-3 — Azure or Amethyst Shards!)
   {
     name: 'Crystal Pickaxe',
     pattern: [
       [X, X, X],
+      [_, S, _],
+      [_, S, _],
+    ],
+    outputId: ItemId.CrystalPickaxe,
+    outputCount: 1,
+  },
+  {
+    name: 'Crystal Pickaxe (Amethyst)',
+    pattern: [
+      [A, A, A],
       [_, S, _],
       [_, S, _],
     ],

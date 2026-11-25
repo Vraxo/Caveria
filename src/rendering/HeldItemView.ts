@@ -65,10 +65,10 @@ export class HeldItemView {
       return;
     }
 
-    // Flat 2D pixel tool/item held at crisp angle
+    // Flat 2D pixel tool/item/flora held at crisp angle
     const canvas =
-      def.placeBlockId === BlockId.Torch
-        ? this.atlas.createBlockIcon(BlockId.Torch)
+      def.placeBlockId !== null
+        ? this.atlas.createBlockIcon(def.placeBlockId)
         : this.atlas.getOrCreateItemSprite16(nextId);
     const tex = new THREE.CanvasTexture(canvas);
     tex.magFilter = THREE.NearestFilter;
