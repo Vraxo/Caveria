@@ -253,6 +253,25 @@ export class ItemSpriteGenerator {
           }
         }
         break;
+      case ItemId.Bow:
+        for (let y = 2; y <= 13; y++) {
+          const x = y <= 7 ? 11 - Math.floor((y - 2) * 0.7) : 8 + Math.floor((y - 8) * 0.7);
+          px(x, y, [152, 96, 48, 255]);
+          if (x > 0) px(x - 1, y, [104, 64, 34, 255]);
+        }
+        for (let y = 2; y <= 13; y++) px(11, y, [210, 188, 132, 255]);
+        break;
+      case ItemId.Arrow:
+        for (let i = 0; i < 10; i++) {
+          px(3 + i, 12 - i, [132, 94, 54, 255]);
+          if (i > 1 && i < 8) px(3 + i, 13 - i, [88, 62, 40, 255]);
+        }
+        px(12, 2, [220, 152, 246, 255]);
+        px(13, 2, [174, 72, 222, 255]);
+        px(13, 3, [190, 92, 234, 255]);
+        px(2, 12, [204, 188, 154, 255]);
+        px(3, 13, [204, 188, 154, 255]);
+        break;
       case ItemId.AmethystShard:
         for (let y = 2; y <= 13; y++) {
           for (let x = 4; x <= 11; x++) {

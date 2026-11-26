@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
+import { ArrowProjectileManager } from './ArrowProjectileManager';
 import { Input } from '../core/Input';
 import { MobHit, MobManager } from '../entities/MobManager';
 import { Inventory } from '../items/Inventory';
@@ -31,6 +32,7 @@ interface BlockInteractionDependencies {
   audio: AudioManager;
   mobs: MobManager;
   vitals: PlayerVitals;
+  arrows: ArrowProjectileManager;
   onOpenWorkbench: () => void;
   onOpenFurnace: (x: number, y: number, z: number) => void;
   onFurnaceBroken: (x: number, y: number, z: number) => void;
@@ -57,6 +59,7 @@ export class BlockInteractionController {
   private readonly audio: AudioManager;
   private readonly mobs: MobManager;
   private readonly vitals: PlayerVitals;
+  private readonly arrows: ArrowProjectileManager;
   private readonly onOpenWorkbench: () => void;
   private readonly onOpenFurnace: (x: number, y: number, z: number) => void;
   private readonly onFurnaceBroken: (x: number, y: number, z: number) => void;
@@ -77,6 +80,8 @@ export class BlockInteractionController {
   private miningElapsed = 0;
   private miningCooldown = 0;
   private foodCooldown = 0;
+  private bowDrawing = false;
+  private bowDrawTime = 0;
 
   constructor(deps: BlockInteractionDependencies) {
     this.world = deps.world;
@@ -90,6 +95,7 @@ export class BlockInteractionController {
     this.audio = deps.audio;
     this.mobs = deps.mobs;
     this.vitals = deps.vitals;
+    this.arrows = deps.arrows;
     this.onOpenWorkbench = deps.onOpenWorkbench;
     this.onOpenFurnace = deps.onOpenFurnace;
     this.onFurnaceBroken = deps.onFurnaceBroken;
@@ -132,7 +138,8 @@ export class BlockInteractionController {
     }
     this.foodCooldown = Math.max(0, this.foodCooldown - dt);
 
-    if (this.input.consumeMousePress(2)) {
+    const bowHandled = this.updateBow(dt, creativeMode);
+    if (!bowHandled && this.input.consumeMousePress(2)) {
       this.handleUse(creativeMode, this.mobTarget === null);
     }
 
@@ -162,6 +169,7 @@ export class BlockInteractionController {
 
   public clearTarget(): void {
     this.cancelMining();
+    this.cancelBowDraw();
     this.hit = null;
     this.mobTarget = null;
     this.highlight.update(null);
@@ -258,6 +266,46 @@ export class BlockInteractionController {
     }
     this.cancelMining();
     this.miningCooldown = 0.14;
+  }
+
+  private updateBow(dt: number, creativeMode: boolean): boolean {
+    const held = this.hotbar.selectedStack;
+    if (held?.id !== ItemId.Bow) {
+      if (this.bowDrawing) this.cancelBowDraw();
+      return false;
+    }
+
+    if (this.input.consumeMousePress(2)) {
+      if (creativeMode || this.inventory.countItem(ItemId.Arrow) > 0) {
+        this.bowDrawing = true;
+        this.bowDrawTime = 0;
+        this.audio.playBowDraw();
+      }
+    }
+    if (!this.bowDrawing) return true;
+
+    if (this.input.isMouseDown(2)) {
+      this.bowDrawTime = Math.min(1.25, this.bowDrawTime + dt);
+      this.heldItemView.setBowDraw(Math.min(1, this.bowDrawTime / 1.0));
+    }
+    if (this.input.consumeMouseRelease(2) || !this.input.isMouseDown(2)) {
+      if (this.bowDrawTime >= 0.12 && (creativeMode || this.inventory.consumeItem(ItemId.Arrow))) {
+        const power = Math.min(1, this.bowDrawTime / 1.0);
+        this.arrows.fire(this.player.getEyePosition(), this.player.getForwardDirection(), power);
+        if (!creativeMode && this.inventory.damageTool(this.hotbar.selectedIndex)) {
+          this.audio.playToolBreak();
+        }
+        if (!creativeMode) this.vitals.addExhaustion(0.03);
+      }
+      this.cancelBowDraw();
+    }
+    return true;
+  }
+
+  private cancelBowDraw(): void {
+    this.bowDrawing = false;
+    this.bowDrawTime = 0;
+    this.heldItemView.setBowDraw(0);
   }
 
   private handleUse(creativeMode: boolean, allowWorldUse: boolean): void {

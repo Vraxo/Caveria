@@ -90,6 +90,25 @@ export class Inventory {
     return false;
   }
 
+  public countItem(itemId: ItemId): number {
+    return this.slots.reduce((total, stack) => total + (stack?.id === itemId ? stack.count : 0), 0);
+  }
+
+  public consumeItem(itemId: ItemId, count = 1): boolean {
+    if (count <= 0 || this.countItem(itemId) < count) return false;
+    let remaining = count;
+    for (let index = 0; index < TOTAL_INVENTORY_SLOTS && remaining > 0; index++) {
+      const stack = this.slots[index];
+      if (stack?.id !== itemId) continue;
+      const taken = Math.min(stack.count, remaining);
+      stack.count -= taken;
+      remaining -= taken;
+      if (stack.count <= 0) this.slots[index] = null;
+    }
+    this.notify();
+    return true;
+  }
+
   /** Consumes 1 item from `slotIndex` (unless in Creative mode). */
   public consumeOne(slotIndex: number): void {
     const cur = this.slots[slotIndex];

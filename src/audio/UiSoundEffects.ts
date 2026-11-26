@@ -56,6 +56,20 @@ export class UiSoundEffects {
     this.synth.noiseBurst({ duration: 0.1, filterType: 'lowpass', freq: 430, q: 0.8, gain: 0.08 });
     this.synth.tone({ type: 'triangle', freq: 210, freqEnd: 120, duration: 0.14, gain: 0.06 });
   }
+  public playBowDraw(): void {
+    this.synth.tone({ type: 'triangle', freq: 180, freqEnd: 260, duration: 0.3, gain: 0.035 });
+  }
+  public playBowRelease(): void {
+    this.synth.noiseBurst({ duration: 0.08, filterType: 'bandpass', freq: 1100, q: 1.8, gain: 0.09 });
+    this.synth.tone({ type: 'triangle', freq: 520, freqEnd: 190, duration: 0.13, gain: 0.055 });
+  }
+  public playArrowImpact(): void {
+    this.synth.noiseBurst({ duration: 0.07, filterType: 'highpass', freq: 1500, q: 1.2, gain: 0.07 });
+    this.synth.tone({ type: 'square', freq: 180, duration: 0.06, gain: 0.035 });
+  }
+  public playArrowHit(): void {
+    this.synth.noiseBurst({ duration: 0.09, filterType: 'bandpass', freq: 850, q: 1.1, gain: 0.1 });
+  }
   public playEat(): void {
     for (let bite = 0; bite < 3; bite++) {
       this.synth.noiseBurst({

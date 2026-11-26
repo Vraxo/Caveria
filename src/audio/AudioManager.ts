@@ -57,6 +57,10 @@ export class AudioManager {
   public playSleep(): void { this.ui.playSleep(); }
   public playChestOpen(): void { this.ui.playChestOpen(); }
   public playChestClose(): void { this.ui.playChestClose(); }
+  public playBowDraw(): void { this.ui.playBowDraw(); }
+  public playBowRelease(): void { this.ui.playBowRelease(); }
+  public playArrowImpact(): void { this.ui.playArrowImpact(); }
+  public playArrowHit(): void { this.ui.playArrowHit(); }
   public playToolBreak(): void { this.ui.playToolBreak(); }
   public playModeToggle(): void { this.ui.playModeToggle(); }
   public playThunder(intensity: number): void { this.ambience.playThunder(intensity); }

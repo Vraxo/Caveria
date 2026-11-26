@@ -9,6 +9,7 @@ export class Hotbar {
   private readonly atlas: TextureAtlas;
   private readonly containerEl: HTMLElement;
   private readonly labelEl: HTMLElement;
+  private readonly ammoEl: HTMLElement;
   private readonly slotEls: HTMLElement[] = [];
 
   public selectedIndex = 0;
@@ -18,6 +19,7 @@ export class Hotbar {
     this.atlas = atlas;
     this.containerEl = document.getElementById('hotbar')!;
     this.labelEl = document.getElementById('selected-block-label')!;
+    this.ammoEl = document.getElementById('ammo-counter')!;
 
     this.buildDomSlots();
     this.inventory.onChange(() => this.refresh());
@@ -88,6 +90,9 @@ export class Hotbar {
               : ''
         }`
       : 'Empty Hand';
+    const bowSelected = cur?.id === ItemId.Bow;
+    this.ammoEl.classList.toggle('hidden', !bowSelected);
+    if (bowSelected) this.ammoEl.textContent = `🏹 ${this.inventory.countItem(ItemId.Arrow)} arrows`;
   }
 
   private buildDomSlots(): void {
