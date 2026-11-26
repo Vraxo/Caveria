@@ -410,7 +410,8 @@
 
       /* Inventory & Crafting Modal (E) */
       #inventory-modal,
-      #furnace-modal {
+      #furnace-modal,
+      #chest-modal {
         position: fixed;
         inset: 0;
         z-index: 25;
@@ -421,7 +422,8 @@
         justify-content: center;
       }
       #inventory-modal.hidden,
-      #furnace-modal.hidden {
+      #furnace-modal.hidden,
+      #chest-modal.hidden {
         display: none;
       }
 
@@ -602,6 +604,51 @@
         gap: 4px;
         justify-content: center;
       }
+
+      #chest-storage-grid,
+      #chest-backpack-grid,
+      #chest-hotbar-grid {
+        display: grid;
+        grid-template-columns: repeat(9, 48px);
+        gap: 4px;
+        justify-content: center;
+      }
+      #chest-storage-grid, #chest-backpack-grid { margin-bottom: 12px; }
+      .chest-title-wrap { display: flex; align-items: center; gap: 12px; }
+      .chest-model {
+        position: relative;
+        width: 34px;
+        height: 27px;
+        perspective: 80px;
+      }
+      .chest-body, .chest-lid {
+        position: absolute;
+        left: 1px;
+        width: 32px;
+        border: 2px solid #4a2f18;
+        background: repeating-linear-gradient(90deg, #b97932 0 7px, #9e6028 7px 9px);
+        box-shadow: inset 0 -3px rgba(55, 32, 16, 0.38);
+      }
+      .chest-body { bottom: 0; height: 17px; }
+      .chest-lid {
+        top: 0;
+        height: 11px;
+        transform-origin: left bottom;
+        transition: transform 0.34s cubic-bezier(.2,.8,.2,1);
+      }
+      .chest-latch {
+        position: absolute;
+        z-index: 2;
+        left: 14px;
+        top: 8px;
+        width: 7px;
+        height: 9px;
+        border: 1px solid #4b5563;
+        background: #eabf54;
+        transition: transform 0.34s cubic-bezier(.2,.8,.2,1);
+      }
+      #chest-modal.opened .chest-lid { transform: rotateX(-58deg) translateY(-2px); }
+      #chest-modal.opened .chest-latch { transform: translateY(-6px); }
 
       /* Floating Cursor Stack */
       #cursor-item {
@@ -1016,6 +1063,29 @@
         <div class="inv-section-label">Hotbar</div>
         <div id="furnace-hotbar-grid"></div>
         <div class="inv-footer-tip">Coal, logs, planks, and sticks burn as fuel · Shift-click for quick transfer</div>
+      </div>
+    </div>
+
+    <div id="chest-modal" class="hidden">
+      <div class="inv-window">
+        <div class="inv-header">
+          <div class="chest-title-wrap">
+            <div class="chest-model" aria-hidden="true">
+              <div class="chest-body"></div>
+              <div class="chest-lid"></div>
+              <div class="chest-latch"></div>
+            </div>
+            <div class="inv-title">Chest</div>
+          </div>
+          <button id="chest-close-btn" class="inv-close" type="button">[E / Esc] Resume</button>
+        </div>
+        <div class="inv-section-label">Storage</div>
+        <div id="chest-storage-grid"></div>
+        <div class="inv-section-label">Backpack</div>
+        <div id="chest-backpack-grid"></div>
+        <div class="inv-section-label">Hotbar</div>
+        <div id="chest-hotbar-grid"></div>
+        <div class="inv-footer-tip">Shift-click to move stacks between the chest and inventory</div>
       </div>
     </div>
 

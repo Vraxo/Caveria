@@ -72,6 +72,16 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
     outputId: ItemId.Bed,
     outputCount: 1,
   },
+  {
+    name: 'Chest',
+    pattern: [
+      [P, P, P],
+      [P, _, P],
+      [P, P, P],
+    ],
+    outputId: ItemId.Chest,
+    outputCount: 1,
+  },
   // 3x3: Cobblestone ring -> Furnace
   {
     name: 'Furnace',

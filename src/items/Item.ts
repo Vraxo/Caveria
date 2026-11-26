@@ -35,6 +35,7 @@ export enum ItemId {
   CaveVine = BlockId.CaveVine,
   Furnace = BlockId.Furnace,
   Bed = BlockId.BedFoot,
+  Chest = BlockId.Chest,
 
   // Materials
   Stick = 100,
@@ -156,6 +157,7 @@ export const ITEMS: Record<number, ItemDefinition> = {
   [ItemId.CaveVine]: blockItem(BlockId.CaveVine),
   [ItemId.Furnace]: blockItem(BlockId.Furnace),
   [ItemId.Bed]: blockItem(BlockId.BedFoot),
+  [ItemId.Chest]: blockItem(BlockId.Chest),
 
   [ItemId.Stick]: {
     id: ItemId.Stick,

@@ -55,6 +55,8 @@ export class AudioManager {
   public playFurnaceBurn(): void { this.ui.playFurnaceBurn(); }
   public playFurnaceComplete(): void { this.ui.playFurnaceComplete(); }
   public playSleep(): void { this.ui.playSleep(); }
+  public playChestOpen(): void { this.ui.playChestOpen(); }
+  public playChestClose(): void { this.ui.playChestClose(); }
   public playToolBreak(): void { this.ui.playToolBreak(); }
   public playModeToggle(): void { this.ui.playModeToggle(); }
   public playThunder(intensity: number): void { this.ambience.playThunder(intensity); }

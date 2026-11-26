@@ -1,4 +1,5 @@
 import type { BedSnapshot } from '../gameplay/BedManager';
+import { CHEST_SLOT_COUNT, type ChestStateSnapshot } from '../gameplay/ChestManager';
 import type { FurnaceStateSnapshot } from '../gameplay/FurnaceManager';
 import { ArmorSlot, ItemStack, ITEMS } from '../items/Item';
 import { TOTAL_INVENTORY_SLOTS } from '../items/Inventory';
@@ -51,6 +52,7 @@ export interface CaveriaSaveData {
   };
   muted: boolean;
   furnaces: FurnaceStateSnapshot[];
+  chests: ChestStateSnapshot[];
   beds: BedSnapshot[];
   respawnBed: [number, number, number] | null;
   worldEdits: SerializedVoxelEdit[];
@@ -228,6 +230,25 @@ export class WorldPersistence {
       }
     }
 
+    const chests: ChestStateSnapshot[] = [];
+    if (Array.isArray(raw.chests)) {
+      for (const chest of raw.chests.slice(0, 2048)) {
+        if (!chest || typeof chest !== 'object') continue;
+        const slots = new Array<ItemStack | null>(CHEST_SLOT_COUNT).fill(null);
+        if (Array.isArray(chest.slots)) {
+          for (let index = 0; index < Math.min(CHEST_SLOT_COUNT, chest.slots.length); index++) {
+            slots[index] = sanitizeStack(chest.slots[index]);
+          }
+        }
+        chests.push({
+          x: Math.floor(worldCoord(chest.x, 0)),
+          y: Math.max(0, Math.min(CHUNK_HEIGHT - 1, Math.floor(finite(chest.y, 0)))),
+          z: Math.floor(worldCoord(chest.z, 0)),
+          slots,
+        });
+      }
+    }
+
     const beds: BedSnapshot[] = [];
     if (Array.isArray(raw.beds)) {
       for (const bed of raw.beds.slice(0, 2048)) {
@@ -303,6 +324,7 @@ export class WorldPersistence {
       },
       muted: Boolean(raw.muted),
       furnaces,
+      chests,
       beds,
       respawnBed,
       worldEdits,

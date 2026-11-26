@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { BedManager } from '../gameplay/BedManager';
 import { BlockInteractionController } from '../gameplay/BlockInteractionController';
+import { ChestManager } from '../gameplay/ChestManager';
 import { FurnaceManager } from '../gameplay/FurnaceManager';
 import { MovementAudioController } from '../gameplay/MovementAudioController';
 import { MobManager } from '../entities/MobManager';
@@ -19,6 +20,7 @@ import { DroppedItemManager } from '../rendering/DroppedItems';
 import { HeldItemView } from '../rendering/HeldItemView';
 import { TextureAtlas } from '../rendering/TextureAtlas';
 import { WeatherSystem } from '../rendering/WeatherSystem';
+import { ChestModal } from '../ui/ChestModal';
 import { DebugHud } from '../ui/DebugHud';
 import { FurnaceModal } from '../ui/FurnaceModal';
 import { GameOverlayController } from '../ui/GameOverlayController';
@@ -47,6 +49,7 @@ export class Game {
   private readonly drops: DroppedItemManager;
   private readonly mobs: MobManager;
   private readonly beds: BedManager;
+  private readonly chests: ChestManager;
   private readonly furnaces: FurnaceManager;
   private readonly heldItemView: HeldItemView;
   private readonly audio: AudioManager;
@@ -60,6 +63,7 @@ export class Game {
   private readonly hotbar: Hotbar;
   private readonly inventoryModal: InventoryModal;
   private readonly furnaceModal: FurnaceModal;
+  private readonly chestModal: ChestModal;
   private readonly debugHud: DebugHud;
   private readonly overlay: GameOverlayController;
   private readonly seedLabel: string;
@@ -144,6 +148,11 @@ export class Game {
       savedGame?.furnaces,
       (x, y, z, stack) => this.drops.spawnDrop(x, y, z, stack)
     );
+    this.chests = new ChestManager(
+      this.world,
+      savedGame?.chests,
+      (x, y, z, stack) => this.drops.spawnDrop(x, y, z, stack)
+    );
     this.vitals = new PlayerVitals(
       () => {
         this.interactions.clearTarget();
@@ -220,6 +229,8 @@ export class Game {
       onOpenWorkbench: () => this.openInventoryScreen(3),
       onOpenFurnace: (x, y, z) => this.openFurnaceScreen(x, y, z),
       onFurnaceBroken: (x, y, z) => this.furnaces.breakAt(x, y, z),
+      onOpenChest: (x, y, z) => this.openChestScreen(x, y, z),
+      onChestBroken: (x, y, z) => this.breakChestAt(x, y, z),
       onUseBed: (x, y, z) => this.beds.use(x, y, z),
       onPlaceBed: (x, y, z) => this.beds.place(x, y, z),
       onBedBroken: (x, y, z, drop) => this.beds.breakAt(x, y, z, drop),
@@ -238,6 +249,13 @@ export class Game {
       (overflow) => this.interactions.tossStackFromPlayer(overflow),
       () => this.closeFurnaceAndResume()
     );
+    this.chestModal = new ChestModal(
+      this.inventory,
+      this.atlas,
+      this.chests,
+      (overflow) => this.interactions.tossStackFromPlayer(overflow),
+      () => this.closeChestAndResume()
+    );
     this.debugHud = new DebugHud();
     this.movementAudio = new MovementAudioController(this.audio, this.player, this.world);
     this.atmosphere = new AtmosphereController(
@@ -254,7 +272,8 @@ export class Game {
       input: this.input,
       audio: this.audio,
       inventoryModal: this.inventoryModal,
-      isGameplayModalOpen: () => this.inventoryModal.isOpen || this.furnaceModal.isOpen,
+      isGameplayModalOpen: () =>
+        this.inventoryModal.isOpen || this.furnaceModal.isOpen || this.chestModal.isOpen,
       currentWorld: {
         worldId,
         worldName: savedGame?.worldName ?? worldName,
@@ -315,6 +334,24 @@ export class Game {
     this.overlay.resumeGameplay();
   }
 
+  private openChestScreen(x: number, y: number, z: number): void {
+    this.interactions.clearTarget();
+    if (!this.chestModal.open(x, y, z)) return;
+    this.audio.playChestOpen();
+    this.overlay.openGameplayModal();
+  }
+
+  private closeChestAndResume(): void {
+    this.audio.playChestClose();
+    this.chestModal.close();
+    this.overlay.resumeGameplay();
+  }
+
+  private breakChestAt(x: number, y: number, z: number): void {
+    if (this.chestModal.isOpenAt(x, y, z)) this.closeChestAndResume();
+    this.chests.breakAt(x, y, z);
+  }
+
   private loop(now: number): void {
     const rawDt = (now - this.lastTime) / 1000;
     this.lastTime = now;
@@ -343,16 +380,22 @@ export class Game {
     }
 
     // Toggle workstation/inventory screens with [E] or close with [Escape].
-    if (this.inventoryModal.isOpen || this.furnaceModal.isOpen) {
+    if (this.inventoryModal.isOpen || this.furnaceModal.isOpen || this.chestModal.isOpen) {
       if (this.input.consumeKeyPress('KeyE') || this.input.consumeKeyPress('Escape')) {
         if (this.furnaceModal.isOpen) this.closeFurnaceAndResume();
+        else if (this.chestModal.isOpen) this.closeChestAndResume();
         else this.closeInventoryAndResume();
       }
     } else if (this.input.isPointerLocked && this.input.consumeKeyPress('KeyE')) {
       this.openInventoryScreen(2);
     }
 
-    if (this.input.isPointerLocked && !this.inventoryModal.isOpen && !this.furnaceModal.isOpen) {
+    if (
+      this.input.isPointerLocked &&
+      !this.inventoryModal.isOpen &&
+      !this.furnaceModal.isOpen &&
+      !this.chestModal.isOpen
+    ) {
       if (this.input.consumeKeyPress('KeyF')) {
         this.player.flyMode = !this.player.flyMode;
         this.player.velocity.y = 0;
@@ -445,6 +488,7 @@ export class Game {
       this.input.isPointerLocked &&
       !this.inventoryModal.isOpen &&
       !this.furnaceModal.isOpen &&
+      !this.chestModal.isOpen &&
       this.interactions.activelyMining;
 
     this.heldItemView.setEquipped(this.hotbar.selectedStack);
@@ -514,6 +558,7 @@ export class Game {
       weather: this.weather.snapshot(),
       muted: this.audio.muted,
       furnaces: this.furnaces.snapshot(),
+      chests: this.chests.snapshots(),
       beds: this.beds.snapshots(),
       respawnBed: this.beds.respawnSnapshot(),
       worldEdits: this.world.exportEdits(),

@@ -48,6 +48,14 @@ export class UiSoundEffects {
     this.synth.tone({ type: 'sine', freq: 330, freqEnd: 220, duration: 0.5, gain: 0.045 });
     this.synth.tone({ type: 'sine', freq: 440, freqEnd: 294, duration: 0.65, gain: 0.035, delay: 0.16 });
   }
+  public playChestOpen(): void {
+    this.synth.noiseBurst({ duration: 0.13, filterType: 'lowpass', freq: 520, q: 0.9, gain: 0.075 });
+    this.synth.tone({ type: 'triangle', freq: 150, freqEnd: 225, duration: 0.18, gain: 0.055 });
+  }
+  public playChestClose(): void {
+    this.synth.noiseBurst({ duration: 0.1, filterType: 'lowpass', freq: 430, q: 0.8, gain: 0.08 });
+    this.synth.tone({ type: 'triangle', freq: 210, freqEnd: 120, duration: 0.14, gain: 0.06 });
+  }
   public playEat(): void {
     for (let bite = 0; bite < 3; bite++) {
       this.synth.noiseBurst({
