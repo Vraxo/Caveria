@@ -1,26 +1,18 @@
 import { AudioManager } from '../audio/AudioManager';
 import { BlockId } from '../content/BlockId';
+import {
+  STATUS_EFFECT_DEFINITIONS,
+  StatusEffectId,
+  StatusEffectSnapshot,
+} from '../content/effects/StatusEffectDefinitions';
 import { ItemId } from '../items/Item';
+
+export type { StatusEffectId, StatusEffectSnapshot } from '../content/effects/StatusEffectDefinitions';
 import { Player } from '../player/Player';
 import { PlayerVitals } from '../player/PlayerVitals';
 import { TemperatureSystem } from './TemperatureSystem';
 import { WaterQuality } from './WaterQuality';
 import { World } from '../world/World';
-
-export type StatusEffectId = 'well-fed' | 'regeneration' | 'poisoned' | 'warmth' | 'chilled' | 'antidote' | 'hydrated' | 'nausea' | 'water-breathing';
-export interface StatusEffectSnapshot { id: StatusEffectId; remaining: number; }
-
-const LABELS: Record<StatusEffectId, { icon: string; name: string; beneficial: boolean }> = {
-  'well-fed': { icon: '◆', name: 'Well Fed', beneficial: true },
-  regeneration: { icon: '♥', name: 'Regeneration', beneficial: true },
-  poisoned: { icon: '☠', name: 'Poisoned', beneficial: false },
-  warmth: { icon: '♨', name: 'Warmth', beneficial: true },
-  chilled: { icon: '❄', name: 'Chilled', beneficial: false },
-  antidote: { icon: '✚', name: 'Antidote', beneficial: true },
-  hydrated: { icon: '●', name: 'Hydrated', beneficial: true },
-  nausea: { icon: '≈', name: 'Nauseous', beneficial: false },
-  'water-breathing': { icon: '◌', name: 'Water Breathing', beneficial: true },
-};
 
 /** Timed survival effects, medicine consumption, cold exposure, and contact hazards. */
 export class StatusEffectManager {
@@ -240,7 +232,7 @@ export class StatusEffectManager {
   private render(): void {
     this.hudEl.replaceChildren();
     for (const [id, remaining] of this.effects) {
-      const info = LABELS[id];
+      const info = STATUS_EFFECT_DEFINITIONS[id];
       const effect = document.createElement('div');
       effect.className = `status-effect ${info.beneficial ? 'beneficial' : 'harmful'}`;
       effect.textContent = `${info.icon} ${info.name} ${Math.ceil(remaining)}s`;

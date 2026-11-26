@@ -1,6 +1,19 @@
 import { AudioManager } from '../audio/AudioManager';
 import { BlockId } from '../content/BlockId';
-import { ITEMS, ItemId, ItemStack, createStack } from '../items/Item';
+import {
+  FurnaceRecipe,
+  getCookingRecipe,
+  getFuelSeconds,
+} from '../content/recipes/CookingRecipes';
+import { ITEMS, ItemStack, createStack } from '../items/Item';
+
+export {
+  FURNACE_FUELS,
+  FURNACE_RECIPES,
+  getFuelSeconds,
+  getFurnaceRecipe,
+} from '../content/recipes/CookingRecipes';
+export type { FurnaceRecipe } from '../content/recipes/CookingRecipes';
 import { WeatherSystem } from '../rendering/WeatherSystem';
 import { World } from '../world/World';
 
@@ -14,41 +27,6 @@ export interface FurnaceStateSnapshot {
   burnRemaining: number;
   burnTotal: number;
   smeltProgress: number;
-}
-
-export interface FurnaceRecipe {
-  output: ItemId;
-  count: number;
-  seconds: number;
-}
-
-export const FURNACE_RECIPES: Readonly<Partial<Record<ItemId, FurnaceRecipe>>> = {
-  [ItemId.GoldOre]: { output: ItemId.GoldIngot, count: 1, seconds: 8 },
-  [ItemId.Sand]: { output: ItemId.Glass, count: 1, seconds: 6 },
-  [ItemId.CaveShroom]: { output: ItemId.RoastedCaveShroom, count: 1, seconds: 5 },
-  [ItemId.CaveBerries]: { output: ItemId.DriedCaveBerries, count: 1, seconds: 4 },
-  [ItemId.DirtyWaterBottle]: { output: ItemId.CleanWaterBottle, count: 1, seconds: 6 },
-  [ItemId.RawCaveFish]: { output: ItemId.CookedCaveFish, count: 1, seconds: 5 },
-  [ItemId.RawRiverFish]: { output: ItemId.CookedRiverFish, count: 1, seconds: 5 },
-  [ItemId.BlightedFish]: { output: ItemId.CookedCaveFish, count: 1, seconds: 8 },
-  [ItemId.Cactus]: { output: ItemId.CactusGreen, count: 1, seconds: 6 },
-};
-
-export const FURNACE_FUELS: Readonly<Partial<Record<ItemId, number>>> = {
-  [ItemId.Coal]: 80,
-  [ItemId.OakLog]: 15,
-  [ItemId.SpruceLog]: 15,
-  [ItemId.OakPlanks]: 15,
-  [ItemId.Stick]: 5,
-  [ItemId.Torch]: 8,
-};
-
-export function getFurnaceRecipe(stack: ItemStack | null): FurnaceRecipe | null {
-  return stack ? (FURNACE_RECIPES[stack.id] ?? null) : null;
-}
-
-export function getFuelSeconds(stack: ItemStack | null): number {
-  return stack ? (FURNACE_FUELS[stack.id] ?? 0) : 0;
 }
 
 /** Persistent placed-furnace state and loaded-area processing simulation. */
@@ -131,24 +109,7 @@ export class FurnaceManager {
   }
 
   public getRecipe(state: FurnaceStateSnapshot, stack: ItemStack | null): FurnaceRecipe | null {
-    const recipe = getFurnaceRecipe(stack);
-    if (!recipe || !this.isCampfire(state)) return recipe;
-    if (stack?.id === ItemId.CaveShroom) {
-      return { output: ItemId.SmokedCaveShroom, count: 1, seconds: 6 };
-    }
-    if (stack?.id === ItemId.DirtyWaterBottle) {
-      return { output: ItemId.CleanWaterBottle, count: 1, seconds: 10 };
-    }
-    if (stack?.id === ItemId.RawCaveFish) {
-      return { output: ItemId.CookedCaveFish, count: 1, seconds: 8 };
-    }
-    if (stack?.id === ItemId.RawRiverFish) {
-      return { output: ItemId.CookedRiverFish, count: 1, seconds: 8 };
-    }
-    if (stack?.id === ItemId.BlightedFish) {
-      return { output: ItemId.CookedCaveFish, count: 1, seconds: 12 };
-    }
-    return recipe.output === ItemId.DriedCaveBerries ? recipe : null;
+    return getCookingRecipe(stack, this.isCampfire(state));
   }
 
   public getOrCreate(x: number, y: number, z: number): FurnaceStateSnapshot {
