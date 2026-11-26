@@ -2,13 +2,14 @@ import type * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { ArrowProjectileManager } from './ArrowProjectileManager';
 import { FarmUseResult } from './FarmingManager';
+import { WaterSurvivalSystem } from './WaterSurvivalSystem';
 import { Input } from '../core/Input';
 import { MobHit, MobManager } from '../entities/MobManager';
 import { Inventory } from '../items/Inventory';
 import { ITEMS, ItemId, ItemStack, createStack, getAttackDamage, getBlockDrop, getFoodStats, getMiningStats } from '../items/Item';
 import { Player } from '../player/Player';
 import { PlayerVitals } from '../player/PlayerVitals';
-import { VoxelHit, raycastVoxel } from '../player/Raycaster';
+import { VoxelHit, raycastVoxel, raycastWater } from '../player/Raycaster';
 import { BreakParticles } from '../rendering/BreakParticles';
 import { DroppedItemManager } from '../rendering/DroppedItems';
 import { HeldItemView } from '../rendering/HeldItemView';
@@ -34,6 +35,7 @@ interface BlockInteractionDependencies {
   mobs: MobManager;
   vitals: PlayerVitals;
   arrows: ArrowProjectileManager;
+  waterSurvival: WaterSurvivalSystem;
   onOpenWorkbench: () => void;
   onOpenFurnace: (x: number, y: number, z: number) => void;
   onFurnaceBroken: (x: number, y: number, z: number) => void;
@@ -67,6 +69,7 @@ export class BlockInteractionController {
   private readonly mobs: MobManager;
   private readonly vitals: PlayerVitals;
   private readonly arrows: ArrowProjectileManager;
+  private readonly waterSurvival: WaterSurvivalSystem;
   private readonly onOpenWorkbench: () => void;
   private readonly onOpenFurnace: (x: number, y: number, z: number) => void;
   private readonly onFurnaceBroken: (x: number, y: number, z: number) => void;
@@ -88,6 +91,7 @@ export class BlockInteractionController {
   private readonly mobTargetEl: HTMLElement;
 
   private hit: VoxelHit | null = null;
+  private waterHit: VoxelHit | null = null;
   private mobTarget: MobHit | null = null;
   private miningTargetKey = '';
   private miningElapsed = 0;
@@ -109,6 +113,7 @@ export class BlockInteractionController {
     this.mobs = deps.mobs;
     this.vitals = deps.vitals;
     this.arrows = deps.arrows;
+    this.waterSurvival = deps.waterSurvival;
     this.onOpenWorkbench = deps.onOpenWorkbench;
     this.onOpenFurnace = deps.onOpenFurnace;
     this.onFurnaceBroken = deps.onFurnaceBroken;
@@ -142,6 +147,8 @@ export class BlockInteractionController {
     const eye = this.player.getEyePosition();
     const direction = this.player.getForwardDirection();
     this.hit = raycastVoxel(this.world, eye, direction, 6.0);
+    this.waterHit = raycastWater(this.world, eye, direction, 6.0);
+    this.waterSurvival.updateTarget(this.waterHit);
     this.mobTarget = this.mobs.raycast(eye, direction, 4.5, this.hit?.distance ?? 6.0);
     this.highlight.update(this.mobTarget ? null : this.hit);
     this.mobTargetEl.classList.toggle('hidden', !this.mobTarget);
@@ -190,6 +197,8 @@ export class BlockInteractionController {
     this.cancelMining();
     this.cancelBowDraw();
     this.hit = null;
+    this.waterHit = null;
+    this.waterSurvival.updateTarget(null);
     this.mobTarget = null;
     this.highlight.update(null);
     this.mobTargetEl.classList.add('hidden');
@@ -331,6 +340,29 @@ export class BlockInteractionController {
     const sneaking =
       this.input.isKeyDown('ShiftLeft') || this.input.isKeyDown('ShiftRight');
     const held = this.hotbar.selectedStack;
+    if (allowWorldUse && sneaking && this.waterHit) {
+      if (!held) {
+        this.waterSurvival.drinkSource(this.waterHit.blockX, this.waterHit.blockY, this.waterHit.blockZ);
+        this.heldItemView.triggerPlace();
+        return;
+      }
+      if (held.id === ItemId.GlassBottle) {
+        const filled = this.waterSurvival.fillBottle(
+          this.waterHit.blockX,
+          this.waterHit.blockY,
+          this.waterHit.blockZ
+        );
+        this.fillBottle(filled, creativeMode);
+        return;
+      }
+    }
+    if (allowWorldUse && sneaking && held?.id === ItemId.GlassBottle && !this.waterHit) {
+      const rainBottle = this.waterSurvival.collectRain();
+      if (rainBottle !== null) {
+        this.fillBottle(rainBottle, creativeMode);
+        return;
+      }
+    }
     if (allowWorldUse && this.hit && !sneaking) {
       const farmResult = this.onUseFarm(
         this.hit.blockX,
@@ -370,7 +402,17 @@ export class BlockInteractionController {
     }
 
     if (held && this.onConsumeSpecial(held.id)) {
-      if (!creativeMode) this.inventory.consumeOne(this.hotbar.selectedIndex);
+      const returnsBottle = held.id === ItemId.CleanWaterBottle
+        || held.id === ItemId.DirtyWaterBottle
+        || held.id === ItemId.PurifiedCrystalTonic;
+      if (!creativeMode) {
+        this.inventory.consumeOne(this.hotbar.selectedIndex);
+        if (returnsBottle) {
+          const emptyBottle = createStack(ItemId.GlassBottle);
+          this.inventory.addItem(emptyBottle);
+          if (emptyBottle.count > 0) this.tossStackFromPlayer(emptyBottle);
+        }
+      }
       this.foodCooldown = 0.55;
       this.heldItemView.triggerPlace();
       return;
@@ -438,6 +480,14 @@ export class BlockInteractionController {
     ) {
       this.placeBlock(placeX, placeY, placeZ, placeBlock, creativeMode);
     }
+  }
+
+  private fillBottle(filledItem: ItemId, creativeMode: boolean): void {
+    if (!creativeMode) this.inventory.consumeOne(this.hotbar.selectedIndex);
+    const filled = createStack(filledItem);
+    this.inventory.addItem(filled);
+    if (filled.count > 0) this.tossStackFromPlayer(filled);
+    this.heldItemView.triggerPlace();
   }
 
   private placeBlock(

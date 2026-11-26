@@ -70,6 +70,11 @@ export class UiSoundEffects {
   public playArrowHit(): void {
     this.synth.noiseBurst({ duration: 0.09, filterType: 'bandpass', freq: 850, q: 1.1, gain: 0.1 });
   }
+  public playDrink(): void {
+    for (let gulp = 0; gulp < 3; gulp++) {
+      this.synth.noiseBurst({ duration: 0.08, filterType: 'lowpass', freq: 520 + gulp * 80, q: 0.8, gain: 0.055, delay: gulp * 0.08 });
+    }
+  }
   public playMedicineUse(): void {
     this.synth.tone({ type: 'sine', freq: 520, duration: 0.08, gain: 0.05 });
     this.synth.tone({ type: 'sine', freq: 780, duration: 0.12, gain: 0.045, delay: 0.07 });

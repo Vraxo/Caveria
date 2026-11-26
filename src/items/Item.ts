@@ -91,6 +91,10 @@ export enum ItemId {
   WarmingStew = 171,
   CrystalTonic = 172,
   SmokedCaveShroom = 173,
+  GlassBottle = 174,
+  DirtyWaterBottle = 175,
+  CleanWaterBottle = 176,
+  PurifiedCrystalTonic = 177,
 }
 
 export type ArmorSlot = 'helmet' | 'chestplate' | 'leggings' | 'boots';
@@ -328,6 +332,22 @@ export const ITEMS: Record<number, ItemDefinition> = {
   [ItemId.SmokedCaveShroom]: {
     id: ItemId.SmokedCaveShroom, name: 'Smoked Cave Shroom', maxStack: 64, placeBlockId: null,
     toolCategory: 'none', toolTier: 0, miningSpeed: 1, nutrition: 5, saturation: 4,
+  },
+  [ItemId.GlassBottle]: {
+    id: ItemId.GlassBottle, name: 'Glass Bottle', maxStack: 16, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1,
+  },
+  [ItemId.DirtyWaterBottle]: {
+    id: ItemId.DirtyWaterBottle, name: 'Dirty Water Bottle', maxStack: 16, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1,
+  },
+  [ItemId.CleanWaterBottle]: {
+    id: ItemId.CleanWaterBottle, name: 'Clean Water Bottle', maxStack: 16, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1,
+  },
+  [ItemId.PurifiedCrystalTonic]: {
+    id: ItemId.PurifiedCrystalTonic, name: 'Purified Crystal Tonic', maxStack: 8, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1,
   },
 
   // Wooden Tools

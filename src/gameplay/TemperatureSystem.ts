@@ -18,6 +18,7 @@ export class TemperatureSystem {
 
   private statusWarmthBonus = 0;
   private statusColdResistance = 0;
+  private statusHydrated = false;
   private damageTimer = 4;
   private warningTimer = 2;
   private readonly hudEl = document.getElementById('temperature-hud')!;
@@ -46,7 +47,8 @@ export class TemperatureSystem {
     this.state = this.getState();
 
     if (!creativeMode && this.temperature >= 75) {
-      this.vitals.addExhaustion(dt * (this.temperature >= 90 ? 0.09 : 0.035));
+      const hydrationScale = this.statusHydrated ? 0.45 : 1;
+      this.vitals.addExhaustion(dt * (this.temperature >= 90 ? 0.09 : 0.035) * hydrationScale);
     }
     const extreme = this.temperature <= 9 || this.temperature >= 91;
     if (!creativeMode && extreme) {
@@ -67,9 +69,10 @@ export class TemperatureSystem {
     this.render();
   }
 
-  public setStatusModifiers(warmthBonus: number, coldResistance: number): void {
+  public setStatusModifiers(warmthBonus: number, coldResistance: number, hydrated = false): void {
     this.statusWarmthBonus = Math.max(0, warmthBonus);
     this.statusColdResistance = Math.max(0, Math.min(1, coldResistance));
+    this.statusHydrated = hydrated;
   }
 
   public recoverAfterSleep(): void {
