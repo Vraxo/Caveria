@@ -295,7 +295,7 @@ export class WorldPersistence {
         : null;
 
     const validEffects = new Set<StatusEffectId>([
-      'well-fed', 'regeneration', 'poisoned', 'warmth', 'chilled', 'antidote',
+      'well-fed', 'regeneration', 'poisoned', 'warmth', 'chilled', 'antidote', 'hydrated', 'nausea',
     ]);
     const statusEffects: StatusEffectSnapshot[] = [];
     if (Array.isArray(raw.statusEffects)) {

@@ -4,9 +4,10 @@ import { ItemId } from '../items/Item';
 import { Player } from '../player/Player';
 import { PlayerVitals } from '../player/PlayerVitals';
 import { TemperatureSystem } from './TemperatureSystem';
+import { WaterQuality } from './WaterQuality';
 import { World } from '../world/World';
 
-export type StatusEffectId = 'well-fed' | 'regeneration' | 'poisoned' | 'warmth' | 'chilled' | 'antidote';
+export type StatusEffectId = 'well-fed' | 'regeneration' | 'poisoned' | 'warmth' | 'chilled' | 'antidote' | 'hydrated' | 'nausea';
 export interface StatusEffectSnapshot { id: StatusEffectId; remaining: number; }
 
 const LABELS: Record<StatusEffectId, { icon: string; name: string; beneficial: boolean }> = {
@@ -16,6 +17,8 @@ const LABELS: Record<StatusEffectId, { icon: string; name: string; beneficial: b
   warmth: { icon: '♨', name: 'Warmth', beneficial: true },
   chilled: { icon: '❄', name: 'Chilled', beneficial: false },
   antidote: { icon: '✚', name: 'Antidote', beneficial: true },
+  hydrated: { icon: '●', name: 'Hydrated', beneficial: true },
+  nausea: { icon: '≈', name: 'Nauseous', beneficial: false },
 };
 
 /** Timed survival effects, medicine consumption, cold exposure, and contact hazards. */
@@ -26,6 +29,7 @@ export class StatusEffectManager {
   private wellFedTick = 5;
   private cactusTick = 0;
   private severeColdSeconds = 0;
+  private elapsed = 0;
   private readonly hudEl = document.getElementById('status-effects')!;
   private readonly messageEl = document.getElementById('survival-message')!;
   private messageTimer = 0;
@@ -43,16 +47,20 @@ export class StatusEffectManager {
   }
 
   public update(dt: number, creativeMode: boolean): void {
+    this.elapsed += dt;
     for (const [id, remaining] of this.effects) {
       const next = remaining - dt;
       if (next <= 0) this.effects.delete(id);
       else this.effects.set(id, next);
     }
 
+    const hydrated = this.has('hydrated');
     this.temperature.setStatusModifiers(
       this.has('warmth') ? 18 : 0,
-      this.has('warmth') ? 0.65 : 0
+      this.has('warmth') ? 0.65 : 0,
+      hydrated
     );
+    this.vitals.setExhaustionMultiplier(hydrated ? 0.72 : 1);
 
     if (!creativeMode) {
       this.updateColdExposure(dt);
@@ -83,11 +91,42 @@ export class StatusEffectManager {
       this.vitals.heal(6);
       this.add('regeneration', 10);
       this.showMessage('Crystal Tonic · Health restored');
+    } else if (itemId === ItemId.PurifiedCrystalTonic) {
+      this.vitals.heal(10);
+      this.add('regeneration', 18);
+      this.add('hydrated', 120);
+      this.showMessage('Purified Tonic · Strong restoration and Hydrated');
+    } else if (itemId === ItemId.CleanWaterBottle) {
+      this.add('hydrated', 180);
+      this.showMessage('Clean water · Hydrated');
+    } else if (itemId === ItemId.DirtyWaterBottle) {
+      this.add('hydrated', 90);
+      this.add('nausea', 25);
+      if (Math.random() < 0.35) this.poison(14);
+      else this.showMessage('Dirty water · Hydrated, but nauseous');
     } else {
       return false;
     }
-    this.audio.playMedicineUse();
+    if (itemId === ItemId.CleanWaterBottle || itemId === ItemId.DirtyWaterBottle || itemId === ItemId.PurifiedCrystalTonic) this.audio.playDrink();
+    else this.audio.playMedicineUse();
     return true;
+  }
+
+  public drinkWater(quality: WaterQuality): void {
+    const hydratedSeconds = quality === 'fresh' ? 140 : quality === 'murky' ? 80 : 50;
+    this.add('hydrated', hydratedSeconds);
+    if (quality === 'murky') {
+      this.add('nausea', 20);
+      if (Math.random() < 0.25) this.poison(12);
+      else this.showMessage('Murky water · Hydrated, but nauseous');
+    } else if (quality === 'tainted') {
+      this.add('nausea', 35);
+      if (Math.random() < 0.65) this.poison(18);
+      else this.showMessage('Tainted water · You feel sick');
+    } else {
+      this.showMessage('Fresh water · Hydrated');
+    }
+    this.audio.playDrink();
   }
 
   public onFoodConsumed(itemId: ItemId): void {
@@ -102,14 +141,22 @@ export class StatusEffectManager {
   }
 
   public poison(seconds: number): boolean {
-    if (this.has('antidote')) return false;
+    if (this.has('antidote')) {
+      this.showMessage('Antidote neutralized the poison.');
+      return false;
+    }
     this.add('poisoned', seconds);
     this.showMessage('Poisoned! Use an Antidote.');
     return true;
   }
 
-  public get movementMultiplier(): number { return this.has('chilled') ? 0.82 : 1; }
+  public get movementMultiplier(): number {
+    return (this.has('chilled') ? 0.82 : 1) * (this.has('nausea') ? 0.9 : 1);
+  }
   public get miningMultiplier(): number { return this.has('chilled') ? 0.72 : 1; }
+  public get cameraSway(): number {
+    return this.has('nausea') ? Math.sin(this.elapsed * 2.1) * 0.018 + Math.sin(this.elapsed * 0.73) * 0.01 : 0;
+  }
   public has(id: StatusEffectId): boolean { return (this.effects.get(id) ?? 0) > 0; }
 
   public snapshots(): StatusEffectSnapshot[] {

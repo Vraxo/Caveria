@@ -14,6 +14,32 @@ export interface VoxelHit {
   distance: number;
 }
 
+/** Finds the first visible water voxel without making water generally targetable. */
+export function raycastWater(
+  world: World,
+  origin: THREE.Vector3,
+  direction: THREE.Vector3,
+  maxDistance = 6
+): VoxelHit | null {
+  const dir = direction.clone().normalize();
+  let lastX = Number.NaN;
+  let lastY = Number.NaN;
+  let lastZ = Number.NaN;
+  for (let distance = 0; distance <= maxDistance; distance += 0.08) {
+    const x = Math.floor(origin.x + dir.x * distance);
+    const y = Math.floor(origin.y + dir.y * distance);
+    const z = Math.floor(origin.z + dir.z * distance);
+    if (x === lastX && y === lastY && z === lastZ) continue;
+    lastX = x; lastY = y; lastZ = z;
+    const blockId = world.getBlock(x, y, z);
+    if (blockId === BlockId.Water) {
+      return { blockX: x, blockY: y, blockZ: z, normalX: 0, normalY: 0, normalZ: 0, blockId, distance };
+    }
+    if (blockId !== BlockId.Air && BLOCKS[blockId].targetable) return null;
+  }
+  return null;
+}
+
 /**
  * Amanatides & Woo fast 3D DDA voxel traversal.
  */

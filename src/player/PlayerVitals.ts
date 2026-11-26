@@ -17,6 +17,7 @@ export class PlayerVitals {
 
   private air = MAX_AIR;
   private exhaustion = 0;
+  private exhaustionMultiplier = 1;
   private invulnerabilityTimer = 0;
   private drowningDamageTimer = 0;
   private starvationTimer = 4;
@@ -117,9 +118,13 @@ export class PlayerVitals {
     }
   }
 
+  public setExhaustionMultiplier(multiplier: number): void {
+    this.exhaustionMultiplier = Math.max(0.25, Math.min(1, multiplier));
+  }
+
   public addExhaustion(amount: number): void {
     if (this.dead || this.invulnerable || amount <= 0) return;
-    this.exhaustion += amount;
+    this.exhaustion += amount * this.exhaustionMultiplier;
     let changed = false;
     while (this.exhaustion >= EXHAUSTION_PER_POINT) {
       this.exhaustion -= EXHAUSTION_PER_POINT;

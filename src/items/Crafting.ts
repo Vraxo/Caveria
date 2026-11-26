@@ -206,6 +206,21 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
     outputCount: 1,
   },
   {
+    name: 'Glass Bottle',
+    pattern: [
+      [ItemId.Glass, _, ItemId.Glass],
+      [_, ItemId.Glass, _],
+    ],
+    outputId: ItemId.GlassBottle,
+    outputCount: 3,
+  },
+  {
+    name: 'Cactus Water',
+    pattern: [[ItemId.CactusGreen], [ItemId.GlassBottle]],
+    outputId: ItemId.CleanWaterBottle,
+    outputCount: 1,
+  },
+  {
     name: 'Healing Poultice',
     pattern: [[F], [M]],
     outputId: ItemId.HealingPoultice,
@@ -236,6 +251,24 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
     name: 'Azure Crystal Tonic',
     pattern: [[X], [ItemId.DriedCaveBerries], [M]],
     outputId: ItemId.CrystalTonic,
+    outputCount: 1,
+  },
+  {
+    name: 'Purified Crystal Tonic',
+    pattern: [
+      [A, ItemId.CleanWaterBottle],
+      [ItemId.DriedCaveBerries, M],
+    ],
+    outputId: ItemId.PurifiedCrystalTonic,
+    outputCount: 1,
+  },
+  {
+    name: 'Purified Azure Tonic',
+    pattern: [
+      [X, ItemId.CleanWaterBottle],
+      [ItemId.DriedCaveBerries, M],
+    ],
+    outputId: ItemId.PurifiedCrystalTonic,
     outputCount: 1,
   },
 

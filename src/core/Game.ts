@@ -10,6 +10,7 @@ import { FurnaceManager } from '../gameplay/FurnaceManager';
 import { MovementAudioController } from '../gameplay/MovementAudioController';
 import { StatusEffectManager } from '../gameplay/StatusEffectManager';
 import { TemperatureSystem } from '../gameplay/TemperatureSystem';
+import { WaterSurvivalSystem } from '../gameplay/WaterSurvivalSystem';
 import { MobManager } from '../entities/MobManager';
 import { Inventory } from '../items/Inventory';
 import { ItemId, createStack } from '../items/Item';
@@ -53,6 +54,7 @@ export class Game {
   private readonly armor: ArmorManager;
   private readonly temperature: TemperatureSystem;
   private readonly statusEffects: StatusEffectManager;
+  private readonly waterSurvival: WaterSurvivalSystem;
   private readonly particles: BreakParticles;
   private readonly campfireEffects: CampfireEffects;
   private readonly drops: DroppedItemManager;
@@ -215,6 +217,12 @@ export class Game {
       this.audio,
       savedGame?.statusEffects
     );
+    this.waterSurvival = new WaterSurvivalSystem(
+      this.world,
+      this.weather,
+      this.statusEffects,
+      this.audio
+    );
     this.mobs = new MobManager(
       this.scene,
       this.world,
@@ -275,6 +283,7 @@ export class Game {
       mobs: this.mobs,
       vitals: this.vitals,
       arrows: this.arrows,
+      waterSurvival: this.waterSurvival,
       onOpenWorkbench: () => this.openInventoryScreen(3),
       onOpenFurnace: (x, y, z) => this.openFurnaceScreen(x, y, z),
       onFurnaceBroken: (x, y, z) => this.furnaces.breakAt(x, y, z),
@@ -504,6 +513,7 @@ export class Game {
         !this.creativeMode && this.vitals.canSprint && !this.player.crouching && wantsToSprint;
       const maxStep = 1 / 90;
       this.statusEffects.update(dt, this.creativeMode);
+      this.camera.rotation.z = this.statusEffects.cameraSway;
       this.temperature.update(dt, this.creativeMode);
       const weatherMovementScale = this.weather.getMovementSpeedMultiplier(
         this.armor.hasFullGoldSet
@@ -540,6 +550,7 @@ export class Game {
         this.interactions.update(dt, this.creativeMode);
       }
     } else {
+      this.camera.rotation.z = 0;
       this.interactions.clearTarget();
     }
 

@@ -27,6 +27,7 @@ export const FURNACE_RECIPES: Readonly<Partial<Record<ItemId, FurnaceRecipe>>> =
   [ItemId.Sand]: { output: ItemId.Glass, count: 1, seconds: 6 },
   [ItemId.CaveShroom]: { output: ItemId.RoastedCaveShroom, count: 1, seconds: 5 },
   [ItemId.CaveBerries]: { output: ItemId.DriedCaveBerries, count: 1, seconds: 4 },
+  [ItemId.DirtyWaterBottle]: { output: ItemId.CleanWaterBottle, count: 1, seconds: 6 },
   [ItemId.Cactus]: { output: ItemId.CactusGreen, count: 1, seconds: 6 },
 };
 
@@ -131,6 +132,9 @@ export class FurnaceManager {
     if (!recipe || !this.isCampfire(state)) return recipe;
     if (stack?.id === ItemId.CaveShroom) {
       return { output: ItemId.SmokedCaveShroom, count: 1, seconds: 6 };
+    }
+    if (stack?.id === ItemId.DirtyWaterBottle) {
+      return { output: ItemId.CleanWaterBottle, count: 1, seconds: 10 };
     }
     return recipe.output === ItemId.DriedCaveBerries ? recipe : null;
   }

@@ -65,8 +65,8 @@ export class InventoryModal {
       gridSize === 3 ? 'Crafting Table (3×3)' : 'Hand Crafting (2×2)';
     this.recipeHintEl.textContent =
       gridSize === 3
-        ? 'Survival: Fiber + Shroom → Poultice · Berries + Cactus Green + Shroom → Antidote · Roasted Shrooms + Dried Berries → Warming Stew'
-        : 'Recipes: 4 Cave Vines → 4 Woven Fiber · 1 Log → 4 Planks · 4 Planks → Crafting Table · Use a Hoe on soil, then plant Berries or Shrooms';
+        ? 'Survival: 3 Glass → 3 Bottles · Fiber + Shroom → Poultice · Berries + Cactus Green + Shroom → Antidote · Clean Water improves Tonics'
+        : 'Survival: Crouch + Right-Click water to drink or fill a Bottle · Boil Dirty Water in a Furnace or Campfire · Hydrated reduces heat exhaustion';
 
     this.renderAll();
   }

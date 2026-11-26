@@ -61,6 +61,7 @@ export class AudioManager {
   public playBowRelease(): void { this.ui.playBowRelease(); }
   public playArrowImpact(): void { this.ui.playArrowImpact(); }
   public playArrowHit(): void { this.ui.playArrowHit(); }
+  public playDrink(): void { this.ui.playDrink(); }
   public playMedicineUse(): void { this.ui.playMedicineUse(); }
   public playTemperatureWarning(cold: boolean): void { this.ui.playTemperatureWarning(cold); }
   public playFarmGrowth(): void { this.ui.playFarmGrowth(); }
