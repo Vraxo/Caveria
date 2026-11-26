@@ -88,4 +88,19 @@ export const BASE_BLOCKS: BlockCatalog = {
     faces: columnFaces(TileIndex.CraftingTableSide, TileIndex.CraftingTableTop, TileIndex.OakPlanks),
     preferredTool: 'axe',
   }),
+  [BlockId.Furnace]: defineBlock(BlockId.Furnace, {
+    name: 'Furnace',
+    hardness: 2.8,
+    faces: columnFaces(TileIndex.FurnaceSide, TileIndex.FurnaceTop),
+    preferredTool: 'pickaxe',
+    minToolTier: 1,
+  }),
+  [BlockId.LitFurnace]: defineBlock(BlockId.LitFurnace, {
+    name: 'Lit Furnace',
+    hardness: 2.8,
+    faces: columnFaces(TileIndex.LitFurnaceSide, TileIndex.FurnaceTop),
+    preferredTool: 'pickaxe',
+    minToolTier: 1,
+    lightEmission: 12,
+  }),
 };

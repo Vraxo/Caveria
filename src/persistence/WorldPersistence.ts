@@ -1,3 +1,4 @@
+import type { FurnaceStateSnapshot } from '../gameplay/FurnaceManager';
 import { ArmorSlot, ItemStack, ITEMS } from '../items/Item';
 import { TOTAL_INVENTORY_SLOTS } from '../items/Inventory';
 import { BlockId } from '../content/BlockId';
@@ -48,6 +49,7 @@ export interface CaveriaSaveData {
     timeRemaining: number;
   };
   muted: boolean;
+  furnaces: FurnaceStateSnapshot[];
   worldEdits: SerializedVoxelEdit[];
 }
 
@@ -191,6 +193,38 @@ export class WorldPersistence {
       };
     }
 
+    const sanitizeStack = (stack: ItemStack | null | undefined): ItemStack | null => {
+      if (!stack || !ITEMS[stack.id]) return null;
+      const definition = ITEMS[stack.id];
+      return {
+        id: stack.id,
+        count: Math.max(1, Math.min(definition.maxStack, Math.floor(finite(stack.count, 1)))),
+        durability: definition.maxDurability === undefined
+          ? undefined
+          : Math.max(1, Math.min(definition.maxDurability, Math.floor(finite(stack.durability, definition.maxDurability)))),
+      };
+    };
+    const furnaces: FurnaceStateSnapshot[] = [];
+    if (Array.isArray(raw.furnaces)) {
+      for (const furnace of raw.furnaces.slice(0, 2048)) {
+        if (!furnace || typeof furnace !== 'object') continue;
+        const x = Math.floor(worldCoord(furnace.x, 0));
+        const y = Math.max(0, Math.min(CHUNK_HEIGHT - 1, Math.floor(finite(furnace.y, 0))));
+        const z = Math.floor(worldCoord(furnace.z, 0));
+        furnaces.push({
+          x,
+          y,
+          z,
+          input: sanitizeStack(furnace.input),
+          fuel: sanitizeStack(furnace.fuel),
+          output: sanitizeStack(furnace.output),
+          burnRemaining: Math.max(0, Math.min(600, finite(furnace.burnRemaining, 0))),
+          burnTotal: Math.max(0, Math.min(600, finite(furnace.burnTotal, 0))),
+          smeltProgress: Math.max(0, Math.min(60, finite(furnace.smeltProgress, 0))),
+        });
+      }
+    }
+
     const worldEdits: SerializedVoxelEdit[] = [];
     if (Array.isArray(raw.worldEdits)) {
       for (const edit of raw.worldEdits) {
@@ -242,6 +276,7 @@ export class WorldPersistence {
         timeRemaining: Math.max(1, Math.min(600, finite(raw.weather?.timeRemaining, 75))),
       },
       muted: Boolean(raw.muted),
+      furnaces,
       worldEdits,
     };
   }

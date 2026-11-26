@@ -33,6 +33,17 @@ export class UiSoundEffects {
     this.synth.noiseBurst({ duration: 0.12, filterType: 'bandpass', freq: 420, q: 1.1, gain: 0.09 });
     this.synth.tone({ type: 'triangle', freq: 180, freqEnd: 240, duration: 0.12, gain: 0.045 });
   }
+  public playFurnaceIgnite(): void {
+    this.synth.noiseBurst({ duration: 0.2, filterType: 'bandpass', freq: 560, freqEnd: 1100, q: 0.8, gain: 0.1 });
+    this.synth.tone({ type: 'triangle', freq: 120, freqEnd: 190, duration: 0.18, gain: 0.045 });
+  }
+  public playFurnaceBurn(): void {
+    this.synth.noiseBurst({ duration: 0.16, filterType: 'lowpass', freq: 720, q: 0.7, gain: 0.035 });
+  }
+  public playFurnaceComplete(): void {
+    this.synth.tone({ type: 'sine', freq: 660, duration: 0.08, gain: 0.055 });
+    this.synth.tone({ type: 'sine', freq: 880, duration: 0.12, gain: 0.05, delay: 0.07 });
+  }
   public playEat(): void {
     for (let bite = 0; bite < 3; bite++) {
       this.synth.noiseBurst({

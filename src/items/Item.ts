@@ -33,6 +33,7 @@ export enum ItemId {
   CaveShroom = BlockId.CaveShroom,
   DripstoneSpike = BlockId.DripstoneSpike,
   CaveVine = BlockId.CaveVine,
+  Furnace = BlockId.Furnace,
 
   // Materials
   Stick = 100,
@@ -43,6 +44,8 @@ export enum ItemId {
   CaveBerries = 105,
   RoastedCaveShroom = 106,
   CaveStew = 107,
+  GoldIngot = 108,
+  CactusGreen = 109,
 
   // Wooden Tools (tier 1)
   WoodenPickaxe = 110,
@@ -139,6 +142,7 @@ export const ITEMS: Record<number, ItemDefinition> = {
   },
   [ItemId.DripstoneSpike]: blockItem(BlockId.DripstoneSpike),
   [ItemId.CaveVine]: blockItem(BlockId.CaveVine),
+  [ItemId.Furnace]: blockItem(BlockId.Furnace),
 
   [ItemId.Stick]: {
     id: ItemId.Stick,
@@ -217,6 +221,24 @@ export const ITEMS: Record<number, ItemDefinition> = {
     miningSpeed: 1,
     nutrition: 8,
     saturation: 8,
+  },
+  [ItemId.GoldIngot]: {
+    id: ItemId.GoldIngot,
+    name: 'Gold Ingot',
+    maxStack: 64,
+    placeBlockId: null,
+    toolCategory: 'none',
+    toolTier: 0,
+    miningSpeed: 1,
+  },
+  [ItemId.CactusGreen]: {
+    id: ItemId.CactusGreen,
+    name: 'Cactus Green',
+    maxStack: 64,
+    placeBlockId: null,
+    toolCategory: 'none',
+    toolTier: 0,
+    miningSpeed: 1,
   },
 
   // Wooden Tools
@@ -452,6 +474,8 @@ export function getBlockDrop(blockId: BlockId): ItemStack | null {
       return createStack(ItemId.CrystalShard, 2);
     case BlockId.AmethystCrystal:
       return createStack(ItemId.AmethystShard, 2);
+    case BlockId.LitFurnace:
+      return createStack(ItemId.Furnace, 1);
     case BlockId.OakLeaves:
     case BlockId.SpruceLeaves: {
       const roll = Math.random();

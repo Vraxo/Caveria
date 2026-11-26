@@ -107,6 +107,10 @@ export class World {
     return this.chunks.get(Chunk.key(cx, cz));
   }
 
+  public isPositionLoaded(wx: number, wz: number): boolean {
+    return this.chunks.has(Chunk.key(World.worldToChunkCoord(wx), World.worldToChunkCoord(wz)));
+  }
+
   public getBlock(wx: number, wy: number, wz: number): BlockId {
     const y = Math.floor(wy);
     if (y < 0 || y >= CHUNK_HEIGHT) return BlockId.Air;

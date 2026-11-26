@@ -32,6 +32,8 @@ interface BlockInteractionDependencies {
   mobs: MobManager;
   vitals: PlayerVitals;
   onOpenWorkbench: () => void;
+  onOpenFurnace: (x: number, y: number, z: number) => void;
+  onFurnaceBroken: (x: number, y: number, z: number) => void;
 }
 
 /**
@@ -51,6 +53,8 @@ export class BlockInteractionController {
   private readonly mobs: MobManager;
   private readonly vitals: PlayerVitals;
   private readonly onOpenWorkbench: () => void;
+  private readonly onOpenFurnace: (x: number, y: number, z: number) => void;
+  private readonly onFurnaceBroken: (x: number, y: number, z: number) => void;
   private readonly highlight: BlockHighlight;
   private readonly miningOverlay: MiningOverlay;
   private readonly miningBarEl: HTMLElement;
@@ -77,6 +81,8 @@ export class BlockInteractionController {
     this.mobs = deps.mobs;
     this.vitals = deps.vitals;
     this.onOpenWorkbench = deps.onOpenWorkbench;
+    this.onOpenFurnace = deps.onOpenFurnace;
+    this.onFurnaceBroken = deps.onFurnaceBroken;
     this.highlight = new BlockHighlight(deps.scene);
     this.miningOverlay = new MiningOverlay(deps.scene);
     this.miningBarEl = document.getElementById('mining-bar')!;
@@ -240,6 +246,19 @@ export class BlockInteractionController {
   }
 
   private handleUse(creativeMode: boolean, allowWorldUse: boolean): void {
+    const sneaking =
+      this.input.isKeyDown('ShiftLeft') || this.input.isKeyDown('ShiftRight');
+    if (allowWorldUse && this.hit && !sneaking) {
+      if (this.hit.blockId === BlockId.CraftingTable) {
+        this.onOpenWorkbench();
+        return;
+      }
+      if (this.hit.blockId === BlockId.Furnace || this.hit.blockId === BlockId.LitFurnace) {
+        this.onOpenFurnace(this.hit.blockX, this.hit.blockY, this.hit.blockZ);
+        return;
+      }
+    }
+
     const held = this.hotbar.selectedStack;
     const food = getFoodStats(held);
     if (
@@ -255,18 +274,7 @@ export class BlockInteractionController {
       return;
     }
     if (food && this.foodCooldown > 0) return;
-    if (!allowWorldUse) return;
-
-    if (!this.hit) return;
-    const sneaking =
-      this.input.isKeyDown('ShiftLeft') || this.input.isKeyDown('ShiftRight');
-
-    if (this.hit.blockId === BlockId.CraftingTable && !sneaking) {
-      this.onOpenWorkbench();
-      return;
-    }
-
-    if (!held) return;
+    if (!allowWorldUse || !this.hit || !held) return;
     const itemDefinition = ITEMS[held.id];
     if (itemDefinition.placeBlockId === null) return;
 
@@ -321,6 +329,9 @@ export class BlockInteractionController {
 
   private breakBlockAt(hit: VoxelHit, spawnDropItem: boolean, creativeMode: boolean): void {
     const { blockX, blockY, blockZ, blockId } = hit;
+    if (blockId === BlockId.Furnace || blockId === BlockId.LitFurnace) {
+      this.onFurnaceBroken(blockX, blockY, blockZ);
+    }
     this.world.setBlock(blockX, blockY, blockZ, BlockId.Air);
     this.particles.spawnBurst(blockX, blockY, blockZ, blockId);
     this.audio.playBreak(blockId);
