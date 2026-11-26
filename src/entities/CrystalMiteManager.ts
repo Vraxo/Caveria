@@ -1,13 +1,18 @@
 import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { BlockId } from '../content/BlockId';
-import { isBlockSolid } from '../content/BlockQueries';
 import { CRYSTAL_MITE_ID, MOB_DEFINITIONS } from '../content/mobs/MobDefinitions';
 import { rollMobLoot } from '../content/loot/MobLoot';
 import { Player } from '../player/Player';
 import { BreakParticles } from '../rendering/BreakParticles';
 import { DroppedItemManager } from '../rendering/DroppedItems';
 import { World } from '../world/World';
+import {
+  findGroundMobSpawn,
+  MovementIntent,
+  moveGroundMob,
+  raycastMobs,
+} from './MobMechanics';
 import { MobHit, MobSpeciesController, MobTag } from './MobTypes';
 import {
   CrystalMiteVisual,
@@ -51,12 +56,6 @@ interface PlayerRelation {
   distance: number;
 }
 
-interface MovementIntent {
-  directionX: number;
-  directionZ: number;
-  speed: number;
-}
-
 const DEFINITION = MOB_DEFINITIONS[CRYSTAL_MITE_ID];
 
 const INITIAL_SPAWN_DELAY = 1.2;
@@ -66,8 +65,6 @@ const WANDER_STOP_SECONDS = 0.7;
 const WANDER_SPEED = 0.72;
 const FLEE_SPEED = 2.25;
 const MOVEMENT_RESPONSE = 5.5;
-const GRAVITY = 22;
-const TERMINAL_VELOCITY = -18;
 const DESPAWN_DEPTH_BELOW_SURFACE = 5;
 const SPAWN_ATTEMPTS = 14;
 const SPAWN_MINIMUM_RADIUS = 7;
@@ -81,8 +78,7 @@ const CRYSTAL_SEARCH_RADIUS = 4;
 const CHIRP_DISTANCE = 13;
 const HURT_INVULNERABILITY_SECONDS = 0.28;
 
-const BODY_RADIUS = DEFINITION.radius;
-const BODY_HEIGHT = DEFINITION.height;
+const BODY_SHAPE = { radius: DEFINITION.radius, height: DEFINITION.height };
 
 const NO_MOVEMENT: MovementIntent = { directionX: 0, directionZ: 0, speed: 0 };
 
@@ -137,19 +133,16 @@ export class CrystalMiteManager implements MobSpeciesController {
     maxDistance: number,
     blockDistance = maxDistance
   ): CrystalMiteHit | null {
-    const ray = new THREE.Ray(origin, direction.clone().normalize());
-    const hitPoint = new THREE.Vector3();
-    let closest: CrystalMiteHit | null = null;
-
-    for (const mite of this.mites) {
-      if (!ray.intersectBox(this.hitBoxFor(mite), hitPoint)) continue;
-      const distance = origin.distanceTo(hitPoint);
-      if (distance > maxDistance || distance >= blockDistance) continue;
-      if (!closest || distance < closest.distance) {
-        closest = this.describeHit(mite, distance);
-      }
-    }
-    return closest;
+    return raycastMobs(this.mites, {
+      species: this.species,
+      name: DEFINITION.name,
+      maxHealth: DEFINITION.maxHealth,
+      shape: BODY_SHAPE,
+      origin,
+      direction,
+      maxDistance,
+      blockDistance,
+    });
   }
 
   public damage(id: number, amount: number, direction: THREE.Vector3): boolean {
@@ -300,52 +293,23 @@ export class CrystalMiteManager implements MobSpeciesController {
     intent: MovementIntent,
     dt: number
   ): void {
-    const blend = Math.min(1, dt * MOVEMENT_RESPONSE);
-    mite.velocity.x += (intent.directionX * intent.speed - mite.velocity.x) * blend;
-    mite.velocity.z += (intent.directionZ * intent.speed - mite.velocity.z) * blend;
-    mite.velocity.y = Math.max(TERMINAL_VELOCITY, mite.velocity.y - GRAVITY * dt);
-    this.moveWithCollision(mite, dt);
-  }
+    const result = moveGroundMob(
+      mite,
+      intent,
+      BODY_SHAPE,
+      this.world,
+      dt,
+      { response: MOVEMENT_RESPONSE }
+    );
+    if (!result.collidedHorizontally) return;
 
-  private moveWithCollision(mite: CrystalMiteState, dt: number): void {
-    const nextY = mite.position.y + mite.velocity.y * dt;
-    if (
-      mite.velocity.y < 0
-      && isBlockSolid(this.world.getBlock(mite.position.x, nextY - 0.02, mite.position.z))
-    ) {
-      mite.position.y = Math.floor(nextY - 0.02) + 1;
-      mite.velocity.y = 0;
-      mite.onGround = true;
-    } else {
-      mite.position.y = nextY;
-      mite.onGround = false;
-    }
-
-    const nextX = mite.position.x + mite.velocity.x * dt;
-    const nextZ = mite.position.z + mite.velocity.z * dt;
-    if (this.canOccupy(nextX, mite.position.y, nextZ, mite.onGround)) {
-      mite.position.x = nextX;
-      mite.position.z = nextZ;
-      return;
-    }
-
+    // A blocked mite abandons inspection and pauses before choosing another activity.
     mite.velocity.x *= -0.25;
     mite.velocity.z *= -0.25;
     mite.facingAngle += Math.PI * (0.55 + Math.random() * 0.9);
     mite.activity = 'idle';
     mite.activityTimer = 0.6;
     mite.targetCrystal = null;
-  }
-
-  private canOccupy(x: number, y: number, z: number, requireSupport: boolean): boolean {
-    for (const offsetX of [-BODY_RADIUS, BODY_RADIUS]) {
-      for (const offsetZ of [-BODY_RADIUS, BODY_RADIUS]) {
-        const lowerBlock = this.world.getBlock(x + offsetX, y + 0.08, z + offsetZ);
-        const upperBlock = this.world.getBlock(x + offsetX, y + BODY_HEIGHT, z + offsetZ);
-        if (isBlockSolid(lowerBlock) || isBlockSolid(upperBlock)) return false;
-      }
-    }
-    return !requireSupport || isBlockSolid(this.world.getBlock(x, y - 0.08, z));
   }
 
   private updateAnimation(mite: CrystalMiteState): void {
@@ -384,33 +348,20 @@ export class CrystalMiteManager implements MobSpeciesController {
   }
 
   private findSpawnPosition(): THREE.Vector3 | null {
-    for (let attempt = 0; attempt < SPAWN_ATTEMPTS; attempt++) {
-      const angle = Math.random() * Math.PI * 2;
-      const radius = SPAWN_MINIMUM_RADIUS + Math.random() * SPAWN_RADIUS_VARIANCE;
-      const x = Math.floor(this.player.position.x + Math.cos(angle) * radius);
-      const z = Math.floor(this.player.position.z + Math.sin(angle) * radius);
-      if (!this.biomeAllowsSpawn(x, z)) continue;
-
-      const topY = Math.floor(this.player.position.y + SPAWN_SCAN_ABOVE_PLAYER);
-      const bottomY = this.player.position.y - SPAWN_SCAN_BELOW_PLAYER;
-      for (let y = topY; y >= bottomY; y--) {
-        if (!this.isOpenSpawnBlock(x, y, z)) continue;
-        const position = new THREE.Vector3(x + 0.5, y, z + 0.5);
-        return this.isSpawnAreaCrowded(position) ? null : position;
-      }
-    }
-    return null;
+    const position = findGroundMobSpawn(this.world, this.player.position, {
+      attempts: SPAWN_ATTEMPTS,
+      minimumRadius: SPAWN_MINIMUM_RADIUS,
+      radiusVariance: SPAWN_RADIUS_VARIANCE,
+      scanAbove: SPAWN_SCAN_ABOVE_PLAYER,
+      scanBelow: SPAWN_SCAN_BELOW_PLAYER,
+      acceptsColumn: (x, z) => this.biomeAllowsSpawn(x, z),
+    });
+    return position && !this.isSpawnAreaCrowded(position) ? position : null;
   }
 
   private biomeAllowsSpawn(x: number, z: number): boolean {
     const biome = this.world.terrainGen.getCavernBiome(x, z);
     return biome === 'Crystal Geode Hall' || Math.random() <= GEODE_SPAWN_CHANCE_ELSEWHERE;
-  }
-
-  private isOpenSpawnBlock(x: number, y: number, z: number): boolean {
-    return this.world.getBlock(x, y, z) === BlockId.Air
-      && this.world.getBlock(x, y + 1, z) === BlockId.Air
-      && isBlockSolid(this.world.getBlock(x, y - 1, z));
   }
 
   private isSpawnAreaCrowded(position: THREE.Vector3): boolean {
@@ -482,33 +433,6 @@ export class CrystalMiteManager implements MobSpeciesController {
       );
     }
     this.removeMite(index);
-  }
-
-  private hitBoxFor(mite: CrystalMiteState): THREE.Box3 {
-    return new THREE.Box3(
-      new THREE.Vector3(
-        mite.position.x - BODY_RADIUS,
-        mite.position.y,
-        mite.position.z - BODY_RADIUS
-      ),
-      new THREE.Vector3(
-        mite.position.x + BODY_RADIUS,
-        mite.position.y + BODY_HEIGHT,
-        mite.position.z + BODY_RADIUS
-      )
-    );
-  }
-
-  private describeHit(mite: CrystalMiteState, distance: number): CrystalMiteHit {
-    return {
-      species: this.species,
-      entityId: mite.id,
-      id: mite.id,
-      name: DEFINITION.name,
-      distance,
-      health: mite.health,
-      maxHealth: DEFINITION.maxHealth,
-    };
   }
 
   private removeMite(index: number): void {
