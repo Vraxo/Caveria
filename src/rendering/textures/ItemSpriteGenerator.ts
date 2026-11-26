@@ -29,8 +29,9 @@ export class ItemSpriteGenerator {
       }
     };
 
+    type ToolTier = 'wood' | 'stone' | 'gold' | 'crystal';
     const tierPalette = (
-      tier: 'wood' | 'stone' | 'crystal'
+      tier: ToolTier
     ): { main: RGBA; hi: RGBA; edge: RGBA } => {
       if (tier === 'wood') {
         return {
@@ -46,6 +47,13 @@ export class ItemSpriteGenerator {
           edge: [88, 90, 96, 255],
         };
       }
+      if (tier === 'gold') {
+        return {
+          main: [238, 178, 38, 255],
+          hi: [255, 238, 126, 255],
+          edge: [166, 104, 14, 255],
+        };
+      }
       return {
         main: [86, 224, 242, 255],
         hi: [215, 252, 255, 255],
@@ -53,7 +61,7 @@ export class ItemSpriteGenerator {
       };
     };
 
-    const drawPickaxeHead = (tier: 'wood' | 'stone' | 'crystal') => {
+    const drawPickaxeHead = (tier: ToolTier) => {
       const p = tierPalette(tier);
       drawDiagonalHandle();
       const coords: Array<[number, number, 'main' | 'hi' | 'edge']> = [
@@ -67,7 +75,7 @@ export class ItemSpriteGenerator {
       }
     };
 
-    const drawAxeHead = (tier: 'wood' | 'stone') => {
+    const drawAxeHead = (tier: ToolTier) => {
       const p = tierPalette(tier);
       drawDiagonalHandle();
       const coords: Array<[number, number, 'main' | 'hi' | 'edge']> = [
@@ -81,7 +89,7 @@ export class ItemSpriteGenerator {
       }
     };
 
-    const drawSword = (tier: 'wood' | 'stone' | 'crystal') => {
+    const drawSword = (tier: ToolTier) => {
       const p = tierPalette(tier);
       for (let i = 3; i <= 12; i++) {
         px(i, 14 - i, i < 5 ? [120, 82, 44, 255] : p.main);
@@ -93,10 +101,13 @@ export class ItemSpriteGenerator {
       px(4, 12, [146, 102, 54, 255]);
     };
 
-    const drawArmor = (piece: 'helmet' | 'chestplate' | 'leggings' | 'boots') => {
-      const shell: RGBA = [126, 72, 54, 255];
-      const edge: RGBA = [62, 38, 34, 255];
-      const shine: RGBA = [202, 116, 72, 255];
+    const drawArmor = (
+      piece: 'helmet' | 'chestplate' | 'leggings' | 'boots',
+      material: 'chitin' | 'gold' = 'chitin'
+    ) => {
+      const shell: RGBA = material === 'gold' ? [238, 178, 38, 255] : [126, 72, 54, 255];
+      const edge: RGBA = material === 'gold' ? [154, 94, 12, 255] : [62, 38, 34, 255];
+      const shine: RGBA = material === 'gold' ? [255, 240, 142, 255] : [202, 116, 72, 255];
       const fillRect = (x0: number, y0: number, x1: number, y1: number, color: RGBA) => {
         for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) px(x, y, color);
       };
@@ -132,7 +143,7 @@ export class ItemSpriteGenerator {
       }
     };
 
-    const drawShovelHead = (tier: 'wood' | 'stone') => {
+    const drawShovelHead = (tier: ToolTier) => {
       const p = tierPalette(tier);
       drawDiagonalHandle();
       const coords: Array<[number, number, 'main' | 'hi' | 'edge']> = [
@@ -268,6 +279,18 @@ export class ItemSpriteGenerator {
       case ItemId.StoneSword:
         drawSword('stone');
         break;
+      case ItemId.GoldPickaxe:
+        drawPickaxeHead('gold');
+        break;
+      case ItemId.GoldAxe:
+        drawAxeHead('gold');
+        break;
+      case ItemId.GoldShovel:
+        drawShovelHead('gold');
+        break;
+      case ItemId.GoldSword:
+        drawSword('gold');
+        break;
       case ItemId.CrystalPickaxe:
         drawPickaxeHead('crystal');
         break;
@@ -285,6 +308,18 @@ export class ItemSpriteGenerator {
         break;
       case ItemId.ChitinBoots:
         drawArmor('boots');
+        break;
+      case ItemId.GoldHelmet:
+        drawArmor('helmet', 'gold');
+        break;
+      case ItemId.GoldChestplate:
+        drawArmor('chestplate', 'gold');
+        break;
+      case ItemId.GoldLeggings:
+        drawArmor('leggings', 'gold');
+        break;
+      case ItemId.GoldBoots:
+        drawArmor('boots', 'gold');
         break;
       default:
         break;

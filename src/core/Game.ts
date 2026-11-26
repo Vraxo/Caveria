@@ -385,7 +385,9 @@ export class Game {
       const sprinting =
         !this.creativeMode && this.vitals.canSprint && !this.player.crouching && wantsToSprint;
       const maxStep = 1 / 90;
-      const weatherMovementScale = this.weather.getMovementSpeedMultiplier();
+      const weatherMovementScale = this.weather.getMovementSpeedMultiplier(
+        this.armor.hasFullGoldSet
+      );
       let remaining = dt;
       while (remaining > 0) {
         const step = Math.min(remaining, maxStep);

@@ -185,6 +185,10 @@
         text-shadow: 1px 1px 0 #1e293b;
       }
       .armor-pip.empty { color: #334155; }
+      #armor-pips.gold-set .armor-pip:not(.empty) {
+        color: #facc15;
+        text-shadow: 1px 1px 0 #713f12, 0 0 4px rgba(250, 204, 21, 0.45);
+      }
       #armor-pips.hidden { display: none; }
       #air-meter { color: #7dd3fc; font-size: 13px; letter-spacing: 2px; text-shadow: 1px 1px #083344; }
       #air-meter.hidden { display: none; }
@@ -932,7 +936,7 @@
 
         <div id="recipe-book-hint"></div>
 
-        <div class="inv-section-label">Cave Chitin Armor <span id="armor-bonus-label"></span></div>
+        <div class="inv-section-label">Armor <span id="armor-bonus-label"></span></div>
         <div id="armor-equipment-grid"></div>
 
         <div class="inv-section-label">Backpack</div>
