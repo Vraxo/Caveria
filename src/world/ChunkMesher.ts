@@ -8,6 +8,7 @@ import { GeometryBuilder, MeshData } from './meshing/GeometryBuilder';
 import { AO_CURVE, LIGHT_CURVE, sampleLightCurve } from './meshing/LightCurves';
 import {
   emitBedGeometry,
+  emitChestGeometry,
   emitCrossGeometry,
   emitTorchGeometry,
   TileUvProvider,
@@ -74,6 +75,20 @@ export function buildChunkMeshData(
         // Low two-part bed section.
         if (def.shape === 'bed') {
           emitBedGeometry(
+            opaque,
+            atlas,
+            def.faces,
+            lx,
+            y,
+            lz,
+            samplePackedLight(lx, y + 1, lz)
+          );
+          continue;
+        }
+
+        // Inset storage chest with a lowered lid profile.
+        if (def.shape === 'chest') {
+          emitChestGeometry(
             opaque,
             atlas,
             def.faces,

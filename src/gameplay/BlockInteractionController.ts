@@ -34,6 +34,8 @@ interface BlockInteractionDependencies {
   onOpenWorkbench: () => void;
   onOpenFurnace: (x: number, y: number, z: number) => void;
   onFurnaceBroken: (x: number, y: number, z: number) => void;
+  onOpenChest: (x: number, y: number, z: number) => void;
+  onChestBroken: (x: number, y: number, z: number) => void;
   onUseBed: (x: number, y: number, z: number) => void;
   onPlaceBed: (x: number, y: number, z: number) => boolean;
   onBedBroken: (x: number, y: number, z: number, drop: boolean) => void;
@@ -58,6 +60,8 @@ export class BlockInteractionController {
   private readonly onOpenWorkbench: () => void;
   private readonly onOpenFurnace: (x: number, y: number, z: number) => void;
   private readonly onFurnaceBroken: (x: number, y: number, z: number) => void;
+  private readonly onOpenChest: (x: number, y: number, z: number) => void;
+  private readonly onChestBroken: (x: number, y: number, z: number) => void;
   private readonly onUseBed: (x: number, y: number, z: number) => void;
   private readonly onPlaceBed: (x: number, y: number, z: number) => boolean;
   private readonly onBedBroken: (x: number, y: number, z: number, drop: boolean) => void;
@@ -89,6 +93,8 @@ export class BlockInteractionController {
     this.onOpenWorkbench = deps.onOpenWorkbench;
     this.onOpenFurnace = deps.onOpenFurnace;
     this.onFurnaceBroken = deps.onFurnaceBroken;
+    this.onOpenChest = deps.onOpenChest;
+    this.onChestBroken = deps.onChestBroken;
     this.onUseBed = deps.onUseBed;
     this.onPlaceBed = deps.onPlaceBed;
     this.onBedBroken = deps.onBedBroken;
@@ -270,6 +276,10 @@ export class BlockInteractionController {
         this.onUseBed(this.hit.blockX, this.hit.blockY, this.hit.blockZ);
         return;
       }
+      if (this.hit.blockId === BlockId.Chest) {
+        this.onOpenChest(this.hit.blockX, this.hit.blockY, this.hit.blockZ);
+        return;
+      }
     }
 
     const held = this.hotbar.selectedStack;
@@ -360,6 +370,9 @@ export class BlockInteractionController {
     }
     if (blockId === BlockId.BedFoot || blockId === BlockId.BedHead) {
       this.onBedBroken(blockX, blockY, blockZ, !creativeMode);
+    }
+    if (blockId === BlockId.Chest) {
+      this.onChestBroken(blockX, blockY, blockZ);
     }
     this.world.setBlock(blockX, blockY, blockZ, BlockId.Air);
     this.particles.spawnBurst(blockX, blockY, blockZ, blockId);

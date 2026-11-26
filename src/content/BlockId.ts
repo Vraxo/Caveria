@@ -33,4 +33,5 @@ export enum BlockId {
   LitFurnace = 30,
   BedFoot = 31,
   BedHead = 32,
+  Chest = 33,
 }

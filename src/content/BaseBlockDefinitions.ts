@@ -121,4 +121,20 @@ export const BASE_BLOCKS: BlockCatalog = {
     lightOpacity: 0,
     shape: 'bed',
   }),
+  [BlockId.Chest]: defineBlock(BlockId.Chest, {
+    name: 'Chest',
+    hardness: 1.8,
+    faces: [
+      TileIndex.ChestSide,
+      TileIndex.ChestSide,
+      TileIndex.ChestTop,
+      TileIndex.OakPlanks,
+      TileIndex.ChestFront,
+      TileIndex.ChestSide,
+    ],
+    preferredTool: 'axe',
+    transparent: true,
+    lightOpacity: 0,
+    shape: 'chest',
+  }),
 };

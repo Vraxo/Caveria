@@ -166,4 +166,32 @@ export function paintStructureTextures(drawTile: TileDrawer): void {
       }
     });
 
+    const chestWood = (x: number, y: number, rng: () => number): [number, number, number, number] => {
+      const n = (rng() - 0.5) * 12;
+      const band = y === 4 || y === 5 || y === 13 || x === 0 || x === 15;
+      if (band) return [clampByte(74 + n), clampByte(54 + n), clampByte(34 + n), 255];
+      const grain = ((x * 5 + y * 3) % 7) * 3;
+      return [clampByte(164 + grain + n), clampByte(108 + grain / 2 + n), clampByte(48 + n), 255];
+    };
+    drawTile(TileIndex.ChestSide, (px, rng) => {
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) px(x, y, chestWood(x, y, rng));
+    });
+    drawTile(TileIndex.ChestFront, (px, rng) => {
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        if (x >= 6 && x <= 9 && y >= 5 && y <= 9) {
+          const edge = x === 6 || x === 9 || y === 5 || y === 9;
+          px(x, y, edge ? [70, 66, 62, 255] : [220, 178, 72, 255]);
+        } else px(x, y, chestWood(x, y, rng));
+      }
+    });
+    drawTile(TileIndex.ChestTop, (px, rng) => {
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        const rim = x < 2 || x > 13 || y < 2 || y > 13;
+        const n = (rng() - 0.5) * 10;
+        px(x, y, rim
+          ? [clampByte(82 + n), clampByte(58 + n), clampByte(34 + n), 255]
+          : [clampByte(176 + n), clampByte(116 + n), clampByte(52 + n), 255]);
+      }
+    });
+
 }

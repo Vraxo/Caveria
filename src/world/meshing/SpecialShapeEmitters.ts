@@ -96,6 +96,43 @@ export function emitBedGeometry(
   push(5, [x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], [0, 0, -1], 0.92);
 }
 
+export function emitChestGeometry(
+  builder: GeometryBuilder,
+  atlas: TileUvProvider,
+  faces: readonly TileIndex[],
+  lx: number,
+  y: number,
+  lz: number,
+  packedLight: number
+): void {
+  const x0 = lx + 1 / 16;
+  const x1 = lx + 15 / 16;
+  const z0 = lz + 1 / 16;
+  const z1 = lz + 15 / 16;
+  const y0 = y;
+  const y1 = y + 14 / 16;
+  const skyNorm = LIGHT_CURVE[(packedLight >> 4) & 0xf];
+  const blkNorm = LIGHT_CURVE[packedLight & 0xf];
+  const push = (
+    face: number,
+    a: [number, number, number],
+    b: [number, number, number],
+    c: [number, number, number],
+    d: [number, number, number],
+    normal: [number, number, number],
+    shade: number
+  ) => {
+    const [u0, v0, u1, v1] = atlas.getTileUVs(faces[face]);
+    builder.pushQuad(a, b, c, d, normal, u0, v0, u1, v1, shade, skyNorm, blkNorm);
+  };
+  push(0, [x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [1, 0, 0], 0.86);
+  push(1, [x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], [-1, 0, 0], 0.86);
+  push(2, [x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0], [0, 1, 0], 1);
+  push(3, [x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1], [0, -1, 0], 0.62);
+  push(4, [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], [0, 0, 1], 0.92);
+  push(5, [x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], [0, 0, -1], 0.92);
+}
+
 export function emitCrossGeometry(
   builder: GeometryBuilder,
   atlas: TileUvProvider,
