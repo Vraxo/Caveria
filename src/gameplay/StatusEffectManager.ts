@@ -7,7 +7,7 @@ import { TemperatureSystem } from './TemperatureSystem';
 import { WaterQuality } from './WaterQuality';
 import { World } from '../world/World';
 
-export type StatusEffectId = 'well-fed' | 'regeneration' | 'poisoned' | 'warmth' | 'chilled' | 'antidote' | 'hydrated' | 'nausea';
+export type StatusEffectId = 'well-fed' | 'regeneration' | 'poisoned' | 'warmth' | 'chilled' | 'antidote' | 'hydrated' | 'nausea' | 'water-breathing';
 export interface StatusEffectSnapshot { id: StatusEffectId; remaining: number; }
 
 const LABELS: Record<StatusEffectId, { icon: string; name: string; beneficial: boolean }> = {
@@ -19,6 +19,7 @@ const LABELS: Record<StatusEffectId, { icon: string; name: string; beneficial: b
   antidote: { icon: '✚', name: 'Antidote', beneficial: true },
   hydrated: { icon: '●', name: 'Hydrated', beneficial: true },
   nausea: { icon: '≈', name: 'Nauseous', beneficial: false },
+  'water-breathing': { icon: '◌', name: 'Water Breathing', beneficial: true },
 };
 
 /** Timed survival effects, medicine consumption, cold exposure, and contact hazards. */
@@ -61,6 +62,7 @@ export class StatusEffectManager {
       hydrated
     );
     this.vitals.setExhaustionMultiplier(hydrated ? 0.72 : 1);
+    this.vitals.setUnderwaterAirDrainMultiplier(this.has('water-breathing') ? 0.2 : 1);
 
     if (!creativeMode) {
       this.updateColdExposure(dt);
@@ -91,6 +93,11 @@ export class StatusEffectManager {
       this.vitals.heal(6);
       this.add('regeneration', 10);
       this.showMessage('Crystal Tonic · Health restored');
+    } else if (itemId === ItemId.CrystalFishTonic) {
+      this.vitals.heal(4);
+      this.add('hydrated', 90);
+      this.add('water-breathing', 180);
+      this.showMessage('Crystal Fish Tonic · Water Breathing');
     } else if (itemId === ItemId.PurifiedCrystalTonic) {
       this.vitals.heal(10);
       this.add('regeneration', 18);
@@ -107,7 +114,7 @@ export class StatusEffectManager {
     } else {
       return false;
     }
-    if (itemId === ItemId.CleanWaterBottle || itemId === ItemId.DirtyWaterBottle || itemId === ItemId.PurifiedCrystalTonic) this.audio.playDrink();
+    if (itemId === ItemId.CleanWaterBottle || itemId === ItemId.DirtyWaterBottle || itemId === ItemId.PurifiedCrystalTonic || itemId === ItemId.CrystalFishTonic) this.audio.playDrink();
     else this.audio.playMedicineUse();
     return true;
   }
@@ -137,6 +144,9 @@ export class StatusEffectManager {
       this.add('well-fed', 45);
     } else if (itemId === ItemId.SmokedCaveShroom) {
       this.add('warmth', 45);
+    } else if (itemId === ItemId.BlightedFish) {
+      this.add('nausea', 35);
+      this.poison(18);
     }
   }
 

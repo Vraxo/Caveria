@@ -61,6 +61,10 @@ export class AudioManager {
   public playBowRelease(): void { this.ui.playBowRelease(); }
   public playArrowImpact(): void { this.ui.playArrowImpact(); }
   public playArrowHit(): void { this.ui.playArrowHit(); }
+  public playFishingCast(): void { this.ui.playFishingCast(); }
+  public playFishingBite(): void { this.ui.playFishingBite(); }
+  public playFishingCatch(rare: boolean): void { this.ui.playFishingCatch(rare); }
+  public playFishingFail(): void { this.ui.playFishingFail(); }
   public playDrink(): void { this.ui.playDrink(); }
   public playMedicineUse(): void { this.ui.playMedicineUse(); }
   public playTemperatureWarning(cold: boolean): void { this.ui.playTemperatureWarning(cold); }

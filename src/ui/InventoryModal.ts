@@ -65,8 +65,8 @@ export class InventoryModal {
       gridSize === 3 ? 'Crafting Table (3×3)' : 'Hand Crafting (2×2)';
     this.recipeHintEl.textContent =
       gridSize === 3
-        ? 'Survival: 3 Glass → 3 Bottles · Fiber + Shroom → Poultice · Berries + Cactus Green + Shroom → Antidote · Clean Water improves Tonics'
-        : 'Survival: Crouch + Right-Click water to drink or fill a Bottle · Boil Dirty Water in a Furnace or Campfire · Hydrated reduces heat exhaustion';
+        ? 'Fishing Rod: Sticks + Woven Fiber · Crystal Fish + Clean Water → Water-Breathing Tonic · Cook fish in a Furnace or Campfire'
+        : 'Fishing: Right-Click open water to cast, then reel when BITE appears · Fresh water has better catches · Large pools only';
 
     this.renderAll();
   }

@@ -28,6 +28,9 @@ export const FURNACE_RECIPES: Readonly<Partial<Record<ItemId, FurnaceRecipe>>> =
   [ItemId.CaveShroom]: { output: ItemId.RoastedCaveShroom, count: 1, seconds: 5 },
   [ItemId.CaveBerries]: { output: ItemId.DriedCaveBerries, count: 1, seconds: 4 },
   [ItemId.DirtyWaterBottle]: { output: ItemId.CleanWaterBottle, count: 1, seconds: 6 },
+  [ItemId.RawCaveFish]: { output: ItemId.CookedCaveFish, count: 1, seconds: 5 },
+  [ItemId.RawRiverFish]: { output: ItemId.CookedRiverFish, count: 1, seconds: 5 },
+  [ItemId.BlightedFish]: { output: ItemId.CookedCaveFish, count: 1, seconds: 8 },
   [ItemId.Cactus]: { output: ItemId.CactusGreen, count: 1, seconds: 6 },
 };
 
@@ -135,6 +138,15 @@ export class FurnaceManager {
     }
     if (stack?.id === ItemId.DirtyWaterBottle) {
       return { output: ItemId.CleanWaterBottle, count: 1, seconds: 10 };
+    }
+    if (stack?.id === ItemId.RawCaveFish) {
+      return { output: ItemId.CookedCaveFish, count: 1, seconds: 8 };
+    }
+    if (stack?.id === ItemId.RawRiverFish) {
+      return { output: ItemId.CookedRiverFish, count: 1, seconds: 8 };
+    }
+    if (stack?.id === ItemId.BlightedFish) {
+      return { output: ItemId.CookedCaveFish, count: 1, seconds: 12 };
     }
     return recipe.output === ItemId.DriedCaveBerries ? recipe : null;
   }

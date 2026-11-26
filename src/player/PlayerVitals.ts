@@ -18,6 +18,7 @@ export class PlayerVitals {
   private air = MAX_AIR;
   private exhaustion = 0;
   private exhaustionMultiplier = 1;
+  private underwaterAirDrainMultiplier = 1;
   private invulnerabilityTimer = 0;
   private drowningDamageTimer = 0;
   private starvationTimer = 4;
@@ -72,7 +73,7 @@ export class PlayerVitals {
     if (this.dead) return;
 
     if (underwater && !creativeMode) {
-      this.air = Math.max(0, this.air - dt);
+      this.air = Math.max(0, this.air - dt * this.underwaterAirDrainMultiplier);
       if (this.air <= 0) {
         this.drowningDamageTimer -= dt;
         if (this.drowningDamageTimer <= 0) {
@@ -116,6 +117,10 @@ export class PlayerVitals {
     } else {
       this.starvationTimer = 4;
     }
+  }
+
+  public setUnderwaterAirDrainMultiplier(multiplier: number): void {
+    this.underwaterAirDrainMultiplier = Math.max(0.1, Math.min(1, multiplier));
   }
 
   public setExhaustionMultiplier(multiplier: number): void {

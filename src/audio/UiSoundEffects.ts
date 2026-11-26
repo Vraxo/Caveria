@@ -70,6 +70,21 @@ export class UiSoundEffects {
   public playArrowHit(): void {
     this.synth.noiseBurst({ duration: 0.09, filterType: 'bandpass', freq: 850, q: 1.1, gain: 0.1 });
   }
+  public playFishingCast(): void {
+    this.synth.noiseBurst({ duration: 0.13, filterType: 'bandpass', freq: 900, freqEnd: 1800, q: 1.2, gain: 0.065 });
+    this.synth.tone({ type: 'triangle', freq: 300, freqEnd: 520, duration: 0.16, gain: 0.035 });
+  }
+  public playFishingBite(): void {
+    this.synth.noiseBurst({ duration: 0.12, filterType: 'highpass', freq: 1300, q: 0.8, gain: 0.1 });
+    this.synth.tone({ type: 'sine', freq: 700, freqEnd: 980, duration: 0.11, gain: 0.055 });
+  }
+  public playFishingCatch(rare: boolean): void {
+    this.synth.noiseBurst({ duration: 0.16, filterType: 'bandpass', freq: 780, freqEnd: 1500, q: 1, gain: 0.08 });
+    this.synth.tone({ type: 'triangle', freq: rare ? 880 : 520, freqEnd: rare ? 1760 : 820, duration: rare ? 0.3 : 0.18, gain: 0.06 });
+  }
+  public playFishingFail(): void {
+    this.synth.tone({ type: 'triangle', freq: 260, freqEnd: 150, duration: 0.16, gain: 0.04 });
+  }
   public playDrink(): void {
     for (let gulp = 0; gulp < 3; gulp++) {
       this.synth.noiseBurst({ duration: 0.08, filterType: 'lowpass', freq: 520 + gulp * 80, q: 0.8, gain: 0.055, delay: gulp * 0.08 });
