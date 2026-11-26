@@ -37,7 +37,8 @@ export class BedManager {
     private readonly audio: AudioManager,
     snapshots: BedSnapshot[] | undefined,
     respawnBed: [number, number, number] | null | undefined,
-    private readonly dropItem: (x: number, y: number, z: number, stack: ItemStack) => void
+    private readonly dropItem: (x: number, y: number, z: number, stack: ItemStack) => void,
+    private readonly onSlept: () => void = () => {}
   ) {
     for (const snapshot of snapshots ?? []) this.register(snapshot);
     if (respawnBed) this.respawnFootKey = this.key(respawnBed[0], respawnBed[1], respawnBed[2]);
@@ -108,6 +109,7 @@ export class BedManager {
     this.dayNight.skipToMorning();
     this.weather.clearOrdinaryRain();
     this.audio.playSleep();
+    this.onSlept();
     this.sleepTimer = 1.2;
     this.sleepFadeEl.classList.add('active');
     this.showMessage('Respawn point set. Dawn breaks over Caveria.');

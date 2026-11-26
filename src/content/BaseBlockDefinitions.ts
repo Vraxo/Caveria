@@ -167,4 +167,12 @@ export const BASE_BLOCKS: BlockCatalog = {
     name: 'Growing Cave Shroom', hardness: 0.08, faces: allFaces(TileIndex.ShroomGrowing),
     solid: false, transparent: true, lightOpacity: 0, shape: 'cross',
   }),
+  [BlockId.Campfire]: defineBlock(BlockId.Campfire, {
+    name: 'Campfire', hardness: 0.7, faces: allFaces(TileIndex.Campfire),
+    preferredTool: 'axe', solid: false, transparent: true, lightOpacity: 0, shape: 'cross',
+  }),
+  [BlockId.LitCampfire]: defineBlock(BlockId.LitCampfire, {
+    name: 'Lit Campfire', hardness: 0.7, faces: allFaces(TileIndex.LitCampfire),
+    preferredTool: 'axe', solid: false, transparent: true, lightOpacity: 0, shape: 'cross', lightEmission: 14,
+  }),
 };

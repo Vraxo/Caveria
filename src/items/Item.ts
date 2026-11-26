@@ -36,6 +36,7 @@ export enum ItemId {
   Furnace = BlockId.Furnace,
   Bed = BlockId.BedFoot,
   Chest = BlockId.Chest,
+  Campfire = BlockId.Campfire,
 
   // Materials
   Stick = 100,
@@ -162,6 +163,7 @@ export const ITEMS: Record<number, ItemDefinition> = {
   [ItemId.Furnace]: blockItem(BlockId.Furnace),
   [ItemId.Bed]: blockItem(BlockId.BedFoot),
   [ItemId.Chest]: blockItem(BlockId.Chest),
+  [ItemId.Campfire]: blockItem(BlockId.Campfire),
 
   [ItemId.Stick]: {
     id: ItemId.Stick,
@@ -643,6 +645,8 @@ export function getBlockDrop(blockId: BlockId): ItemStack | null {
       return createStack(ItemId.AmethystShard, 2);
     case BlockId.LitFurnace:
       return createStack(ItemId.Furnace, 1);
+    case BlockId.LitCampfire:
+      return createStack(ItemId.Campfire, 1);
     case BlockId.OakLeaves:
     case BlockId.SpruceLeaves: {
       const roll = Math.random();

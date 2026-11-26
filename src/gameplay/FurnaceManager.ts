@@ -1,6 +1,7 @@
 import { AudioManager } from '../audio/AudioManager';
 import { BlockId } from '../content/BlockId';
 import { ITEMS, ItemId, ItemStack, createStack } from '../items/Item';
+import { WeatherSystem } from '../rendering/WeatherSystem';
 import { World } from '../world/World';
 
 export interface FurnaceStateSnapshot {
@@ -35,6 +36,7 @@ export const FURNACE_FUELS: Readonly<Partial<Record<ItemId, number>>> = {
   [ItemId.SpruceLog]: 15,
   [ItemId.OakPlanks]: 15,
   [ItemId.Stick]: 5,
+  [ItemId.Torch]: 8,
 };
 
 export function getFurnaceRecipe(stack: ItemStack | null): FurnaceRecipe | null {
@@ -53,6 +55,7 @@ export class FurnaceManager {
   constructor(
     private readonly world: World,
     private readonly audio: AudioManager,
+    private readonly weather: WeatherSystem,
     snapshots: FurnaceStateSnapshot[] | undefined,
     private readonly dropItem: (x: number, y: number, z: number, stack: ItemStack) => void
   ) {
@@ -66,14 +69,20 @@ export class FurnaceManager {
     for (const [key, state] of this.states) {
       if (!this.world.isPositionLoaded(state.x, state.z)) continue;
       const block = this.world.getBlock(state.x, state.y, state.z);
-      if (block !== BlockId.Furnace && block !== BlockId.LitFurnace) {
+      const campfire = block === BlockId.Campfire || block === BlockId.LitCampfire;
+      if (block !== BlockId.Furnace && block !== BlockId.LitFurnace && !campfire) {
         this.states.delete(key);
         continue;
       }
+      const rainExtinguished = campfire && this.isExposedToRain(state);
+      if (block === BlockId.LitCampfire && rainExtinguished) {
+        state.burnRemaining = 0;
+        state.burnTotal = 0;
+      }
 
-      const recipe = getFurnaceRecipe(state.input);
+      const recipe = this.getRecipe(state, state.input);
       const canSmelt = recipe !== null && this.canAcceptOutput(state, recipe);
-      if (state.burnRemaining <= 0 && canSmelt) {
+      if (state.burnRemaining <= 0 && (canSmelt || campfire) && !rainExtinguished) {
         const fuelSeconds = getFuelSeconds(state.fuel);
         if (fuelSeconds > 0 && state.fuel) {
           state.fuel.count--;
@@ -96,10 +105,12 @@ export class FurnaceManager {
       }
 
       const shouldBeLit = state.burnRemaining > 0;
-      if (shouldBeLit && block !== BlockId.LitFurnace) {
-        this.world.setBlock(state.x, state.y, state.z, BlockId.LitFurnace);
-      } else if (!shouldBeLit && block !== BlockId.Furnace) {
-        this.world.setBlock(state.x, state.y, state.z, BlockId.Furnace);
+      const litBlock = campfire ? BlockId.LitCampfire : BlockId.LitFurnace;
+      const unlitBlock = campfire ? BlockId.Campfire : BlockId.Furnace;
+      if (shouldBeLit && block !== litBlock) {
+        this.world.setBlock(state.x, state.y, state.z, litBlock);
+      } else if (!shouldBeLit && block !== unlitBlock) {
+        this.world.setBlock(state.x, state.y, state.z, unlitBlock);
       }
     }
 
@@ -108,6 +119,19 @@ export class FurnaceManager {
       this.burnSoundTimer = 2.2;
       this.audio.playFurnaceBurn();
     }
+  }
+
+  public isCampfire(state: FurnaceStateSnapshot): boolean {
+    const block = this.world.getBlock(state.x, state.y, state.z);
+    return block === BlockId.Campfire || block === BlockId.LitCampfire;
+  }
+
+  public getRecipe(state: FurnaceStateSnapshot, stack: ItemStack | null): FurnaceRecipe | null {
+    const recipe = getFurnaceRecipe(stack);
+    if (!recipe || !this.isCampfire(state)) return recipe;
+    return recipe.output === ItemId.RoastedCaveShroom || recipe.output === ItemId.DriedCaveBerries
+      ? recipe
+      : null;
   }
 
   public getOrCreate(x: number, y: number, z: number): FurnaceStateSnapshot {
@@ -141,6 +165,11 @@ export class FurnaceManager {
 
   public snapshot(): FurnaceStateSnapshot[] {
     return [...this.states.values()].map((state) => this.cloneState(state));
+  }
+
+  private isExposedToRain(state: FurnaceStateSnapshot): boolean {
+    if (this.weather.intensity < 0.12) return false;
+    return ((this.world.getPackedLight(state.x, state.y + 1, state.z) >> 4) & 0xf) >= 14;
   }
 
   private completeSmelt(state: FurnaceStateSnapshot, recipe: FurnaceRecipe): void {

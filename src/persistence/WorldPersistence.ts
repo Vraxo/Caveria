@@ -52,6 +52,7 @@ export interface CaveriaSaveData {
     timeRemaining: number;
   };
   muted: boolean;
+  temperature: number;
   furnaces: FurnaceStateSnapshot[];
   chests: ChestStateSnapshot[];
   farms: FarmPlotSnapshot[];
@@ -342,6 +343,7 @@ export class WorldPersistence {
         timeRemaining: Math.max(1, Math.min(600, finite(raw.weather?.timeRemaining, 75))),
       },
       muted: Boolean(raw.muted),
+      temperature: Math.max(0, Math.min(100, finite(raw.temperature, 50))),
       furnaces,
       chests,
       farms,

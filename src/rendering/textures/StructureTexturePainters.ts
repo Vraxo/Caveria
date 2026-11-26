@@ -234,4 +234,22 @@ export function paintStructureTextures(drawTile: TileDrawer): void {
     drawTile(TileIndex.ShroomSprout, shroomPlant(false));
     drawTile(TileIndex.ShroomGrowing, shroomPlant(true));
 
+    const campfire = (lit: boolean): Parameters<typeof drawTile>[1] => (px, rng) => {
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        const log = y >= 11 && y <= 14 && x >= 2 && x <= 13 && ((x + y) % 3 !== 0);
+        const coal = y >= 9 && y <= 12 && x >= 5 && x <= 10;
+        const flameWidth = y < 11 ? Math.max(0, 5 - Math.abs(y - 7)) : 0;
+        const flame = lit && y >= 2 && y < 11 && Math.abs(x - 7.5) <= flameWidth * 0.55;
+        if (flame) {
+          px(x, y, y < 6 ? [255, 226, 92, 255] : (x + y) % 2 ? [248, 116, 34, 255] : [214, 58, 28, 255]);
+        } else if (coal) px(x, y, lit ? [92, 42, 28, 255] : [38, 36, 38, 255]);
+        else if (log) {
+          const n = (rng() - 0.5) * 10;
+          px(x, y, [clampByte(126 + n), clampByte(76 + n), clampByte(38 + n), 255]);
+        } else px(x, y, [0, 0, 0, 0]);
+      }
+    };
+    drawTile(TileIndex.Campfire, campfire(false));
+    drawTile(TileIndex.LitCampfire, campfire(true));
+
 }

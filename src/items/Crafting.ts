@@ -83,6 +83,26 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
     outputCount: 1,
   },
   {
+    name: 'Campfire',
+    pattern: [
+      [_, S, _],
+      [S, K, S],
+      [ItemId.OakLog, ItemId.OakLog, ItemId.OakLog],
+    ],
+    outputId: ItemId.Campfire,
+    outputCount: 1,
+  },
+  {
+    name: 'Campfire (Spruce)',
+    pattern: [
+      [_, S, _],
+      [S, K, S],
+      [ItemId.SpruceLog, ItemId.SpruceLog, ItemId.SpruceLog],
+    ],
+    outputId: ItemId.Campfire,
+    outputCount: 1,
+  },
+  {
     name: 'Bow',
     pattern: [
       [_, S, F],

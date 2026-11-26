@@ -192,6 +192,28 @@
       #armor-pips.hidden { display: none; }
       #air-meter { color: #7dd3fc; font-size: 13px; letter-spacing: 2px; text-shadow: 1px 1px #083344; }
       #air-meter.hidden { display: none; }
+      #temperature-hud {
+        padding: 3px 9px;
+        border-radius: 4px;
+        background: rgba(8, 12, 22, 0.72);
+        border: 1px solid currentColor;
+        font-size: 11px;
+        font-weight: 800;
+        text-shadow: 1px 1px #000;
+      }
+      #temperature-hud.hidden { display: none; }
+      #temperature-hud.cold { color: #93c5fd; }
+      #temperature-hud.hot { color: #fb923c; }
+      #frost-vignette, #heat-vignette {
+        position: fixed;
+        inset: 0;
+        z-index: 6;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+      #frost-vignette { box-shadow: inset 0 0 90px 25px rgba(170, 220, 255, 0.72); }
+      #heat-vignette { box-shadow: inset 0 0 100px 24px rgba(235, 74, 28, 0.55); }
       #damage-flash {
         position: fixed;
         inset: 0;
@@ -979,6 +1001,8 @@
     </div>
 
     <div id="water-tint"></div>
+    <div id="frost-vignette"></div>
+    <div id="heat-vignette"></div>
     <div id="crosshair"></div>
     <div id="mining-bar" class="hidden"><div id="mining-bar-fill"></div></div>
     <div id="mob-target-label" class="hidden"></div>
@@ -989,6 +1013,7 @@
       <div id="armor-pips" class="hidden" aria-label="Equipped armor"></div>
       <div id="hunger-pips" aria-label="Player hunger"></div>
       <div id="air-meter" class="hidden" aria-label="Remaining air"></div>
+      <div id="temperature-hud" class="hidden" aria-label="Body temperature"></div>
     </div>
     <div id="damage-flash"></div>
     <div id="sleep-fade"></div>
@@ -1037,7 +1062,7 @@
     <div id="furnace-modal" class="hidden">
       <div class="inv-window">
         <div class="inv-header">
-          <div class="inv-title">Furnace</div>
+          <div id="furnace-title" class="inv-title">Furnace</div>
           <button id="furnace-close-btn" class="inv-close" type="button">[E / Esc] Resume</button>
         </div>
         <div class="furnace-machine">
