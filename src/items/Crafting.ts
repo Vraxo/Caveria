@@ -205,6 +205,39 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
     outputId: ItemId.CaveStew,
     outputCount: 1,
   },
+  {
+    name: 'Healing Poultice',
+    pattern: [[F], [M]],
+    outputId: ItemId.HealingPoultice,
+    outputCount: 1,
+  },
+  {
+    name: 'Antidote',
+    pattern: [[B, ItemId.CactusGreen, M]],
+    outputId: ItemId.Antidote,
+    outputCount: 1,
+  },
+  {
+    name: 'Warming Stew',
+    pattern: [
+      [ItemId.RoastedCaveShroom, ItemId.DriedCaveBerries],
+      [ItemId.DriedCaveBerries, ItemId.RoastedCaveShroom],
+    ],
+    outputId: ItemId.WarmingStew,
+    outputCount: 1,
+  },
+  {
+    name: 'Crystal Tonic',
+    pattern: [[A], [ItemId.DriedCaveBerries], [M]],
+    outputId: ItemId.CrystalTonic,
+    outputCount: 1,
+  },
+  {
+    name: 'Azure Crystal Tonic',
+    pattern: [[X], [ItemId.DriedCaveBerries], [M]],
+    outputId: ItemId.CrystalTonic,
+    outputCount: 1,
+  },
 
   // --- 3x3 Crafting Table Equipment Recipes ---
 

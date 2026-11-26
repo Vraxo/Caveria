@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
+import { BlockId } from '../content/BlockId';
 import { ArrowProjectileManager } from '../gameplay/ArrowProjectileManager';
 import { BedManager } from '../gameplay/BedManager';
 import { BlockInteractionController } from '../gameplay/BlockInteractionController';
@@ -7,6 +8,7 @@ import { ChestManager } from '../gameplay/ChestManager';
 import { FarmingManager } from '../gameplay/FarmingManager';
 import { FurnaceManager } from '../gameplay/FurnaceManager';
 import { MovementAudioController } from '../gameplay/MovementAudioController';
+import { StatusEffectManager } from '../gameplay/StatusEffectManager';
 import { TemperatureSystem } from '../gameplay/TemperatureSystem';
 import { MobManager } from '../entities/MobManager';
 import { Inventory } from '../items/Inventory';
@@ -50,6 +52,7 @@ export class Game {
   private readonly vitals: PlayerVitals;
   private readonly armor: ArmorManager;
   private readonly temperature: TemperatureSystem;
+  private readonly statusEffects: StatusEffectManager;
   private readonly particles: BreakParticles;
   private readonly campfireEffects: CampfireEffects;
   private readonly drops: DroppedItemManager;
@@ -204,6 +207,14 @@ export class Game {
       this.audio,
       savedGame?.temperature
     );
+    this.statusEffects = new StatusEffectManager(
+      this.world,
+      this.player,
+      this.vitals,
+      this.temperature,
+      this.audio,
+      savedGame?.statusEffects
+    );
     this.mobs = new MobManager(
       this.scene,
       this.world,
@@ -211,7 +222,8 @@ export class Game {
       this.vitals,
       this.drops,
       this.particles,
-      this.audio
+      this.audio,
+      () => this.statusEffects.poison(18)
     );
     this.arrows = new ArrowProjectileManager(
       this.scene,
@@ -273,6 +285,12 @@ export class Game {
       onBedBroken: (x, y, z, drop) => this.beds.breakAt(x, y, z, drop),
       onUseFarm: (x, y, z, held) => this.farms.use(x, y, z, held),
       onFarmBroken: (x, y, z, drop) => this.farms.breakAt(x, y, z, drop),
+      onConsumeSpecial: (itemId) => this.statusEffects.consume(itemId),
+      onFoodConsumed: (itemId) => this.statusEffects.onFoodConsumed(itemId),
+      onHazardBlockBroken: (blockId) => {
+        if (blockId === BlockId.CaveShroom && Math.random() < 0.24) this.statusEffects.poison(14);
+      },
+      getMiningSpeedMultiplier: () => this.statusEffects.miningMultiplier,
     });
     this.inventoryModal = new InventoryModal(
       this.inventory,
@@ -485,10 +503,11 @@ export class Game {
       const sprinting =
         !this.creativeMode && this.vitals.canSprint && !this.player.crouching && wantsToSprint;
       const maxStep = 1 / 90;
+      this.statusEffects.update(dt, this.creativeMode);
       this.temperature.update(dt, this.creativeMode);
       const weatherMovementScale = this.weather.getMovementSpeedMultiplier(
         this.armor.hasFullGoldSet
-      ) * this.temperature.movementMultiplier;
+      ) * this.temperature.movementMultiplier * this.statusEffects.movementMultiplier;
       let remaining = dt;
       while (remaining > 0) {
         const step = Math.min(remaining, maxStep);
@@ -601,6 +620,7 @@ export class Game {
       weather: this.weather.snapshot(),
       muted: this.audio.muted,
       temperature: this.temperature.temperature,
+      statusEffects: this.statusEffects.snapshots(),
       furnaces: this.furnaces.snapshot(),
       chests: this.chests.snapshots(),
       farms: this.farms.snapshots(),

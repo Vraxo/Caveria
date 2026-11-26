@@ -253,6 +253,35 @@ export class ItemSpriteGenerator {
           }
         }
         break;
+      case ItemId.HealingPoultice:
+        for (let y = 5; y <= 12; y++) for (let x = 4; x <= 11; x++) {
+          if (Math.abs(x - 7.5) + Math.abs(y - 8.5) < 5.4) px(x, y, (x + y) % 3 ? [202, 184, 132, 255] : [96, 142, 72, 255]);
+        }
+        px(7, 4, [138, 108, 66, 255]); px(8, 4, [138, 108, 66, 255]);
+        break;
+      case ItemId.Antidote:
+      case ItemId.CrystalTonic: {
+        const tonic = itemId === ItemId.CrystalTonic;
+        for (let y = 5; y <= 13; y++) for (let x = 5; x <= 10; x++) {
+          const edge = x === 5 || x === 10 || y === 13;
+          px(x, y, edge ? [184, 208, 214, 255] : tonic ? [148, 74, 220, 255] : [70, 174, 112, 255]);
+        }
+        px(7, 3, [142, 106, 66, 255]); px(8, 3, [142, 106, 66, 255]);
+        px(7, 4, [214, 226, 222, 255]); px(8, 4, [214, 226, 222, 255]);
+        break;
+      }
+      case ItemId.WarmingStew:
+        for (let y = 7; y <= 13; y++) for (let x = 3; x <= 12; x++) {
+          if (Math.abs(x - 7.5) + Math.abs(y - 10) * 0.65 < 5.3) px(x, y, y < 9 ? [236, 120, 54, 255] : [108, 68, 44, 255]);
+        }
+        px(5, 6, [255, 190, 76, 255]); px(9, 6, [192, 66, 82, 255]);
+        break;
+      case ItemId.SmokedCaveShroom:
+        for (let y = 4; y <= 8; y++) for (let x = 3; x <= 12; x++) {
+          if (Math.abs(x - 7.5) + Math.abs(y - 7) < 6) px(x, y, (x + y) % 3 ? [116, 60, 54, 255] : [76, 42, 38, 255]);
+        }
+        for (let y = 9; y <= 13; y++) { px(7, y, [174, 142, 102, 255]); px(8, y, [142, 108, 78, 255]); }
+        break;
       case ItemId.WoodenHoe:
         for (let i = 0; i < 10; i++) px(5 + Math.floor(i * 0.45), 13 - i, [128, 86, 48, 255]);
         for (let x = 5; x <= 12; x++) {

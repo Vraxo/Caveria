@@ -22,10 +22,11 @@ export class MobManager {
     vitals: PlayerVitals,
     drops: DroppedItemManager,
     particles: BreakParticles,
-    audio: AudioManager
+    audio: AudioManager,
+    onCrawlerPoison: () => void = () => {}
   ) {
     this.mites = new CrystalMiteManager(scene, world, player, drops, particles, audio);
-    this.crawlers = new CaveCrawlerManager(scene, world, player, vitals, drops, particles, audio);
+    this.crawlers = new CaveCrawlerManager(scene, world, player, vitals, drops, particles, audio, onCrawlerPoison);
   }
 
   public get count(): number { return this.mites.count + this.crawlers.count; }

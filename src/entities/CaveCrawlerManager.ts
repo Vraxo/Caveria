@@ -62,7 +62,8 @@ export class CaveCrawlerManager {
     private readonly vitals: PlayerVitals,
     private readonly drops: DroppedItemManager,
     private readonly particles: BreakParticles,
-    private readonly audio: AudioManager
+    private readonly audio: AudioManager,
+    private readonly onPoisonPlayer: () => void = () => {}
   ) {}
 
   public get count(): number { return this.crawlers.length; }
@@ -112,6 +113,7 @@ export class CaveCrawlerManager {
           crawler.attackTimer = 1.15;
           const knockback = this.vitals.knockbackMultiplier;
           if (this.vitals.damage(3, 'mob')) {
+            if (Math.random() < 0.18) this.onPoisonPlayer();
             this.player.velocity.x += desiredX * 4.2 * knockback;
             this.player.velocity.y = Math.max(this.player.velocity.y, 3.2 * knockback);
             this.player.velocity.z += desiredZ * 4.2 * knockback;

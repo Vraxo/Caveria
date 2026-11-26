@@ -86,6 +86,11 @@ export enum ItemId {
   Arrow = 166,
   WoodenHoe = 167,
   DriedCaveBerries = 168,
+  HealingPoultice = 169,
+  Antidote = 170,
+  WarmingStew = 171,
+  CrystalTonic = 172,
+  SmokedCaveShroom = 173,
 }
 
 export type ArmorSlot = 'helmet' | 'chestplate' | 'leggings' | 'boots';
@@ -301,14 +306,28 @@ export const ITEMS: Record<number, ItemDefinition> = {
   },
   [ItemId.DriedCaveBerries]: {
     id: ItemId.DriedCaveBerries,
-    name: 'Dried Cave Berries',
-    maxStack: 64,
-    placeBlockId: null,
-    toolCategory: 'none',
-    toolTier: 0,
-    miningSpeed: 1,
-    nutrition: 5,
-    saturation: 3.2,
+    name: 'Dried Cave Berries', maxStack: 64, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1, nutrition: 5, saturation: 3.2,
+  },
+  [ItemId.HealingPoultice]: {
+    id: ItemId.HealingPoultice, name: 'Healing Poultice', maxStack: 16, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1,
+  },
+  [ItemId.Antidote]: {
+    id: ItemId.Antidote, name: 'Antidote', maxStack: 16, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1,
+  },
+  [ItemId.WarmingStew]: {
+    id: ItemId.WarmingStew, name: 'Warming Stew', maxStack: 16, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1,
+  },
+  [ItemId.CrystalTonic]: {
+    id: ItemId.CrystalTonic, name: 'Crystal Tonic', maxStack: 8, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1,
+  },
+  [ItemId.SmokedCaveShroom]: {
+    id: ItemId.SmokedCaveShroom, name: 'Smoked Cave Shroom', maxStack: 64, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1, nutrition: 5, saturation: 4,
   },
 
   // Wooden Tools

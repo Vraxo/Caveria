@@ -44,6 +44,10 @@ interface BlockInteractionDependencies {
   onBedBroken: (x: number, y: number, z: number, drop: boolean) => void;
   onUseFarm: (x: number, y: number, z: number, held: ItemId | null) => FarmUseResult;
   onFarmBroken: (x: number, y: number, z: number, drop: boolean) => boolean;
+  onConsumeSpecial: (itemId: ItemId) => boolean;
+  onFoodConsumed: (itemId: ItemId) => void;
+  onHazardBlockBroken: (blockId: BlockId) => void;
+  getMiningSpeedMultiplier: () => number;
 }
 
 /**
@@ -73,6 +77,10 @@ export class BlockInteractionController {
   private readonly onBedBroken: (x: number, y: number, z: number, drop: boolean) => void;
   private readonly onUseFarm: (x: number, y: number, z: number, held: ItemId | null) => FarmUseResult;
   private readonly onFarmBroken: (x: number, y: number, z: number, drop: boolean) => boolean;
+  private readonly onConsumeSpecial: (itemId: ItemId) => boolean;
+  private readonly onFoodConsumed: (itemId: ItemId) => void;
+  private readonly onHazardBlockBroken: (blockId: BlockId) => void;
+  private readonly getMiningSpeedMultiplier: () => number;
   private readonly highlight: BlockHighlight;
   private readonly miningOverlay: MiningOverlay;
   private readonly miningBarEl: HTMLElement;
@@ -111,6 +119,10 @@ export class BlockInteractionController {
     this.onBedBroken = deps.onBedBroken;
     this.onUseFarm = deps.onUseFarm;
     this.onFarmBroken = deps.onFarmBroken;
+    this.onConsumeSpecial = deps.onConsumeSpecial;
+    this.onFoodConsumed = deps.onFoodConsumed;
+    this.onHazardBlockBroken = deps.onHazardBlockBroken;
+    this.getMiningSpeedMultiplier = deps.getMiningSpeedMultiplier;
     this.highlight = new BlockHighlight(deps.scene);
     this.miningOverlay = new MiningOverlay(deps.scene);
     this.miningBarEl = document.getElementById('mining-bar')!;
@@ -256,7 +268,7 @@ export class BlockInteractionController {
       this.hit.blockId,
       this.hotbar.selectedStack
     );
-    this.miningElapsed += dt;
+    this.miningElapsed += dt * this.getMiningSpeedMultiplier();
     this.audio.playMineHit(this.hit.blockId);
     const progress = Math.min(1, this.miningElapsed / durationSeconds);
 
@@ -357,6 +369,13 @@ export class BlockInteractionController {
       }
     }
 
+    if (held && this.onConsumeSpecial(held.id)) {
+      if (!creativeMode) this.inventory.consumeOne(this.hotbar.selectedIndex);
+      this.foodCooldown = 0.55;
+      this.heldItemView.triggerPlace();
+      return;
+    }
+
     const food = getFoodStats(held);
     if (
       held &&
@@ -368,6 +387,7 @@ export class BlockInteractionController {
       this.foodCooldown = 0.55;
       this.heldItemView.triggerPlace();
       this.audio.playEat();
+      this.onFoodConsumed(held.id);
       return;
     }
     if (food && this.foodCooldown > 0) return;
@@ -452,6 +472,7 @@ export class BlockInteractionController {
       this.onChestBroken(blockX, blockY, blockZ);
     }
     this.onFarmBroken(blockX, blockY, blockZ, !creativeMode);
+    if (!creativeMode) this.onHazardBlockBroken(blockId);
     this.world.setBlock(blockX, blockY, blockZ, BlockId.Air);
     this.particles.spawnBurst(blockX, blockY, blockZ, blockId);
     this.audio.playBreak(blockId);

@@ -129,9 +129,10 @@ export class FurnaceManager {
   public getRecipe(state: FurnaceStateSnapshot, stack: ItemStack | null): FurnaceRecipe | null {
     const recipe = getFurnaceRecipe(stack);
     if (!recipe || !this.isCampfire(state)) return recipe;
-    return recipe.output === ItemId.RoastedCaveShroom || recipe.output === ItemId.DriedCaveBerries
-      ? recipe
-      : null;
+    if (stack?.id === ItemId.CaveShroom) {
+      return { output: ItemId.SmokedCaveShroom, count: 1, seconds: 6 };
+    }
+    return recipe.output === ItemId.DriedCaveBerries ? recipe : null;
   }
 
   public getOrCreate(x: number, y: number, z: number): FurnaceStateSnapshot {

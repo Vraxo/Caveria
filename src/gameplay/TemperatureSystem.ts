@@ -16,6 +16,8 @@ export class TemperatureSystem {
   public state: TemperatureState = 'Comfortable';
   public sheltered = false;
 
+  private statusWarmthBonus = 0;
+  private statusColdResistance = 0;
   private damageTimer = 4;
   private warningTimer = 2;
   private readonly hudEl = document.getElementById('temperature-hud')!;
@@ -65,6 +67,11 @@ export class TemperatureSystem {
     this.render();
   }
 
+  public setStatusModifiers(warmthBonus: number, coldResistance: number): void {
+    this.statusWarmthBonus = Math.max(0, warmthBonus);
+    this.statusColdResistance = Math.max(0, Math.min(1, coldResistance));
+  }
+
   public recoverAfterSleep(): void {
     if (this.temperature < 20 || this.temperature > 80) return;
     this.temperature += (50 - this.temperature) * 0.25;
@@ -102,7 +109,10 @@ export class TemperatureSystem {
     }
     if (this.player.isInWater(this.world)) target -= 24;
     if (this.sheltered) target = target * 0.62 + 50 * 0.38;
-    target += this.nearbyWarmth(x, y, z);
+    target += this.nearbyWarmth(x, y, z) + this.statusWarmthBonus;
+    if (target < 50 && this.statusColdResistance > 0) {
+      target += (50 - target) * this.statusColdResistance;
+    }
 
     if (this.armor.hasFullChitinSet) target += target < 50 ? 8 : -4;
     if (this.armor.hasFullGoldSet) target += target < 50 ? 6 : 4;
