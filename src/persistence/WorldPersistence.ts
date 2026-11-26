@@ -1,4 +1,5 @@
 import type { BedSnapshot } from '../gameplay/BedManager';
+import type { FarmPlotSnapshot } from '../gameplay/FarmingManager';
 import { CHEST_SLOT_COUNT, type ChestStateSnapshot } from '../gameplay/ChestManager';
 import type { FurnaceStateSnapshot } from '../gameplay/FurnaceManager';
 import { ArmorSlot, ItemStack, ITEMS } from '../items/Item';
@@ -53,6 +54,7 @@ export interface CaveriaSaveData {
   muted: boolean;
   furnaces: FurnaceStateSnapshot[];
   chests: ChestStateSnapshot[];
+  farms: FarmPlotSnapshot[];
   beds: BedSnapshot[];
   respawnBed: [number, number, number] | null;
   worldEdits: SerializedVoxelEdit[];
@@ -249,6 +251,23 @@ export class WorldPersistence {
       }
     }
 
+    const farms: FarmPlotSnapshot[] = [];
+    if (Array.isArray(raw.farms)) {
+      for (const farm of raw.farms.slice(0, 4096)) {
+        if (!farm || typeof farm !== 'object') continue;
+        const crop = farm.crop === 'berries' || farm.crop === 'shroom' ? farm.crop : null;
+        farms.push({
+          x: Math.floor(worldCoord(farm.x, 0)),
+          y: Math.max(0, Math.min(CHUNK_HEIGHT - 2, Math.floor(finite(farm.y, 0)))),
+          z: Math.floor(worldCoord(farm.z, 0)),
+          crop,
+          stage: crop ? Math.max(0, Math.min(2, Math.floor(finite(farm.stage, 0)))) : 0,
+          growthRemaining: Math.max(0, Math.min(300, finite(farm.growthRemaining, 40))),
+          drySeconds: Math.max(0, Math.min(120, finite(farm.drySeconds, 0))),
+        });
+      }
+    }
+
     const beds: BedSnapshot[] = [];
     if (Array.isArray(raw.beds)) {
       for (const bed of raw.beds.slice(0, 2048)) {
@@ -325,6 +344,7 @@ export class WorldPersistence {
       muted: Boolean(raw.muted),
       furnaces,
       chests,
+      farms,
       beds,
       respawnBed,
       worldEdits,

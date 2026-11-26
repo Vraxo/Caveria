@@ -65,8 +65,8 @@ export class InventoryModal {
       gridSize === 3 ? 'Crafting Table (3×3)' : 'Hand Crafting (2×2)';
     this.recipeHintEl.textContent =
       gridSize === 3
-        ? 'Recipes: Sticks + Woven Fiber → Bow · Amethyst + Stick + Fiber → 4 Arrows · 8 Planks around an empty center → Chest · Fiber over Planks → Bed'
-        : 'Recipes: 4 Cave Vines → 4 Woven Fiber · 1 Log → 4 Planks · 4 Planks → Crafting Table (place & Right-Click for 3×3 equipment!)';
+        ? 'Recipes: 2 Planks + 2 Sticks → Hoe · Sticks + Woven Fiber → Bow · Amethyst + Stick + Fiber → 4 Arrows · Smelt Berries for durable travel food'
+        : 'Recipes: 4 Cave Vines → 4 Woven Fiber · 1 Log → 4 Planks · 4 Planks → Crafting Table · Use a Hoe on soil, then plant Berries or Shrooms';
 
     this.renderAll();
   }

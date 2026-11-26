@@ -315,6 +315,26 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
 
   // Wooden Tools
   {
+    name: 'Wooden Hoe',
+    pattern: [
+      [P, P],
+      [_, S],
+      [_, S],
+    ],
+    outputId: ItemId.WoodenHoe,
+    outputCount: 1,
+  },
+  {
+    name: 'Wooden Hoe (Mirrored)',
+    pattern: [
+      [P, P],
+      [S, _],
+      [S, _],
+    ],
+    outputId: ItemId.WoodenHoe,
+    outputCount: 1,
+  },
+  {
     name: 'Wooden Pickaxe',
     pattern: [
       [P, P, P],

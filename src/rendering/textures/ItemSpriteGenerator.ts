@@ -253,6 +253,21 @@ export class ItemSpriteGenerator {
           }
         }
         break;
+      case ItemId.WoodenHoe:
+        for (let i = 0; i < 10; i++) px(5 + Math.floor(i * 0.45), 13 - i, [128, 86, 48, 255]);
+        for (let x = 5; x <= 12; x++) {
+          px(x, 3, x === 12 ? [92, 58, 34, 255] : [166, 112, 58, 255]);
+          if (x > 8) px(x, 4, [112, 72, 40, 255]);
+        }
+        break;
+      case ItemId.DriedCaveBerries:
+        for (const [x, y] of [[5, 6], [8, 5], [11, 7], [6, 10], [9, 11], [12, 10]]) {
+          px(x, y, [132, 36, 62, 255]);
+          px(x + 1, y, [184, 54, 76, 255]);
+          px(x, y + 1, [92, 30, 48, 255]);
+        }
+        px(8, 3, [74, 126, 54, 255]);
+        break;
       case ItemId.Bow:
         for (let y = 2; y <= 13; y++) {
           const x = y <= 7 ? 11 - Math.floor((y - 2) * 0.7) : 8 + Math.floor((y - 8) * 0.7);

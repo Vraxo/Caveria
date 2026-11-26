@@ -1,6 +1,7 @@
 import type * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { ArrowProjectileManager } from './ArrowProjectileManager';
+import { FarmUseResult } from './FarmingManager';
 import { Input } from '../core/Input';
 import { MobHit, MobManager } from '../entities/MobManager';
 import { Inventory } from '../items/Inventory';
@@ -41,6 +42,8 @@ interface BlockInteractionDependencies {
   onUseBed: (x: number, y: number, z: number) => void;
   onPlaceBed: (x: number, y: number, z: number) => boolean;
   onBedBroken: (x: number, y: number, z: number, drop: boolean) => void;
+  onUseFarm: (x: number, y: number, z: number, held: ItemId | null) => FarmUseResult;
+  onFarmBroken: (x: number, y: number, z: number, drop: boolean) => boolean;
 }
 
 /**
@@ -68,6 +71,8 @@ export class BlockInteractionController {
   private readonly onUseBed: (x: number, y: number, z: number) => void;
   private readonly onPlaceBed: (x: number, y: number, z: number) => boolean;
   private readonly onBedBroken: (x: number, y: number, z: number, drop: boolean) => void;
+  private readonly onUseFarm: (x: number, y: number, z: number, held: ItemId | null) => FarmUseResult;
+  private readonly onFarmBroken: (x: number, y: number, z: number, drop: boolean) => boolean;
   private readonly highlight: BlockHighlight;
   private readonly miningOverlay: MiningOverlay;
   private readonly miningBarEl: HTMLElement;
@@ -104,6 +109,8 @@ export class BlockInteractionController {
     this.onUseBed = deps.onUseBed;
     this.onPlaceBed = deps.onPlaceBed;
     this.onBedBroken = deps.onBedBroken;
+    this.onUseFarm = deps.onUseFarm;
+    this.onFarmBroken = deps.onFarmBroken;
     this.highlight = new BlockHighlight(deps.scene);
     this.miningOverlay = new MiningOverlay(deps.scene);
     this.miningBarEl = document.getElementById('mining-bar')!;
@@ -311,7 +318,24 @@ export class BlockInteractionController {
   private handleUse(creativeMode: boolean, allowWorldUse: boolean): void {
     const sneaking =
       this.input.isKeyDown('ShiftLeft') || this.input.isKeyDown('ShiftRight');
+    const held = this.hotbar.selectedStack;
     if (allowWorldUse && this.hit && !sneaking) {
+      const farmResult = this.onUseFarm(
+        this.hit.blockX,
+        this.hit.blockY,
+        this.hit.blockZ,
+        held?.id ?? null
+      );
+      if (farmResult !== 'none') {
+        if (!creativeMode && farmResult === 'planted') this.inventory.consumeOne(this.hotbar.selectedIndex);
+        if (!creativeMode && farmResult === 'tilled' && this.inventory.damageTool(this.hotbar.selectedIndex)) {
+          this.audio.playToolBreak();
+        }
+        this.audio.playFarmAction(farmResult);
+        this.heldItemView.triggerPlace();
+        this.updateTarget();
+        return;
+      }
       if (this.hit.blockId === BlockId.CraftingTable) {
         this.onOpenWorkbench();
         return;
@@ -330,7 +354,6 @@ export class BlockInteractionController {
       }
     }
 
-    const held = this.hotbar.selectedStack;
     const food = getFoodStats(held);
     if (
       held &&
@@ -422,6 +445,7 @@ export class BlockInteractionController {
     if (blockId === BlockId.Chest) {
       this.onChestBroken(blockX, blockY, blockZ);
     }
+    this.onFarmBroken(blockX, blockY, blockZ, !creativeMode);
     this.world.setBlock(blockX, blockY, blockZ, BlockId.Air);
     this.particles.spawnBurst(blockX, blockY, blockZ, blockId);
     this.audio.playBreak(blockId);

@@ -42,4 +42,11 @@ export enum TileIndex {
   ChestTop = 39,
   ChestSide = 40,
   ChestFront = 41,
+  FarmlandDry = 42,
+  FarmlandWet = 43,
+  BerrySprout = 44,
+  BerryBush = 45,
+  BerryBushMature = 46,
+  ShroomSprout = 47,
+  ShroomGrowing = 48,
 }
