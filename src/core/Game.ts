@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
-import { BlockId } from '../content/BlockId';
 import { ArrowProjectileManager } from '../gameplay/ArrowProjectileManager';
 import { BedManager } from '../gameplay/BedManager';
 import { BlockInteractionController } from '../gameplay/BlockInteractionController';
@@ -14,6 +13,7 @@ import { StatusEffectManager } from '../gameplay/StatusEffectManager';
 import { TemperatureSystem } from '../gameplay/TemperatureSystem';
 import { WaterSurvivalSystem } from '../gameplay/WaterSurvivalSystem';
 import { createDefaultUseRegistry } from '../gameplay/interactions/DefaultUseHandlers';
+import { createDefaultBlockBehaviorRegistries } from '../gameplay/interactions/DefaultBlockBehaviors';
 import { MobManager } from '../entities/MobManager';
 import { CaveCrawlerManager } from '../entities/CaveCrawlerManager';
 import { CrystalMiteManager } from '../entities/CrystalMiteManager';
@@ -290,6 +290,19 @@ export class Game {
       this.vitals,
       this.audio
     );
+    const blockBehaviors = createDefaultBlockBehaviorRegistries({
+      onOpenWorkbench: () => this.openInventoryScreen(3),
+      onOpenFurnace: (x, y, z) => this.openFurnaceScreen(x, y, z),
+      onOpenChest: (x, y, z) => this.openChestScreen(x, y, z),
+      onUseBed: (x, y, z) => this.beds.use(x, y, z),
+      onFurnaceBroken: (x, y, z) => this.furnaces.breakAt(x, y, z),
+      onChestBroken: (x, y, z) => this.breakChestAt(x, y, z),
+      onBedBroken: (x, y, z, drop) => this.beds.breakAt(x, y, z, drop),
+      onFarmBroken: (x, y, z, drop) => this.farms.breakAt(x, y, z, drop),
+      onDisturbedShroom: () => {
+        if (Math.random() < 0.24) this.statusEffects.poison(14);
+      },
+    });
     const useRegistry = createDefaultUseRegistry({
       player: this.player,
       vitals: this.vitals,
@@ -297,11 +310,8 @@ export class Game {
       fishing: this.fishing,
       waterSurvival: this.waterSurvival,
       consumables,
+      blockUse: blockBehaviors.use,
       onUseFarm: (x, y, z, held) => this.farms.use(x, y, z, held),
-      onOpenWorkbench: () => this.openInventoryScreen(3),
-      onOpenFurnace: (x, y, z) => this.openFurnaceScreen(x, y, z),
-      onOpenChest: (x, y, z) => this.openChestScreen(x, y, z),
-      onUseBed: (x, y, z) => this.beds.use(x, y, z),
     });
     this.interactions = new BlockInteractionController({
       scene: this.scene,
@@ -318,15 +328,10 @@ export class Game {
       vitals: this.vitals,
       arrows: this.arrows,
       useRegistry,
+      blockBreakRegistry: blockBehaviors.break,
+      blockSupportRegistry: blockBehaviors.support,
       onWaterTarget: (hit) => this.waterSurvival.updateTarget(hit),
-      onFurnaceBroken: (x, y, z) => this.furnaces.breakAt(x, y, z),
-      onChestBroken: (x, y, z) => this.breakChestAt(x, y, z),
       onPlaceBed: (x, y, z) => this.beds.place(x, y, z),
-      onBedBroken: (x, y, z, drop) => this.beds.breakAt(x, y, z, drop),
-      onFarmBroken: (x, y, z, drop) => this.farms.breakAt(x, y, z, drop),
-      onHazardBlockBroken: (blockId) => {
-        if (blockId === BlockId.CaveShroom && Math.random() < 0.24) this.statusEffects.poison(14);
-      },
       getMiningSpeedMultiplier: () => this.statusEffects.miningMultiplier,
     });
     this.inventoryModal = new InventoryModal(

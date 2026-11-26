@@ -1,3 +1,4 @@
+import { BLOCK_BREAK } from './BlockCapabilities';
 import { BlockId } from './BlockId';
 import { allFaces, defineBlock } from './BlockDefinitionHelpers';
 import { BlockCatalog } from './BlockTypes';
@@ -34,6 +35,8 @@ export const CAVERN_BLOCKS: BlockCatalog = {
     lightEmission: 11,
     lightOpacity: 0,
     shape: 'cross',
+    supportBehavior: 'floor',
+    breakBehaviors: [BLOCK_BREAK.farm, BLOCK_BREAK.disturbedShroom],
   }),
   [BlockId.DripstoneSpike]: defineBlock(BlockId.DripstoneSpike, {
     name: 'Dripstone Spike',
@@ -44,6 +47,7 @@ export const CAVERN_BLOCKS: BlockCatalog = {
     preferredTool: 'pickaxe',
     lightOpacity: 0,
     shape: 'cross',
+    supportBehavior: 'floor-or-ceiling',
   }),
   [BlockId.CaveVine]: defineBlock(BlockId.CaveVine, {
     name: 'Glow Vine',
@@ -54,5 +58,7 @@ export const CAVERN_BLOCKS: BlockCatalog = {
     lightEmission: 12,
     lightOpacity: 0,
     shape: 'cross',
+    supportBehavior: 'ceiling-chain',
+    unsupportedDrop: BlockId.CaveVine,
   }),
 };
