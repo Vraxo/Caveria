@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { BlockId } from '../content/BlockId';
 import { isBlockSolid } from '../content/BlockQueries';
-import { CaveCrawlerManager } from '../entities/CaveCrawlerManager';
 import { ItemId, ItemStack, createStack } from '../items/Item';
 import { Player } from '../player/Player';
 import { DayNightCycle } from '../rendering/DayNightCycle';
@@ -33,7 +32,7 @@ export class BedManager {
     private readonly player: Player,
     private readonly dayNight: DayNightCycle,
     private readonly weather: WeatherSystem,
-    private readonly crawlers: CaveCrawlerManager,
+    private readonly dangerNearby: (position: THREE.Vector3, radius: number) => boolean,
     private readonly audio: AudioManager,
     snapshots: BedSnapshot[] | undefined,
     respawnBed: [number, number, number] | null | undefined,
@@ -101,7 +100,7 @@ export class BedManager {
       this.showMessage('Respawn point set. You can only sleep at night.');
       return;
     }
-    if (this.crawlers.hasCrawlerWithin(this.player.position, 10)) {
+    if (this.dangerNearby(this.player.position, 10)) {
       this.showMessage('You may not rest; danger is nearby.');
       return;
     }

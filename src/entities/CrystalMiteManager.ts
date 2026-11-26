@@ -2,20 +2,15 @@ import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { BlockId } from '../content/BlockId';
 import { isBlockSolid } from '../content/BlockQueries';
-import { ItemId, createStack } from '../items/Item';
+import { CRYSTAL_MITE_ID, MOB_DEFINITIONS } from '../content/mobs/MobDefinitions';
+import { rollMobLoot } from '../content/loot/MobLoot';
 import { Player } from '../player/Player';
 import { BreakParticles } from '../rendering/BreakParticles';
 import { DroppedItemManager } from '../rendering/DroppedItems';
 import { World } from '../world/World';
+import { MobHit, MobSpeciesController, MobTag } from './MobTypes';
 
-export interface CrystalMiteHit {
-  kind: 'crystal-mite';
-  id: number;
-  name: 'Crystal Mite';
-  distance: number;
-  health: number;
-  maxHealth: number;
-}
+export type CrystalMiteHit = MobHit;
 
 interface CrystalMite {
   id: number;
@@ -36,14 +31,14 @@ interface CrystalMite {
   inspectTarget: THREE.Vector3 | null;
 }
 
-const MAX_MITES = 7;
-const MAX_HEALTH = 4;
-const BODY_RADIUS = 0.28;
-const BODY_HEIGHT = 0.48;
-const DESPAWN_DISTANCE = 42;
+const DEFINITION = MOB_DEFINITIONS[CRYSTAL_MITE_ID];
+const BODY_RADIUS = DEFINITION.radius;
+const BODY_HEIGHT = DEFINITION.height;
 
 /** Spawns, animates, targets, and simulates Caveria's first passive cave creature. */
-export class CrystalMiteManager {
+export class CrystalMiteManager implements MobSpeciesController {
+  public readonly species = CRYSTAL_MITE_ID;
+  public readonly tags: ReadonlySet<MobTag> = new Set(DEFINITION.tags);
   private readonly mites: CrystalMite[] = [];
   private readonly bodyGeometry = new THREE.BoxGeometry(0.4, 0.22, 0.48);
   private readonly shellGeometry = new THREE.OctahedronGeometry(0.25, 0);
@@ -68,10 +63,15 @@ export class CrystalMiteManager {
     return this.mites.length;
   }
 
+  public hasWithin(position: THREE.Vector3, radius: number): boolean {
+    const radiusSq = radius * radius;
+    return this.mites.some((mite) => mite.position.distanceToSquared(position) <= radiusSq);
+  }
+
   public update(dt: number): void {
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
-      this.spawnTimer = 1.8 + Math.random() * 2.4;
+      this.spawnTimer = DEFINITION.spawnDelay.minimum + Math.random() * DEFINITION.spawnDelay.variance;
       this.trySpawn();
     }
 
@@ -85,7 +85,7 @@ export class CrystalMiteManager {
       const dxPlayer = mite.position.x - this.player.position.x;
       const dzPlayer = mite.position.z - this.player.position.z;
       const playerDistance = Math.hypot(dxPlayer, dzPlayer);
-      if (playerDistance > DESPAWN_DISTANCE) {
+      if (playerDistance > DEFINITION.despawnDistance) {
         this.removeMite(i);
         continue;
       }
@@ -173,12 +173,13 @@ export class CrystalMiteManager {
       if (distance > maxDistance || distance >= blockDistance) continue;
       if (!closest || distance < closest.distance) {
         closest = {
-          kind: 'crystal-mite',
+          species: this.species,
+          entityId: mite.id,
           id: mite.id,
-          name: 'Crystal Mite',
+          name: DEFINITION.name,
           distance,
           health: mite.health,
-          maxHealth: MAX_HEALTH,
+          maxHealth: DEFINITION.maxHealth,
         };
       }
     }
@@ -207,12 +208,12 @@ export class CrystalMiteManager {
         mite.position.z - 0.5,
         BlockId.AmethystCrystal
       );
-      if (Math.random() < 0.22) {
+      for (const stack of rollMobLoot(DEFINITION.lootTable)) {
         this.drops.spawnDrop(
           mite.position.x,
           mite.position.y + 0.25,
           mite.position.z,
-          createStack(ItemId.AmethystShard, 1)
+          stack
         );
       }
       this.removeMite(index);
@@ -221,7 +222,7 @@ export class CrystalMiteManager {
   }
 
   private trySpawn(): void {
-    if (this.mites.length >= MAX_MITES) return;
+    if (this.mites.length >= DEFINITION.maxPopulation) return;
     const px = Math.floor(this.player.position.x);
     const pz = Math.floor(this.player.position.z);
     const surfaceY = this.world.terrainGen.getSurfaceHeight(px, pz);
@@ -296,7 +297,7 @@ export class CrystalMiteManager {
       legs,
       position,
       velocity: new THREE.Vector3(),
-      health: MAX_HEALTH,
+      health: DEFINITION.maxHealth,
       age: Math.random() * 8,
       decisionTimer: 0,
       chirpTimer: 2 + Math.random() * 7,

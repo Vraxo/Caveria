@@ -79,7 +79,7 @@ export class DebugHud {
       `Time: ${dayNight.getFormattedClock()} | Weather: ${weather.localWeather}`,
       `Light: Sky ${skyLight} / Block ${blockLight} | Exposure: ${weather.exposedToSky ? 'Open' : 'Sheltered'}`,
       `Mode: ${gameModeStr} (${moveModeStr}) | Grounded: ${player.onGround ? 'Yes' : 'No'}`,
-      `Mobs: ${mobs.mites.count} mites / ${mobs.crawlers.count} crawlers`,
+      `Mobs: ${mobs.count} active`,
       `Target: ${targetStr}`,
       `Seed: ${seedLabel}`,
     ].join('\n');
