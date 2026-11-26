@@ -34,6 +34,7 @@ export enum ItemId {
   DripstoneSpike = BlockId.DripstoneSpike,
   CaveVine = BlockId.CaveVine,
   Furnace = BlockId.Furnace,
+  Bed = BlockId.BedFoot,
 
   // Materials
   Stick = 100,
@@ -78,6 +79,7 @@ export enum ItemId {
   GoldChestplate = 161,
   GoldLeggings = 162,
   GoldBoots = 163,
+  WovenFiber = 164,
 }
 
 export type ArmorSlot = 'helmet' | 'chestplate' | 'leggings' | 'boots';
@@ -153,6 +155,7 @@ export const ITEMS: Record<number, ItemDefinition> = {
   [ItemId.DripstoneSpike]: blockItem(BlockId.DripstoneSpike),
   [ItemId.CaveVine]: blockItem(BlockId.CaveVine),
   [ItemId.Furnace]: blockItem(BlockId.Furnace),
+  [ItemId.Bed]: blockItem(BlockId.BedFoot),
 
   [ItemId.Stick]: {
     id: ItemId.Stick,
@@ -244,6 +247,15 @@ export const ITEMS: Record<number, ItemDefinition> = {
   [ItemId.CactusGreen]: {
     id: ItemId.CactusGreen,
     name: 'Cactus Green',
+    maxStack: 64,
+    placeBlockId: null,
+    toolCategory: 'none',
+    toolTier: 0,
+    miningSpeed: 1,
+  },
+  [ItemId.WovenFiber]: {
+    id: ItemId.WovenFiber,
+    name: 'Woven Fiber',
     maxStack: 64,
     placeBlockId: null,
     toolCategory: 'none',
@@ -561,6 +573,8 @@ export function getBlockDrop(blockId: BlockId): ItemStack | null {
     case BlockId.Water:
     case BlockId.Bedrock:
     case BlockId.Glass: // Glass shatters without silk touch
+    case BlockId.BedFoot:
+    case BlockId.BedHead:
       return null;
     case BlockId.Grass:
     case BlockId.SnowGrass:

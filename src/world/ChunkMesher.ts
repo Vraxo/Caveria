@@ -7,6 +7,7 @@ import { FACES } from './meshing/FaceTopology';
 import { GeometryBuilder, MeshData } from './meshing/GeometryBuilder';
 import { AO_CURVE, LIGHT_CURVE, sampleLightCurve } from './meshing/LightCurves';
 import {
+  emitBedGeometry,
   emitCrossGeometry,
   emitTorchGeometry,
   TileUvProvider,
@@ -67,6 +68,20 @@ export function buildChunkMeshData(
         // Special compact 3D Torch model (2/16 wide, 10/16 tall)
         if (def.shape === 'torch') {
           emitTorchGeometry(opaque, atlas, lx, y, lz, samplePackedLight(lx, y, lz));
+          continue;
+        }
+
+        // Low two-part bed section.
+        if (def.shape === 'bed') {
+          emitBedGeometry(
+            opaque,
+            atlas,
+            def.faces,
+            lx,
+            y,
+            lz,
+            samplePackedLight(lx, y + 1, lz)
+          );
           continue;
         }
 

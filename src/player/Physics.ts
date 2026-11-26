@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { isBlockSolid } from '../content/BlockQueries';
+import { getBlockCollisionHeight, isBlockSolid } from '../content/BlockQueries';
 import { World } from '../world/World';
 
 export interface PlayerCollider {
@@ -55,11 +55,10 @@ export function moveWithVoxelCollision(
   pos.y += vel.y * dt;
   if (collidesWithWorld(world, pos, collider)) {
     if (vel.y < 0) {
-      pos.y = Math.floor(pos.y) + 1;
+      pos.y = highestCollisionTop(world, pos, collider);
       onGround = true;
     } else if (vel.y > 0) {
-      const top = pos.y + collider.height;
-      pos.y = Math.floor(top) - collider.height - EPS;
+      pos.y = lowestCollisionBottom(world, pos, collider) - collider.height - EPS;
     }
     vel.y = 0;
   }
@@ -130,15 +129,50 @@ function collidesWithWorld(world: World, pos: THREE.Vector3, collider: PlayerCol
   const maxY = Math.floor(pos.y + collider.height - EPS);
   const minZ = Math.floor(pos.z - collider.halfWidth + EPS);
   const maxZ = Math.floor(pos.z + collider.halfWidth - EPS);
+  const playerBottom = pos.y + EPS;
+  const playerTop = pos.y + collider.height - EPS;
 
   for (let y = minY; y <= maxY; y++) {
     for (let z = minZ; z <= maxZ; z++) {
       for (let x = minX; x <= maxX; x++) {
-        if (isBlockSolid(world.getBlock(x, y, z))) {
-          return true;
-        }
+        const height = getBlockCollisionHeight(world.getBlock(x, y, z));
+        if (height > 0 && playerBottom < y + height && playerTop > y) return true;
       }
     }
   }
   return false;
+}
+
+function highestCollisionTop(world: World, pos: THREE.Vector3, collider: PlayerCollider): number {
+  const minX = Math.floor(pos.x - collider.halfWidth + EPS);
+  const maxX = Math.floor(pos.x + collider.halfWidth - EPS);
+  const minZ = Math.floor(pos.z - collider.halfWidth + EPS);
+  const maxZ = Math.floor(pos.z + collider.halfWidth - EPS);
+  const minY = Math.floor(pos.y - 1);
+  const maxY = Math.floor(pos.y + collider.height);
+  let top = pos.y;
+  for (let y = minY; y <= maxY; y++) for (let z = minZ; z <= maxZ; z++) for (let x = minX; x <= maxX; x++) {
+    const height = getBlockCollisionHeight(world.getBlock(x, y, z));
+    if (height > 0 && pos.y < y + height && pos.y + collider.height > y) {
+      top = Math.max(top, y + height);
+    }
+  }
+  return top;
+}
+
+function lowestCollisionBottom(world: World, pos: THREE.Vector3, collider: PlayerCollider): number {
+  const minX = Math.floor(pos.x - collider.halfWidth + EPS);
+  const maxX = Math.floor(pos.x + collider.halfWidth - EPS);
+  const minZ = Math.floor(pos.z - collider.halfWidth + EPS);
+  const maxZ = Math.floor(pos.z + collider.halfWidth - EPS);
+  const minY = Math.floor(pos.y);
+  const maxY = Math.floor(pos.y + collider.height);
+  let bottom = pos.y + collider.height;
+  for (let y = minY; y <= maxY; y++) for (let z = minZ; z <= maxZ; z++) for (let x = minX; x <= maxX; x++) {
+    const height = getBlockCollisionHeight(world.getBlock(x, y, z));
+    if (height > 0 && pos.y < y + height && pos.y + collider.height > y) {
+      bottom = Math.min(bottom, y);
+    }
+  }
+  return bottom;
 }

@@ -44,6 +44,10 @@ export class UiSoundEffects {
     this.synth.tone({ type: 'sine', freq: 660, duration: 0.08, gain: 0.055 });
     this.synth.tone({ type: 'sine', freq: 880, duration: 0.12, gain: 0.05, delay: 0.07 });
   }
+  public playSleep(): void {
+    this.synth.tone({ type: 'sine', freq: 330, freqEnd: 220, duration: 0.5, gain: 0.045 });
+    this.synth.tone({ type: 'sine', freq: 440, freqEnd: 294, duration: 0.65, gain: 0.035, delay: 0.16 });
+  }
   public playEat(): void {
     for (let bite = 0; bite < 3; bite++) {
       this.synth.noiseBurst({

@@ -97,6 +97,13 @@ export class WeatherSystem {
     this.updateParticles(dt);
   }
 
+  public clearOrdinaryRain(): void {
+    if (this.phase !== 'rain') return;
+    this.phase = 'clear';
+    this.intensity = 0;
+    this.timeRemaining = 75 + Math.random() * 100;
+  }
+
   /** Cycles weather for players who want to preview or override the natural schedule. */
   public cycleWeather(): void {
     this.phase = this.phase === 'clear' ? 'rain' : this.phase === 'rain' ? 'storm' : 'clear';

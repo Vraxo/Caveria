@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
+import { BedManager } from '../gameplay/BedManager';
 import { BlockInteractionController } from '../gameplay/BlockInteractionController';
 import { FurnaceManager } from '../gameplay/FurnaceManager';
 import { MovementAudioController } from '../gameplay/MovementAudioController';
@@ -45,6 +46,7 @@ export class Game {
   private readonly particles: BreakParticles;
   private readonly drops: DroppedItemManager;
   private readonly mobs: MobManager;
+  private readonly beds: BedManager;
   private readonly furnaces: FurnaceManager;
   private readonly heldItemView: HeldItemView;
   private readonly audio: AudioManager;
@@ -149,14 +151,13 @@ export class Game {
         this.input.exitPointerLock();
       },
       () => {
-        const respawn = this.world.findSpawnPoint();
-        this.world.generateInitialArea(respawn.x, respawn.z, 2);
+        const respawn = this.findRespawnPoint();
         this.player.restoreTransform(respawn, 0, 0);
         this.overlay.setDeathScreenActive(false);
         this.input.requestPointerLock();
       },
       () => {
-        const respawn = this.world.findSpawnPoint();
+        const respawn = this.findRespawnPoint();
         this.player.restoreTransform(respawn, 0, 0);
         this.persistence.save(false);
         this.overlay.setDeathScreenActive(false);
@@ -183,6 +184,17 @@ export class Game {
       this.particles,
       this.audio
     );
+    this.beds = new BedManager(
+      this.world,
+      this.player,
+      this.dayNight,
+      this.weather,
+      this.mobs.crawlers,
+      this.audio,
+      savedGame?.beds,
+      savedGame?.respawnBed,
+      (x, y, z, stack) => this.drops.spawnDrop(x, y, z, stack)
+    );
     this.heldItemView = new HeldItemView(this.camera, this.atlas);
 
     this.inventory = new Inventory();
@@ -208,6 +220,9 @@ export class Game {
       onOpenWorkbench: () => this.openInventoryScreen(3),
       onOpenFurnace: (x, y, z) => this.openFurnaceScreen(x, y, z),
       onFurnaceBroken: (x, y, z) => this.furnaces.breakAt(x, y, z),
+      onUseBed: (x, y, z) => this.beds.use(x, y, z),
+      onPlaceBed: (x, y, z) => this.beds.place(x, y, z),
+      onBedBroken: (x, y, z, drop) => this.beds.breakAt(x, y, z, drop),
     });
     this.inventoryModal = new InventoryModal(
       this.inventory,
@@ -315,6 +330,7 @@ export class Game {
   private update(dt: number): void {
     this.persistence.update(dt);
     this.weather.update(dt);
+    this.beds.update(dt);
     this.furnaces.update(dt);
     this.furnaceModal.update(dt);
 
@@ -467,6 +483,16 @@ export class Game {
     this.overlay.updateStatus(this.creativeMode, this.player.flyMode);
   }
 
+  private findRespawnPoint(): THREE.Vector3 {
+    const bedLocation = this.beds.getRespawnBedLocation();
+    if (bedLocation) this.world.generateInitialArea(bedLocation.x, bedLocation.z, 2);
+    const bedRespawn = this.beds.getRespawnPoint();
+    if (bedRespawn) return bedRespawn;
+    const worldSpawn = this.world.findSpawnPoint();
+    this.world.generateInitialArea(worldSpawn.x, worldSpawn.z, 2);
+    return worldSpawn;
+  }
+
   private createSaveSnapshot(): GameSaveSnapshot {
     return {
       player: {
@@ -488,6 +514,8 @@ export class Game {
       weather: this.weather.snapshot(),
       muted: this.audio.muted,
       furnaces: this.furnaces.snapshot(),
+      beds: this.beds.snapshots(),
+      respawnBed: this.beds.respawnSnapshot(),
       worldEdits: this.world.exportEdits(),
     };
   }

@@ -36,4 +36,7 @@ export enum TileIndex {
   FurnaceTop = 33,
   FurnaceSide = 34,
   LitFurnaceSide = 35,
+  BedFootTop = 36,
+  BedHeadTop = 37,
+  BedSide = 38,
 }

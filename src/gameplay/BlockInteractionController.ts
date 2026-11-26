@@ -3,7 +3,7 @@ import { AudioManager } from '../audio/AudioManager';
 import { Input } from '../core/Input';
 import { MobHit, MobManager } from '../entities/MobManager';
 import { Inventory } from '../items/Inventory';
-import { ITEMS, ItemStack, createStack, getAttackDamage, getBlockDrop, getFoodStats, getMiningStats } from '../items/Item';
+import { ITEMS, ItemId, ItemStack, createStack, getAttackDamage, getBlockDrop, getFoodStats, getMiningStats } from '../items/Item';
 import { Player } from '../player/Player';
 import { PlayerVitals } from '../player/PlayerVitals';
 import { VoxelHit, raycastVoxel } from '../player/Raycaster';
@@ -34,6 +34,9 @@ interface BlockInteractionDependencies {
   onOpenWorkbench: () => void;
   onOpenFurnace: (x: number, y: number, z: number) => void;
   onFurnaceBroken: (x: number, y: number, z: number) => void;
+  onUseBed: (x: number, y: number, z: number) => void;
+  onPlaceBed: (x: number, y: number, z: number) => boolean;
+  onBedBroken: (x: number, y: number, z: number, drop: boolean) => void;
 }
 
 /**
@@ -55,6 +58,9 @@ export class BlockInteractionController {
   private readonly onOpenWorkbench: () => void;
   private readonly onOpenFurnace: (x: number, y: number, z: number) => void;
   private readonly onFurnaceBroken: (x: number, y: number, z: number) => void;
+  private readonly onUseBed: (x: number, y: number, z: number) => void;
+  private readonly onPlaceBed: (x: number, y: number, z: number) => boolean;
+  private readonly onBedBroken: (x: number, y: number, z: number, drop: boolean) => void;
   private readonly highlight: BlockHighlight;
   private readonly miningOverlay: MiningOverlay;
   private readonly miningBarEl: HTMLElement;
@@ -83,6 +89,9 @@ export class BlockInteractionController {
     this.onOpenWorkbench = deps.onOpenWorkbench;
     this.onOpenFurnace = deps.onOpenFurnace;
     this.onFurnaceBroken = deps.onFurnaceBroken;
+    this.onUseBed = deps.onUseBed;
+    this.onPlaceBed = deps.onPlaceBed;
+    this.onBedBroken = deps.onBedBroken;
     this.highlight = new BlockHighlight(deps.scene);
     this.miningOverlay = new MiningOverlay(deps.scene);
     this.miningBarEl = document.getElementById('mining-bar')!;
@@ -257,6 +266,10 @@ export class BlockInteractionController {
         this.onOpenFurnace(this.hit.blockX, this.hit.blockY, this.hit.blockZ);
         return;
       }
+      if (this.hit.blockId === BlockId.BedFoot || this.hit.blockId === BlockId.BedHead) {
+        this.onUseBed(this.hit.blockX, this.hit.blockY, this.hit.blockZ);
+        return;
+      }
     }
 
     const held = this.hotbar.selectedStack;
@@ -275,15 +288,28 @@ export class BlockInteractionController {
     }
     if (food && this.foodCooldown > 0) return;
     if (!allowWorldUse || !this.hit || !held) return;
+    const placeX = this.hit.blockX + this.hit.normalX;
+    const placeY = this.hit.blockY + this.hit.normalY;
+    const placeZ = this.hit.blockZ + this.hit.normalZ;
+    if (placeY < 0 || placeY >= CHUNK_HEIGHT) return;
+    if (held.id === ItemId.Bed) {
+      if (this.onPlaceBed(placeX, placeY, placeZ)) {
+        this.heldItemView.triggerPlace();
+        this.audio.playPlace(BlockId.BedFoot);
+        if (!creativeMode) {
+          this.inventory.consumeOne(this.hotbar.selectedIndex);
+          this.vitals.addExhaustion(0.01);
+        }
+        this.updateTarget();
+      }
+      return;
+    }
+
     const itemDefinition = ITEMS[held.id];
     if (itemDefinition.placeBlockId === null) return;
 
     const placeBlock = itemDefinition.placeBlockId;
     const placeDefinition = BLOCKS[placeBlock];
-    const placeX = this.hit.blockX + this.hit.normalX;
-    const placeY = this.hit.blockY + this.hit.normalY;
-    const placeZ = this.hit.blockZ + this.hit.normalZ;
-    if (placeY < 0 || placeY >= CHUNK_HEIGHT) return;
 
     const existing = this.world.getBlock(placeX, placeY, placeZ);
     if (placeDefinition.shape === 'torch' || placeDefinition.shape === 'cross') {
@@ -332,6 +358,9 @@ export class BlockInteractionController {
     if (blockId === BlockId.Furnace || blockId === BlockId.LitFurnace) {
       this.onFurnaceBroken(blockX, blockY, blockZ);
     }
+    if (blockId === BlockId.BedFoot || blockId === BlockId.BedHead) {
+      this.onBedBroken(blockX, blockY, blockZ, !creativeMode);
+    }
     this.world.setBlock(blockX, blockY, blockZ, BlockId.Air);
     this.particles.spawnBurst(blockX, blockY, blockZ, blockId);
     this.audio.playBreak(blockId);
@@ -343,7 +372,10 @@ export class BlockInteractionController {
     }
 
     const aboveId = this.world.getBlock(blockX, blockY + 1, blockZ);
-    if (aboveId === BlockId.Torch || aboveId === BlockId.CaveShroom) {
+    if (aboveId === BlockId.BedFoot || aboveId === BlockId.BedHead) {
+      this.onBedBroken(blockX, blockY + 1, blockZ, !creativeMode);
+      this.particles.spawnBurst(blockX, blockY + 1, blockZ, aboveId);
+    } else if (aboveId === BlockId.Torch || aboveId === BlockId.CaveShroom) {
       this.world.setBlock(blockX, blockY + 1, blockZ, BlockId.Air);
       this.particles.spawnBurst(blockX, blockY + 1, blockZ, aboveId);
       if (!creativeMode) {

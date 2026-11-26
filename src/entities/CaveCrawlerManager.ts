@@ -67,6 +67,11 @@ export class CaveCrawlerManager {
 
   public get count(): number { return this.crawlers.length; }
 
+  public hasCrawlerWithin(position: THREE.Vector3, radius: number): boolean {
+    const radiusSq = radius * radius;
+    return this.crawlers.some((crawler) => crawler.position.distanceToSquared(position) <= radiusSq);
+  }
+
   public update(dt: number): void {
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {

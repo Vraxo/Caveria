@@ -1,3 +1,4 @@
+import type { BedSnapshot } from '../gameplay/BedManager';
 import type { FurnaceStateSnapshot } from '../gameplay/FurnaceManager';
 import { ArmorSlot, ItemStack, ITEMS } from '../items/Item';
 import { TOTAL_INVENTORY_SLOTS } from '../items/Inventory';
@@ -50,6 +51,8 @@ export interface CaveriaSaveData {
   };
   muted: boolean;
   furnaces: FurnaceStateSnapshot[];
+  beds: BedSnapshot[];
+  respawnBed: [number, number, number] | null;
   worldEdits: SerializedVoxelEdit[];
 }
 
@@ -225,6 +228,29 @@ export class WorldPersistence {
       }
     }
 
+    const beds: BedSnapshot[] = [];
+    if (Array.isArray(raw.beds)) {
+      for (const bed of raw.beds.slice(0, 2048)) {
+        if (!bed || typeof bed !== 'object') continue;
+        const footX = Math.floor(worldCoord(bed.footX, 0));
+        const footY = Math.max(0, Math.min(CHUNK_HEIGHT - 1, Math.floor(finite(bed.footY, 0))));
+        const footZ = Math.floor(worldCoord(bed.footZ, 0));
+        const headX = Math.floor(worldCoord(bed.headX, footX));
+        const headY = Math.max(0, Math.min(CHUNK_HEIGHT - 1, Math.floor(finite(bed.headY, footY))));
+        const headZ = Math.floor(worldCoord(bed.headZ, footZ));
+        if (headY !== footY || Math.abs(headX - footX) + Math.abs(headZ - footZ) !== 1) continue;
+        beds.push({ footX, footY, footZ, headX, headY, headZ });
+      }
+    }
+    const respawnBed: [number, number, number] | null =
+      Array.isArray(raw.respawnBed) && raw.respawnBed.length === 3
+        ? [
+            Math.floor(worldCoord(raw.respawnBed[0], 0)),
+            Math.max(0, Math.min(CHUNK_HEIGHT - 1, Math.floor(finite(raw.respawnBed[1], 0)))),
+            Math.floor(worldCoord(raw.respawnBed[2], 0)),
+          ]
+        : null;
+
     const worldEdits: SerializedVoxelEdit[] = [];
     if (Array.isArray(raw.worldEdits)) {
       for (const edit of raw.worldEdits) {
@@ -277,6 +303,8 @@ export class WorldPersistence {
       },
       muted: Boolean(raw.muted),
       furnaces,
+      beds,
+      respawnBed,
       worldEdits,
     };
   }

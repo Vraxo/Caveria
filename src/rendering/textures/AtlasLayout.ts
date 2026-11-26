@@ -2,7 +2,7 @@ import { TileIndex } from '../../content/TileIndex';
 
 export const TILE_SIZE = 16;
 export const ATLAS_COLS = 6;
-export const ATLAS_ROWS = 6;
+export const ATLAS_ROWS = 7;
 export const ATLAS_PIXEL_WIDTH = ATLAS_COLS * TILE_SIZE;
 export const ATLAS_PIXEL_HEIGHT = ATLAS_ROWS * TILE_SIZE;
 

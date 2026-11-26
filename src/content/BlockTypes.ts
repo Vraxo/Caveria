@@ -2,7 +2,7 @@ import { ToolCategory } from '../gameplay/MiningTypes';
 import { BlockId } from './BlockId';
 import { TileIndex } from './TileIndex';
 
-export type BlockRenderShape = 'cube' | 'torch' | 'cross';
+export type BlockRenderShape = 'cube' | 'torch' | 'cross' | 'bed';
 export type BlockFaces = [TileIndex, TileIndex, TileIndex, TileIndex, TileIndex, TileIndex];
 
 export interface BlockDefinition {

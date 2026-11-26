@@ -243,6 +243,16 @@ export class ItemSpriteGenerator {
         }
         px(6, 5, [112, 210, 104, 255]);
         break;
+      case ItemId.WovenFiber:
+        for (let strand = 0; strand < 5; strand++) {
+          for (let i = 0; i < 9; i++) {
+            const x = 3 + i;
+            const y = 4 + strand * 2 + (i % 2);
+            px(x, y, strand % 2 === 0 ? [184, 154, 96, 255] : [128, 106, 66, 255]);
+            px(x, y + 1, [92, 78, 52, 255]);
+          }
+        }
+        break;
       case ItemId.AmethystShard:
         for (let y = 2; y <= 13; y++) {
           for (let x = 4; x <= 11; x++) {
