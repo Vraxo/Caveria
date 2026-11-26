@@ -1,5 +1,6 @@
 import type { BedSnapshot } from '../gameplay/BedManager';
 import type { FarmPlotSnapshot } from '../gameplay/FarmingManager';
+import type { StatusEffectId, StatusEffectSnapshot } from '../gameplay/StatusEffectManager';
 import { CHEST_SLOT_COUNT, type ChestStateSnapshot } from '../gameplay/ChestManager';
 import type { FurnaceStateSnapshot } from '../gameplay/FurnaceManager';
 import { ArmorSlot, ItemStack, ITEMS } from '../items/Item';
@@ -53,6 +54,7 @@ export interface CaveriaSaveData {
   };
   muted: boolean;
   temperature: number;
+  statusEffects: StatusEffectSnapshot[];
   furnaces: FurnaceStateSnapshot[];
   chests: ChestStateSnapshot[];
   farms: FarmPlotSnapshot[];
@@ -292,6 +294,18 @@ export class WorldPersistence {
           ]
         : null;
 
+    const validEffects = new Set<StatusEffectId>([
+      'well-fed', 'regeneration', 'poisoned', 'warmth', 'chilled', 'antidote',
+    ]);
+    const statusEffects: StatusEffectSnapshot[] = [];
+    if (Array.isArray(raw.statusEffects)) {
+      for (const effect of raw.statusEffects.slice(0, 12)) {
+        if (!effect || typeof effect !== 'object' || !validEffects.has(effect.id as StatusEffectId)) continue;
+        const remaining = Math.max(0, Math.min(600, finite(effect.remaining, 0)));
+        if (remaining > 0) statusEffects.push({ id: effect.id as StatusEffectId, remaining });
+      }
+    }
+
     const worldEdits: SerializedVoxelEdit[] = [];
     if (Array.isArray(raw.worldEdits)) {
       for (const edit of raw.worldEdits) {
@@ -344,6 +358,7 @@ export class WorldPersistence {
       },
       muted: Boolean(raw.muted),
       temperature: Math.max(0, Math.min(100, finite(raw.temperature, 50))),
+      statusEffects,
       furnaces,
       chests,
       farms,

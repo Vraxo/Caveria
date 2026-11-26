@@ -1,6 +1,6 @@
 import { ArmorManager } from './ArmorManager';
 
-export type DamageCause = 'mob' | 'fall' | 'drowning' | 'starvation' | 'temperature';
+export type DamageCause = 'mob' | 'fall' | 'drowning' | 'starvation' | 'temperature' | 'poison' | 'environment';
 
 const MAX_HEALTH = 20;
 const MAX_HUNGER = 20;
@@ -144,6 +144,23 @@ export class PlayerVitals {
     return true;
   }
 
+  public heal(amount: number): boolean {
+    if (this.dead || amount <= 0 || this.health >= MAX_HEALTH) return false;
+    this.health = Math.min(MAX_HEALTH, this.health + Math.floor(amount));
+    this.render();
+    return true;
+  }
+
+  public damageNonLethal(amount: number, _cause: DamageCause): boolean {
+    if (this.dead || this.invulnerable || this.invulnerabilityTimer > 0 || amount <= 0 || this.health <= 1) return false;
+    this.health = Math.max(1, this.health - amount);
+    this.invulnerabilityTimer = 0.45;
+    this.regenerationTimer = 4;
+    this.flashTimer = 0.12;
+    this.render();
+    return true;
+  }
+
   public damage(amount: number, cause: DamageCause): boolean {
     if (this.dead || this.invulnerable || this.invulnerabilityTimer > 0 || amount <= 0) return false;
     const appliedDamage = this.armor?.mitigate(amount, cause) ?? amount;
@@ -173,7 +190,11 @@ export class PlayerVitals {
             ? 'The caves offered no meal.'
             : cause === 'temperature'
               ? 'The elements overwhelmed you.'
-              : 'A Cave Crawler claimed another explorer.';
+              : cause === 'poison'
+                ? 'Poison overcame you.'
+                : cause === 'environment'
+                  ? 'The wilderness proved unforgiving.'
+                  : 'A Cave Crawler claimed another explorer.';
     this.deathEl.classList.remove('hidden');
     this.onDeath();
   }

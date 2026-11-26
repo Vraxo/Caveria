@@ -70,6 +70,11 @@ export class UiSoundEffects {
   public playArrowHit(): void {
     this.synth.noiseBurst({ duration: 0.09, filterType: 'bandpass', freq: 850, q: 1.1, gain: 0.1 });
   }
+  public playMedicineUse(): void {
+    this.synth.tone({ type: 'sine', freq: 520, duration: 0.08, gain: 0.05 });
+    this.synth.tone({ type: 'sine', freq: 780, duration: 0.12, gain: 0.045, delay: 0.07 });
+    this.synth.tone({ type: 'sine', freq: 1040, duration: 0.15, gain: 0.035, delay: 0.14 });
+  }
   public playTemperatureWarning(cold: boolean): void {
     if (cold) {
       this.synth.noiseBurst({ duration: 0.22, filterType: 'highpass', freq: 1800, q: 1.2, gain: 0.035 });

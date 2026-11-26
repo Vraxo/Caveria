@@ -204,6 +204,19 @@
       #temperature-hud.hidden { display: none; }
       #temperature-hud.cold { color: #93c5fd; }
       #temperature-hud.hot { color: #fb923c; }
+      #status-effects { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; max-width: 520px; }
+      #status-effects.hidden { display: none; }
+      .status-effect {
+        padding: 3px 7px;
+        border: 1px solid currentColor;
+        border-radius: 3px;
+        background: rgba(8, 12, 22, 0.76);
+        font-size: 10px;
+        font-weight: 800;
+        text-shadow: 1px 1px #000;
+      }
+      .status-effect.beneficial { color: #86efac; }
+      .status-effect.harmful { color: #fca5a5; }
       #frost-vignette, #heat-vignette {
         position: fixed;
         inset: 0;
@@ -1014,6 +1027,7 @@
       <div id="hunger-pips" aria-label="Player hunger"></div>
       <div id="air-meter" class="hidden" aria-label="Remaining air"></div>
       <div id="temperature-hud" class="hidden" aria-label="Body temperature"></div>
+      <div id="status-effects" class="hidden" aria-label="Active status effects"></div>
     </div>
     <div id="damage-flash"></div>
     <div id="sleep-fade"></div>

@@ -17,7 +17,7 @@ const GOLD_SET: Record<ArmorSlot, ItemId> = {
   boots: ItemId.GoldBoots,
 };
 
-type ArmorDamageCause = 'mob' | 'fall' | 'drowning' | 'starvation' | 'temperature';
+type ArmorDamageCause = 'mob' | 'fall' | 'drowning' | 'starvation' | 'temperature' | 'poison' | 'environment';
 
 /** Owns equipped armor, mitigation, durability, full-set bonuses, and armor HUD state. */
 export class ArmorManager {
