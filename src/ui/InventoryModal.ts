@@ -65,7 +65,7 @@ export class InventoryModal {
       gridSize === 3 ? 'Crafting Table (3×3)' : 'Hand Crafting (2×2)';
     this.recipeHintEl.textContent =
       gridSize === 3
-        ? 'Recipes: 8 Planks around an empty center → Chest · 3 Woven Fiber over 3 Planks → Bed · Gold Ingots or Chitin in classic equipment shapes → Gear'
+        ? 'Recipes: Sticks + Woven Fiber → Bow · Amethyst + Stick + Fiber → 4 Arrows · 8 Planks around an empty center → Chest · Fiber over Planks → Bed'
         : 'Recipes: 4 Cave Vines → 4 Woven Fiber · 1 Log → 4 Planks · 4 Planks → Crafting Table (place & Right-Click for 3×3 equipment!)';
 
     this.renderAll();

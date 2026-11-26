@@ -81,6 +81,8 @@ export enum ItemId {
   GoldLeggings = 162,
   GoldBoots = 163,
   WovenFiber = 164,
+  Bow = 165,
+  Arrow = 166,
 }
 
 export type ArmorSlot = 'helmet' | 'chestplate' | 'leggings' | 'boots';
@@ -258,6 +260,25 @@ export const ITEMS: Record<number, ItemDefinition> = {
   [ItemId.WovenFiber]: {
     id: ItemId.WovenFiber,
     name: 'Woven Fiber',
+    maxStack: 64,
+    placeBlockId: null,
+    toolCategory: 'none',
+    toolTier: 0,
+    miningSpeed: 1,
+  },
+  [ItemId.Bow]: {
+    id: ItemId.Bow,
+    name: 'Bow',
+    maxStack: 1,
+    placeBlockId: null,
+    toolCategory: 'none',
+    toolTier: 0,
+    miningSpeed: 1,
+    maxDurability: 256,
+  },
+  [ItemId.Arrow]: {
+    id: ItemId.Arrow,
+    name: 'Amethyst Arrow',
     maxStack: 64,
     placeBlockId: null,
     toolCategory: 'none',

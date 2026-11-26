@@ -82,6 +82,38 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
     outputId: ItemId.Chest,
     outputCount: 1,
   },
+  {
+    name: 'Bow',
+    pattern: [
+      [_, S, F],
+      [S, _, F],
+      [_, S, F],
+    ],
+    outputId: ItemId.Bow,
+    outputCount: 1,
+  },
+  {
+    name: 'Bow (Mirrored)',
+    pattern: [
+      [F, S, _],
+      [F, _, S],
+      [F, S, _],
+    ],
+    outputId: ItemId.Bow,
+    outputCount: 1,
+  },
+  {
+    name: 'Amethyst Arrows',
+    pattern: [[A], [S], [F]],
+    outputId: ItemId.Arrow,
+    outputCount: 4,
+  },
+  {
+    name: 'Repair Bow',
+    pattern: [[ItemId.Bow], [F]],
+    outputId: ItemId.Bow,
+    outputCount: 1,
+  },
   // 3x3: Cobblestone ring -> Furnace
   {
     name: 'Furnace',

@@ -22,6 +22,7 @@ export class HeldItemView {
   private placeProgress = 0;
   private placing = false;
   private crouchDrop = 0;
+  private bowDraw = 0;
 
   constructor(camera: THREE.PerspectiveCamera, atlas: TextureAtlas) {
     this.atlas = atlas;
@@ -45,6 +46,10 @@ export class HeldItemView {
   public triggerPlace(): void {
     this.placing = true;
     this.placeProgress = 0;
+  }
+
+  public setBowDraw(ratio: number): void {
+    this.bowDraw = Math.max(0, Math.min(1, ratio));
   }
 
   public setEquipped(stack: ItemStack | null): void {
@@ -174,6 +179,18 @@ export class HeldItemView {
     this.rightHand.visible = this.currentItemId === null || this.visualObj !== null;
     this.rightHand.position.set(0.03, -0.12, 0.085);
     this.itemPivot.position.set(0, 0, 0);
+
+    if (this.currentItemId === ItemId.Bow && this.bowDraw > 0) {
+      const draw = this.bowDraw;
+      this.root.position.x -= 0.18 * draw;
+      this.root.position.y += 0.08 * draw;
+      this.root.rotation.y -= 0.48 * draw;
+      this.itemPivot.rotation.z = -0.22 * draw;
+      this.leftHand.position.set(-0.42 + draw * 0.28, -0.03, -0.08 - draw * 0.18);
+      this.leftHand.rotation.x = -0.9;
+    } else {
+      this.itemPivot.rotation.z = 0;
+    }
   }
 
   private buildHands(): void {

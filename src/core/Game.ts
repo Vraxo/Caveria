@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
+import { ArrowProjectileManager } from '../gameplay/ArrowProjectileManager';
 import { BedManager } from '../gameplay/BedManager';
 import { BlockInteractionController } from '../gameplay/BlockInteractionController';
 import { ChestManager } from '../gameplay/ChestManager';
@@ -48,6 +49,7 @@ export class Game {
   private readonly particles: BreakParticles;
   private readonly drops: DroppedItemManager;
   private readonly mobs: MobManager;
+  private readonly arrows: ArrowProjectileManager;
   private readonly beds: BedManager;
   private readonly chests: ChestManager;
   private readonly furnaces: FurnaceManager;
@@ -193,6 +195,13 @@ export class Game {
       this.particles,
       this.audio
     );
+    this.arrows = new ArrowProjectileManager(
+      this.scene,
+      this.world,
+      this.mobs,
+      this.drops,
+      this.audio
+    );
     this.beds = new BedManager(
       this.world,
       this.player,
@@ -226,6 +235,7 @@ export class Game {
       audio: this.audio,
       mobs: this.mobs,
       vitals: this.vitals,
+      arrows: this.arrows,
       onOpenWorkbench: () => this.openInventoryScreen(3),
       onOpenFurnace: (x, y, z) => this.openFurnaceScreen(x, y, z),
       onFurnaceBroken: (x, y, z) => this.furnaces.breakAt(x, y, z),
@@ -470,6 +480,7 @@ export class Game {
       }
       this.vitals.update(dt, this.player.isHeadUnderwater(this.world), this.creativeMode);
       this.mobs.update(dt);
+      this.arrows.update(dt);
 
       if (this.vitals.dead) {
         this.interactions.clearTarget();

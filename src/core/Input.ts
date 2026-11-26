@@ -3,6 +3,7 @@ export class Input {
   private readonly keysPressed = new Set<string>();
   private readonly mouseDown = new Set<number>();
   private readonly mousePressed = new Set<number>();
+  private readonly mouseReleased = new Set<number>();
 
   public mouseDeltaX = 0;
   public mouseDeltaY = 0;
@@ -35,6 +36,7 @@ export class Input {
       this.keysPressed.clear();
       this.mouseDown.clear();
       this.mousePressed.clear();
+      this.mouseReleased.clear();
     });
 
     window.addEventListener('mousemove', (e) => {
@@ -50,7 +52,7 @@ export class Input {
     });
 
     window.addEventListener('mouseup', (e) => {
-      this.mouseDown.delete(e.button);
+      if (this.mouseDown.delete(e.button)) this.mouseReleased.add(e.button);
     });
 
     window.addEventListener('contextmenu', (e) => {
@@ -72,6 +74,7 @@ export class Input {
       if (!this.isPointerLocked) {
         this.keysDown.clear();
         this.mouseDown.clear();
+        this.mouseReleased.clear();
       }
       this.onLockChangeCallback?.(this.isPointerLocked);
     });
@@ -115,11 +118,20 @@ export class Input {
     return false;
   }
 
+  public consumeMouseRelease(button: number): boolean {
+    if (this.mouseReleased.has(button)) {
+      this.mouseReleased.delete(button);
+      return true;
+    }
+    return false;
+  }
+
   public endFrame(): void {
     this.mouseDeltaX = 0;
     this.mouseDeltaY = 0;
     this.wheelDelta = 0;
     this.keysPressed.clear();
     this.mousePressed.clear();
+    this.mouseReleased.clear();
   }
 }
