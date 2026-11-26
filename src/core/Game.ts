@@ -5,6 +5,7 @@ import { ArrowProjectileManager } from '../gameplay/ArrowProjectileManager';
 import { BedManager } from '../gameplay/BedManager';
 import { BlockInteractionController } from '../gameplay/BlockInteractionController';
 import { ChestManager } from '../gameplay/ChestManager';
+import { createSurvivalConsumableRegistry } from '../gameplay/ConsumableActionRegistry';
 import { FarmingManager } from '../gameplay/FarmingManager';
 import { FurnaceManager } from '../gameplay/FurnaceManager';
 import { FishingManager } from '../gameplay/FishingManager';
@@ -12,6 +13,7 @@ import { MovementAudioController } from '../gameplay/MovementAudioController';
 import { StatusEffectManager } from '../gameplay/StatusEffectManager';
 import { TemperatureSystem } from '../gameplay/TemperatureSystem';
 import { WaterSurvivalSystem } from '../gameplay/WaterSurvivalSystem';
+import { createDefaultUseRegistry } from '../gameplay/interactions/DefaultUseHandlers';
 import { MobManager } from '../entities/MobManager';
 import { Inventory } from '../items/Inventory';
 import { ItemId, createStack } from '../items/Item';
@@ -272,6 +274,24 @@ export class Game {
       this.hotbar.selectIndex(savedGame.selectedHotbar);
       this.creativeMode = savedGame.creativeMode;
     }
+    const consumables = createSurvivalConsumableRegistry(
+      this.statusEffects,
+      this.vitals,
+      this.audio
+    );
+    const useRegistry = createDefaultUseRegistry({
+      player: this.player,
+      vitals: this.vitals,
+      audio: this.audio,
+      fishing: this.fishing,
+      waterSurvival: this.waterSurvival,
+      consumables,
+      onUseFarm: (x, y, z, held) => this.farms.use(x, y, z, held),
+      onOpenWorkbench: () => this.openInventoryScreen(3),
+      onOpenFurnace: (x, y, z) => this.openFurnaceScreen(x, y, z),
+      onOpenChest: (x, y, z) => this.openChestScreen(x, y, z),
+      onUseBed: (x, y, z) => this.beds.use(x, y, z),
+    });
     this.interactions = new BlockInteractionController({
       scene: this.scene,
       world: this.world,
@@ -286,20 +306,13 @@ export class Game {
       mobs: this.mobs,
       vitals: this.vitals,
       arrows: this.arrows,
-      fishing: this.fishing,
-      waterSurvival: this.waterSurvival,
-      onOpenWorkbench: () => this.openInventoryScreen(3),
-      onOpenFurnace: (x, y, z) => this.openFurnaceScreen(x, y, z),
+      useRegistry,
+      onWaterTarget: (hit) => this.waterSurvival.updateTarget(hit),
       onFurnaceBroken: (x, y, z) => this.furnaces.breakAt(x, y, z),
-      onOpenChest: (x, y, z) => this.openChestScreen(x, y, z),
       onChestBroken: (x, y, z) => this.breakChestAt(x, y, z),
-      onUseBed: (x, y, z) => this.beds.use(x, y, z),
       onPlaceBed: (x, y, z) => this.beds.place(x, y, z),
       onBedBroken: (x, y, z, drop) => this.beds.breakAt(x, y, z, drop),
-      onUseFarm: (x, y, z, held) => this.farms.use(x, y, z, held),
       onFarmBroken: (x, y, z, drop) => this.farms.breakAt(x, y, z, drop),
-      onConsumeSpecial: (itemId) => this.statusEffects.consume(itemId),
-      onFoodConsumed: (itemId) => this.statusEffects.onFoodConsumed(itemId),
       onHazardBlockBroken: (blockId) => {
         if (blockId === BlockId.CaveShroom && Math.random() < 0.24) this.statusEffects.poison(14);
       },

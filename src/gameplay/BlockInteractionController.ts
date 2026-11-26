@@ -1,13 +1,14 @@
 import type * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { ArrowProjectileManager } from './ArrowProjectileManager';
-import { FarmUseResult } from './FarmingManager';
-import { FishingManager } from './FishingManager';
-import { WaterSurvivalSystem } from './WaterSurvivalSystem';
+import {
+  UseInteractionRegistry,
+  UseInteractionResult,
+} from './interactions/UseInteractionRegistry';
 import { Input } from '../core/Input';
 import { MobHit, MobManager } from '../entities/MobManager';
 import { Inventory } from '../items/Inventory';
-import { ITEMS, ItemId, ItemStack, createStack, getAttackDamage, getBlockDrop, getFoodStats, getMiningStats } from '../items/Item';
+import { ITEMS, ItemId, ItemStack, createStack, getAttackDamage, getBlockDrop, getMiningStats } from '../items/Item';
 import { Player } from '../player/Player';
 import { PlayerVitals } from '../player/PlayerVitals';
 import { VoxelHit, raycastVoxel, raycastWater } from '../player/Raycaster';
@@ -36,20 +37,13 @@ interface BlockInteractionDependencies {
   mobs: MobManager;
   vitals: PlayerVitals;
   arrows: ArrowProjectileManager;
-  fishing: FishingManager;
-  waterSurvival: WaterSurvivalSystem;
-  onOpenWorkbench: () => void;
-  onOpenFurnace: (x: number, y: number, z: number) => void;
+  useRegistry: UseInteractionRegistry;
+  onWaterTarget: (hit: VoxelHit | null) => void;
   onFurnaceBroken: (x: number, y: number, z: number) => void;
-  onOpenChest: (x: number, y: number, z: number) => void;
   onChestBroken: (x: number, y: number, z: number) => void;
-  onUseBed: (x: number, y: number, z: number) => void;
   onPlaceBed: (x: number, y: number, z: number) => boolean;
   onBedBroken: (x: number, y: number, z: number, drop: boolean) => void;
-  onUseFarm: (x: number, y: number, z: number, held: ItemId | null) => FarmUseResult;
   onFarmBroken: (x: number, y: number, z: number, drop: boolean) => boolean;
-  onConsumeSpecial: (itemId: ItemId) => boolean;
-  onFoodConsumed: (itemId: ItemId) => void;
   onHazardBlockBroken: (blockId: BlockId) => void;
   getMiningSpeedMultiplier: () => number;
 }
@@ -71,20 +65,13 @@ export class BlockInteractionController {
   private readonly mobs: MobManager;
   private readonly vitals: PlayerVitals;
   private readonly arrows: ArrowProjectileManager;
-  private readonly fishing: FishingManager;
-  private readonly waterSurvival: WaterSurvivalSystem;
-  private readonly onOpenWorkbench: () => void;
-  private readonly onOpenFurnace: (x: number, y: number, z: number) => void;
+  private readonly useRegistry: UseInteractionRegistry;
+  private readonly onWaterTarget: (hit: VoxelHit | null) => void;
   private readonly onFurnaceBroken: (x: number, y: number, z: number) => void;
-  private readonly onOpenChest: (x: number, y: number, z: number) => void;
   private readonly onChestBroken: (x: number, y: number, z: number) => void;
-  private readonly onUseBed: (x: number, y: number, z: number) => void;
   private readonly onPlaceBed: (x: number, y: number, z: number) => boolean;
   private readonly onBedBroken: (x: number, y: number, z: number, drop: boolean) => void;
-  private readonly onUseFarm: (x: number, y: number, z: number, held: ItemId | null) => FarmUseResult;
   private readonly onFarmBroken: (x: number, y: number, z: number, drop: boolean) => boolean;
-  private readonly onConsumeSpecial: (itemId: ItemId) => boolean;
-  private readonly onFoodConsumed: (itemId: ItemId) => void;
   private readonly onHazardBlockBroken: (blockId: BlockId) => void;
   private readonly getMiningSpeedMultiplier: () => number;
   private readonly highlight: BlockHighlight;
@@ -116,20 +103,13 @@ export class BlockInteractionController {
     this.mobs = deps.mobs;
     this.vitals = deps.vitals;
     this.arrows = deps.arrows;
-    this.fishing = deps.fishing;
-    this.waterSurvival = deps.waterSurvival;
-    this.onOpenWorkbench = deps.onOpenWorkbench;
-    this.onOpenFurnace = deps.onOpenFurnace;
+    this.useRegistry = deps.useRegistry;
+    this.onWaterTarget = deps.onWaterTarget;
     this.onFurnaceBroken = deps.onFurnaceBroken;
-    this.onOpenChest = deps.onOpenChest;
     this.onChestBroken = deps.onChestBroken;
-    this.onUseBed = deps.onUseBed;
     this.onPlaceBed = deps.onPlaceBed;
     this.onBedBroken = deps.onBedBroken;
-    this.onUseFarm = deps.onUseFarm;
     this.onFarmBroken = deps.onFarmBroken;
-    this.onConsumeSpecial = deps.onConsumeSpecial;
-    this.onFoodConsumed = deps.onFoodConsumed;
     this.onHazardBlockBroken = deps.onHazardBlockBroken;
     this.getMiningSpeedMultiplier = deps.getMiningSpeedMultiplier;
     this.highlight = new BlockHighlight(deps.scene);
@@ -152,7 +132,7 @@ export class BlockInteractionController {
     const direction = this.player.getForwardDirection();
     this.hit = raycastVoxel(this.world, eye, direction, 6.0);
     this.waterHit = raycastWater(this.world, eye, direction, 6.0);
-    this.waterSurvival.updateTarget(this.waterHit);
+    this.onWaterTarget(this.waterHit);
     this.mobTarget = this.mobs.raycast(eye, direction, 4.5, this.hit?.distance ?? 6.0);
     this.highlight.update(this.mobTarget ? null : this.hit);
     this.mobTargetEl.classList.toggle('hidden', !this.mobTarget);
@@ -202,7 +182,7 @@ export class BlockInteractionController {
     this.cancelBowDraw();
     this.hit = null;
     this.waterHit = null;
-    this.waterSurvival.updateTarget(null);
+    this.onWaterTarget(null);
     this.mobTarget = null;
     this.highlight.update(null);
     this.mobTargetEl.classList.add('hidden');
@@ -344,129 +324,19 @@ export class BlockInteractionController {
     const sneaking =
       this.input.isKeyDown('ShiftLeft') || this.input.isKeyDown('ShiftRight');
     const held = this.hotbar.selectedStack;
-    if (held?.id === ItemId.FishingRod) {
-      const fishingResult = this.fishing.use(
-        this.player.getEyePosition(),
-        this.player.getForwardDirection()
-      );
-      if (fishingResult.catchStack && fishingResult.catchPosition) {
-        const travelTime = 0.7;
-        const dropDrag = -Math.log(0.18);
-        const dragTravel = (1 - Math.exp(-dropDrag * travelTime)) / dropDrag;
-        const velocity = this.player.getEyePosition()
-          .sub(fishingResult.catchPosition)
-          .multiplyScalar(1 / dragTravel);
-        velocity.y += 10 * travelTime;
-        this.drops.spawnDrop(
-          fishingResult.catchPosition.x,
-          fishingResult.catchPosition.y + 0.25,
-          fishingResult.catchPosition.z,
-          fishingResult.catchStack,
-          velocity,
-          0.3
-        );
-      }
-      if (fishingResult.rodWear && !creativeMode) {
-        if (this.inventory.damageTool(this.hotbar.selectedIndex)) this.audio.playToolBreak();
-        this.vitals.addExhaustion(0.025);
-      }
-      this.heldItemView.triggerPlace();
+    const resolved = this.useRegistry.resolve({
+      creativeMode,
+      allowWorldUse,
+      sneaking,
+      held,
+      hit: this.hit,
+      waterHit: this.waterHit,
+      foodCooldown: this.foodCooldown,
+    });
+    if (resolved) {
+      this.applyUseResult(resolved);
       return;
     }
-    if (allowWorldUse && sneaking && this.waterHit) {
-      if (!held) {
-        this.waterSurvival.drinkSource(this.waterHit.blockX, this.waterHit.blockY, this.waterHit.blockZ);
-        this.heldItemView.triggerPlace();
-        return;
-      }
-      if (held.id === ItemId.GlassBottle) {
-        const filled = this.waterSurvival.fillBottle(
-          this.waterHit.blockX,
-          this.waterHit.blockY,
-          this.waterHit.blockZ
-        );
-        this.fillBottle(filled, creativeMode);
-        return;
-      }
-    }
-    if (allowWorldUse && sneaking && held?.id === ItemId.GlassBottle && !this.waterHit) {
-      const rainBottle = this.waterSurvival.collectRain();
-      if (rainBottle !== null) {
-        this.fillBottle(rainBottle, creativeMode);
-        return;
-      }
-    }
-    if (allowWorldUse && this.hit && !sneaking) {
-      const farmResult = this.onUseFarm(
-        this.hit.blockX,
-        this.hit.blockY,
-        this.hit.blockZ,
-        held?.id ?? null
-      );
-      if (farmResult !== 'none') {
-        if (!creativeMode && farmResult === 'planted') this.inventory.consumeOne(this.hotbar.selectedIndex);
-        if (!creativeMode && farmResult === 'tilled' && this.inventory.damageTool(this.hotbar.selectedIndex)) {
-          this.audio.playToolBreak();
-        }
-        this.audio.playFarmAction(farmResult);
-        this.heldItemView.triggerPlace();
-        this.updateTarget();
-        return;
-      }
-      if (this.hit.blockId === BlockId.CraftingTable) {
-        this.onOpenWorkbench();
-        return;
-      }
-      if (
-        this.hit.blockId === BlockId.Furnace || this.hit.blockId === BlockId.LitFurnace ||
-        this.hit.blockId === BlockId.Campfire || this.hit.blockId === BlockId.LitCampfire
-      ) {
-        this.onOpenFurnace(this.hit.blockX, this.hit.blockY, this.hit.blockZ);
-        return;
-      }
-      if (this.hit.blockId === BlockId.BedFoot || this.hit.blockId === BlockId.BedHead) {
-        this.onUseBed(this.hit.blockX, this.hit.blockY, this.hit.blockZ);
-        return;
-      }
-      if (this.hit.blockId === BlockId.Chest) {
-        this.onOpenChest(this.hit.blockX, this.hit.blockY, this.hit.blockZ);
-        return;
-      }
-    }
-
-    if (held && this.onConsumeSpecial(held.id)) {
-      const returnsBottle = held.id === ItemId.CleanWaterBottle
-        || held.id === ItemId.DirtyWaterBottle
-        || held.id === ItemId.PurifiedCrystalTonic
-        || held.id === ItemId.CrystalFishTonic;
-      if (!creativeMode) {
-        this.inventory.consumeOne(this.hotbar.selectedIndex);
-        if (returnsBottle) {
-          const emptyBottle = createStack(ItemId.GlassBottle);
-          this.inventory.addItem(emptyBottle);
-          if (emptyBottle.count > 0) this.tossStackFromPlayer(emptyBottle);
-        }
-      }
-      this.foodCooldown = 0.55;
-      this.heldItemView.triggerPlace();
-      return;
-    }
-
-    const food = getFoodStats(held);
-    if (
-      held &&
-      food &&
-      this.foodCooldown <= 0 &&
-      this.vitals.eat(food.nutrition, food.saturation)
-    ) {
-      if (!creativeMode) this.inventory.consumeOne(this.hotbar.selectedIndex);
-      this.foodCooldown = 0.55;
-      this.heldItemView.triggerPlace();
-      this.audio.playEat();
-      this.onFoodConsumed(held.id);
-      return;
-    }
-    if (food && this.foodCooldown > 0) return;
     if (!allowWorldUse || !this.hit || !held) return;
     const placeX = this.hit.blockX + this.hit.normalX;
     const placeY = this.hit.blockY + this.hit.normalY;
@@ -516,12 +386,33 @@ export class BlockInteractionController {
     }
   }
 
-  private fillBottle(filledItem: ItemId, creativeMode: boolean): void {
-    if (!creativeMode) this.inventory.consumeOne(this.hotbar.selectedIndex);
-    const filled = createStack(filledItem);
-    this.inventory.addItem(filled);
-    if (filled.count > 0) this.tossStackFromPlayer(filled);
-    this.heldItemView.triggerPlace();
+  private applyUseResult(result: UseInteractionResult): void {
+    if (result.consumeHeld) this.inventory.consumeOne(this.hotbar.selectedIndex);
+    if (result.damageHeld && this.inventory.damageTool(this.hotbar.selectedIndex)) {
+      this.audio.playToolBreak();
+    }
+    if (result.exhaustion) this.vitals.addExhaustion(result.exhaustion);
+    if (result.cooldown !== undefined) this.foodCooldown = result.cooldown;
+    if (result.returnedItem !== undefined) this.addInventoryOrDrop(createStack(result.returnedItem));
+    if (result.inventoryItem) this.addInventoryOrDrop(result.inventoryItem);
+    if (result.worldDrop) {
+      this.drops.spawnDrop(
+        result.worldDrop.position.x,
+        result.worldDrop.position.y,
+        result.worldDrop.position.z,
+        result.worldDrop.stack,
+        result.worldDrop.velocity,
+        result.worldDrop.pickupDelay
+      );
+    }
+    if (result.animation === 'place') this.heldItemView.triggerPlace();
+    else if (result.animation === 'swing') this.heldItemView.triggerSwing();
+    if (result.refreshTarget) this.updateTarget();
+  }
+
+  private addInventoryOrDrop(stack: ItemStack): void {
+    this.inventory.addItem(stack);
+    if (stack.count > 0) this.tossStackFromPlayer(stack);
   }
 
   private placeBlock(
