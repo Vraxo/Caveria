@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { BlockId } from '../content/BlockId';
-import { isBlockSolid } from '../content/BlockQueries';
 import { rollMobLoot } from '../content/loot/MobLoot';
 import { CAVE_CRAWLER_ID, MOB_DEFINITIONS } from '../content/mobs/MobDefinitions';
 import { Player } from '../player/Player';
@@ -16,6 +15,12 @@ import {
   disposeCaveCrawlerVisual,
   updateCaveCrawlerVisual,
 } from './CaveCrawlerVisual';
+import {
+  findGroundMobSpawn,
+  MovementIntent,
+  moveGroundMob,
+  raycastMobs,
+} from './MobMechanics';
 import { MobHit, MobSpeciesController, MobTag } from './MobTypes';
 
 export type CaveCrawlerHit = MobHit;
@@ -54,12 +59,6 @@ interface PlayerRelation {
   verticalDistance: number;
 }
 
-interface MovementIntent {
-  directionX: number;
-  directionZ: number;
-  speed: number;
-}
-
 const DEFINITION = MOB_DEFINITIONS[CAVE_CRAWLER_ID];
 
 const INITIAL_SPAWN_DELAY = 4;
@@ -77,8 +76,6 @@ const CLOSE_PURSUIT_SPEED = 1.25;
 const PURSUIT_SPEED = 2.05;
 const WANDER_SPEED = 0.62;
 const MOVEMENT_RESPONSE = 5;
-const GRAVITY = 22;
-const TERMINAL_VELOCITY = -18;
 const LINE_OF_SIGHT_TOLERANCE = 0.35;
 const REQUIRED_DEPTH_BELOW_SURFACE = 7;
 const MAXIMUM_SPAWN_SKY_LIGHT = 3;
@@ -89,8 +86,7 @@ const SPAWN_SCAN_ABOVE_PLAYER = 5;
 const SPAWN_SCAN_BELOW_PLAYER = 7;
 const HURT_INVULNERABILITY_SECONDS = 0.24;
 
-const BODY_RADIUS = DEFINITION.radius;
-const BODY_HEIGHT = DEFINITION.height;
+const BODY_SHAPE = { radius: DEFINITION.radius, height: DEFINITION.height };
 
 /**
  * Owns the complete Cave Crawler lifecycle.
@@ -148,19 +144,16 @@ export class CaveCrawlerManager implements MobSpeciesController {
     maxDistance: number,
     blockDistance: number
   ): CaveCrawlerHit | null {
-    const ray = new THREE.Ray(origin, direction.clone().normalize());
-    const hitPoint = new THREE.Vector3();
-    let closest: CaveCrawlerHit | null = null;
-
-    for (const crawler of this.crawlers) {
-      if (!ray.intersectBox(this.hitBoxFor(crawler), hitPoint)) continue;
-      const distance = origin.distanceTo(hitPoint);
-      if (distance > maxDistance || distance >= blockDistance) continue;
-      if (!closest || distance < closest.distance) {
-        closest = this.describeHit(crawler, distance);
-      }
-    }
-    return closest;
+    return raycastMobs(this.crawlers, {
+      species: this.species,
+      name: DEFINITION.name,
+      maxHealth: DEFINITION.maxHealth,
+      shape: BODY_SHAPE,
+      origin,
+      direction,
+      maxDistance,
+      blockDistance,
+    });
   }
 
   public damage(id: number, amount: number, direction: THREE.Vector3): boolean {
@@ -323,53 +316,21 @@ export class CaveCrawlerManager implements MobSpeciesController {
     intent: MovementIntent,
     dt: number
   ): void {
-    const blend = Math.min(1, dt * MOVEMENT_RESPONSE);
-    crawler.velocity.x += (intent.directionX * intent.speed - crawler.velocity.x) * blend;
-    crawler.velocity.z += (intent.directionZ * intent.speed - crawler.velocity.z) * blend;
-    crawler.velocity.y = Math.max(
-      TERMINAL_VELOCITY,
-      crawler.velocity.y - GRAVITY * dt
+    const result = moveGroundMob(
+      crawler,
+      intent,
+      BODY_SHAPE,
+      this.world,
+      dt,
+      { response: MOVEMENT_RESPONSE }
     );
-    this.moveWithCollision(crawler, dt);
-  }
+    if (!result.collidedHorizontally) return;
 
-  private moveWithCollision(crawler: CaveCrawlerState, dt: number): void {
-    const nextY = crawler.position.y + crawler.velocity.y * dt;
-    if (
-      crawler.velocity.y < 0
-      && isBlockSolid(this.world.getBlock(crawler.position.x, nextY - 0.02, crawler.position.z))
-    ) {
-      crawler.position.y = Math.floor(nextY - 0.02) + 1;
-      crawler.velocity.y = 0;
-      crawler.onGround = true;
-    } else {
-      crawler.position.y = nextY;
-      crawler.onGround = false;
-    }
-
-    const nextX = crawler.position.x + crawler.velocity.x * dt;
-    const nextZ = crawler.position.z + crawler.velocity.z * dt;
-    if (this.canOccupy(nextX, crawler.position.y, nextZ, crawler.onGround)) {
-      crawler.position.x = nextX;
-      crawler.position.z = nextZ;
-      return;
-    }
-
+    // A blocked crawler rebounds and immediately chooses a new wandering direction.
     crawler.velocity.x *= -0.2;
     crawler.velocity.z *= -0.2;
     crawler.facingAngle += Math.PI * (0.6 + Math.random() * 0.8);
     crawler.decisionTimer = 0;
-  }
-
-  private canOccupy(x: number, y: number, z: number, requireSupport: boolean): boolean {
-    for (const offsetX of [-BODY_RADIUS, BODY_RADIUS]) {
-      for (const offsetZ of [-BODY_RADIUS, BODY_RADIUS]) {
-        const lowerBlock = this.world.getBlock(x + offsetX, y + 0.08, z + offsetZ);
-        const upperBlock = this.world.getBlock(x + offsetX, y + BODY_HEIGHT, z + offsetZ);
-        if (isBlockSolid(lowerBlock) || isBlockSolid(upperBlock)) return false;
-      }
-    }
-    return !requireSupport || isBlockSolid(this.world.getBlock(x, y - 0.08, z));
   }
 
   private updateAnimation(crawler: CaveCrawlerState): void {
@@ -401,29 +362,19 @@ export class CaveCrawlerManager implements MobSpeciesController {
   }
 
   private findSpawnPosition(): THREE.Vector3 | null {
-    for (let attempt = 0; attempt < SPAWN_ATTEMPTS; attempt++) {
-      const angle = Math.random() * Math.PI * 2;
-      const radius = SPAWN_MINIMUM_RADIUS + Math.random() * SPAWN_RADIUS_VARIANCE;
-      const x = Math.floor(this.player.position.x + Math.cos(angle) * radius);
-      const z = Math.floor(this.player.position.z + Math.sin(angle) * radius);
-      const topY = Math.floor(this.player.position.y + SPAWN_SCAN_ABOVE_PLAYER);
-      const bottomY = this.player.position.y - SPAWN_SCAN_BELOW_PLAYER;
-
-      for (let y = topY; y >= bottomY; y--) {
-        if (this.isValidSpawnBlock(x, y, z)) {
-          return new THREE.Vector3(x + 0.5, y, z + 0.5);
-        }
-      }
-    }
-    return null;
+    return findGroundMobSpawn(this.world, this.player.position, {
+      attempts: SPAWN_ATTEMPTS,
+      minimumRadius: SPAWN_MINIMUM_RADIUS,
+      radiusVariance: SPAWN_RADIUS_VARIANCE,
+      scanAbove: SPAWN_SCAN_ABOVE_PLAYER,
+      scanBelow: SPAWN_SCAN_BELOW_PLAYER,
+      acceptsCandidate: (x, y, z) => this.hasLowEnoughSkyLight(x, y, z),
+    });
   }
 
-  private isValidSpawnBlock(x: number, y: number, z: number): boolean {
+  private hasLowEnoughSkyLight(x: number, y: number, z: number): boolean {
     const skyLight = (this.world.getPackedLight(x, y, z) >> 4) & 0xf;
-    if (skyLight > MAXIMUM_SPAWN_SKY_LIGHT) return false;
-    return this.world.getBlock(x, y, z) === BlockId.Air
-      && this.world.getBlock(x, y + 1, z) === BlockId.Air
-      && isBlockSolid(this.world.getBlock(x, y - 1, z));
+    return skyLight <= MAXIMUM_SPAWN_SKY_LIGHT;
   }
 
   private spawn(x: number, y: number, z: number): void {
@@ -486,33 +437,6 @@ export class CaveCrawlerManager implements MobSpeciesController {
       );
     }
     this.removeCrawler(index);
-  }
-
-  private hitBoxFor(crawler: CaveCrawlerState): THREE.Box3 {
-    return new THREE.Box3(
-      new THREE.Vector3(
-        crawler.position.x - BODY_RADIUS,
-        crawler.position.y,
-        crawler.position.z - BODY_RADIUS
-      ),
-      new THREE.Vector3(
-        crawler.position.x + BODY_RADIUS,
-        crawler.position.y + BODY_HEIGHT,
-        crawler.position.z + BODY_RADIUS
-      )
-    );
-  }
-
-  private describeHit(crawler: CaveCrawlerState, distance: number): CaveCrawlerHit {
-    return {
-      species: this.species,
-      entityId: crawler.id,
-      id: crawler.id,
-      name: DEFINITION.name,
-      distance,
-      health: crawler.health,
-      maxHealth: DEFINITION.maxHealth,
-    };
   }
 
   private removeCrawler(index: number): void {
