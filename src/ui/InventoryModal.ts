@@ -65,8 +65,8 @@ export class InventoryModal {
       gridSize === 3 ? 'Crafting Table (3×3)' : 'Hand Crafting (2×2)';
     this.recipeHintEl.textContent =
       gridSize === 3
-        ? 'Recipes: Gold Ingots or Chitin in classic equipment shapes → Gear · 8 Cobblestone around an empty center → Furnace · Materials + Sticks → Tools & Swords'
-        : 'Recipes: 1 Log → 4 Planks · 2 Planks (vertical) → 4 Sticks · 4 Planks (2×2) → Crafting Table (place & Right-Click for 3×3 equipment!) · Cook Cave Shrooms in a Furnace';
+        ? 'Recipes: 3 Woven Fiber over 3 Planks → Bed · Gold Ingots or Chitin in classic equipment shapes → Gear · 8 Cobblestone around an empty center → Furnace'
+        : 'Recipes: 4 Cave Vines → 4 Woven Fiber · 1 Log → 4 Planks · 4 Planks → Crafting Table (place & Right-Click for 3×3 equipment!)';
 
     this.renderAll();
   }

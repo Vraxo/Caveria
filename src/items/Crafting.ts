@@ -19,6 +19,8 @@ const M = ItemId.CaveShroom;
 const B = ItemId.CaveBerries;
 const H = ItemId.CaveChitin;
 const G = ItemId.GoldIngot;
+const V = ItemId.CaveVine;
+const F = ItemId.WovenFiber;
 const _ = null;
 
 export const RECIPES: ReadonlyArray<CraftingRecipe> = [
@@ -50,6 +52,24 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
       [P, P],
     ],
     outputId: ItemId.CraftingTable,
+    outputCount: 1,
+  },
+  {
+    name: 'Woven Fiber',
+    pattern: [
+      [V, V],
+      [V, V],
+    ],
+    outputId: ItemId.WovenFiber,
+    outputCount: 4,
+  },
+  {
+    name: 'Bed',
+    pattern: [
+      [F, F, F],
+      [P, P, P],
+    ],
+    outputId: ItemId.Bed,
     outputCount: 1,
   },
   // 3x3: Cobblestone ring -> Furnace

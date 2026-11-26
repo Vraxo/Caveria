@@ -138,4 +138,32 @@ export function paintStructureTextures(drawTile: TileDrawer): void {
     drawTile(TileIndex.FurnaceSide, furnaceSide(false));
     drawTile(TileIndex.LitFurnaceSide, furnaceSide(true));
 
+    drawTile(TileIndex.BedFootTop, (px, rng) => {
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        const seam = x === 0 || x === 15 || y === 0 || y === 15;
+        const n = (rng() - 0.5) * 9;
+        px(x, y, seam
+          ? [106, 32, 40, 255]
+          : [clampByte(190 + n), clampByte(54 + n), clampByte(64 + n), 255]);
+      }
+    });
+    drawTile(TileIndex.BedHeadTop, (px, rng) => {
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        const seam = x === 0 || x === 15 || y === 0 || y === 15;
+        const pillow = y >= 2 && y <= 7 && x >= 2 && x <= 13;
+        const n = (rng() - 0.5) * 8;
+        if (seam) px(x, y, [106, 32, 40, 255]);
+        else if (pillow) px(x, y, [clampByte(226 + n), clampByte(222 + n), clampByte(204 + n), 255]);
+        else px(x, y, [clampByte(190 + n), clampByte(54 + n), clampByte(64 + n), 255]);
+      }
+    });
+    drawTile(TileIndex.BedSide, (px, rng) => {
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        const n = (rng() - 0.5) * 8;
+        if (y < 9) px(x, y, [clampByte(178 + n), clampByte(48 + n), clampByte(58 + n), 255]);
+        else if ((x < 2 || x > 13) && y > 11) px(x, y, [116, 78, 44, 255]);
+        else px(x, y, [clampByte(134 + n), clampByte(94 + n), clampByte(54 + n), 255]);
+      }
+    });
+
 }

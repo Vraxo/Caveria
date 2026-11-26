@@ -87,6 +87,14 @@ export class DayNightCycle {
     this.timeOfDay = ((this.timeOfDay + deltaFraction) % 1 + 1) % 1;
   }
 
+  public get isNight(): boolean {
+    return this.timeOfDay >= 0.52;
+  }
+
+  public skipToMorning(): void {
+    this.timeOfDay = 0.025;
+  }
+
   public getFormattedClock(): string {
     // timeOfDay = 0 -> 06:00, 0.25 -> 12:00, 0.5 -> 18:00, 0.75 -> 00:00
     const totalMinutes = Math.floor(((this.timeOfDay + 0.25) % 1) * 24 * 60);

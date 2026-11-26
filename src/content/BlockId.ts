@@ -31,4 +31,6 @@ export enum BlockId {
   CaveVine = 28,
   Furnace = 29,
   LitFurnace = 30,
+  BedFoot = 31,
+  BedHead = 32,
 }

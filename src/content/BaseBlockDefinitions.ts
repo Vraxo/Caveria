@@ -103,4 +103,22 @@ export const BASE_BLOCKS: BlockCatalog = {
     minToolTier: 1,
     lightEmission: 12,
   }),
+  [BlockId.BedFoot]: defineBlock(BlockId.BedFoot, {
+    name: 'Bed',
+    hardness: 0.35,
+    faces: columnFaces(TileIndex.BedSide, TileIndex.BedFootTop, TileIndex.OakPlanks),
+    preferredTool: 'axe',
+    transparent: true,
+    lightOpacity: 0,
+    shape: 'bed',
+  }),
+  [BlockId.BedHead]: defineBlock(BlockId.BedHead, {
+    name: 'Bed',
+    hardness: 0.35,
+    faces: columnFaces(TileIndex.BedSide, TileIndex.BedHeadTop, TileIndex.OakPlanks),
+    preferredTool: 'axe',
+    transparent: true,
+    lightOpacity: 0,
+    shape: 'bed',
+  }),
 };
