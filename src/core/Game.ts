@@ -7,6 +7,7 @@ import { BlockInteractionController } from '../gameplay/BlockInteractionControll
 import { ChestManager } from '../gameplay/ChestManager';
 import { FarmingManager } from '../gameplay/FarmingManager';
 import { FurnaceManager } from '../gameplay/FurnaceManager';
+import { FishingManager } from '../gameplay/FishingManager';
 import { MovementAudioController } from '../gameplay/MovementAudioController';
 import { StatusEffectManager } from '../gameplay/StatusEffectManager';
 import { TemperatureSystem } from '../gameplay/TemperatureSystem';
@@ -60,6 +61,7 @@ export class Game {
   private readonly drops: DroppedItemManager;
   private readonly mobs: MobManager;
   private readonly arrows: ArrowProjectileManager;
+  private readonly fishing: FishingManager;
   private readonly beds: BedManager;
   private readonly chests: ChestManager;
   private readonly farms: FarmingManager;
@@ -265,6 +267,7 @@ export class Game {
     this.inventory = new Inventory();
     if (savedGame) this.inventory.restore(savedGame.inventory);
     this.hotbar = new Hotbar(this.inventory, this.atlas);
+    this.fishing = new FishingManager(this.scene, this.world, this.player, this.audio);
     if (savedGame) {
       this.hotbar.selectIndex(savedGame.selectedHotbar);
       this.creativeMode = savedGame.creativeMode;
@@ -283,6 +286,7 @@ export class Game {
       mobs: this.mobs,
       vitals: this.vitals,
       arrows: this.arrows,
+      fishing: this.fishing,
       waterSurvival: this.waterSurvival,
       onOpenWorkbench: () => this.openInventoryScreen(3),
       onOpenFurnace: (x, y, z) => this.openFurnaceScreen(x, y, z),
@@ -438,6 +442,13 @@ export class Game {
     this.farms.update(dt);
     this.furnaces.update(dt);
     this.furnaceModal.update(dt);
+    const fishingActive = this.input.isPointerLocked
+      && !this.inventoryModal.isOpen
+      && !this.furnaceModal.isOpen
+      && !this.chestModal.isOpen
+      && this.hotbar.selectedStack?.id === ItemId.FishingRod
+      && !this.vitals.dead;
+    this.fishing.update(dt, fishingActive);
 
     if (this.input.consumeKeyPress('KeyM')) {
       this.overlay.toggleAudio();

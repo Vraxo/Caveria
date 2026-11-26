@@ -285,6 +285,22 @@
         pointer-events: none;
       }
       #survival-message.visible { opacity: 1; transform: translate(-50%, 0); }
+      #fishing-status {
+        position: fixed;
+        left: 50%;
+        top: calc(50% + 68px);
+        z-index: 14;
+        transform: translateX(-50%);
+        padding: 6px 11px;
+        border: 1px solid rgba(125, 211, 252, 0.72);
+        border-radius: 4px;
+        background: rgba(5, 20, 32, 0.86);
+        color: #bae6fd;
+        font: 800 12px ui-monospace, monospace;
+        text-shadow: 1px 1px #000;
+        pointer-events: none;
+      }
+      #fishing-status.hidden { display: none; }
 
       /* Mode pill top-right */
       #status-pill {
@@ -1051,6 +1067,7 @@
     <div id="damage-flash"></div>
     <div id="sleep-fade"></div>
     <div id="survival-message" aria-live="polite"></div>
+    <div id="fishing-status" class="hidden" aria-live="polite"></div>
     <div id="status-pill">Survival · [E] Inventory · [C] Creative · [F] Fly</div>
     <button id="audio-toggle" type="button" title="Toggle procedural audio">🔊 Sound On [M]</button>
     <div id="save-status" aria-live="polite"></div>

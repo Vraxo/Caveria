@@ -123,6 +123,26 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
     outputCount: 1,
   },
   {
+    name: 'Fishing Rod',
+    pattern: [
+      [_, _, S],
+      [_, S, F],
+      [S, _, F],
+    ],
+    outputId: ItemId.FishingRod,
+    outputCount: 1,
+  },
+  {
+    name: 'Fishing Rod (Mirrored)',
+    pattern: [
+      [S, _, _],
+      [F, S, _],
+      [F, _, S],
+    ],
+    outputId: ItemId.FishingRod,
+    outputCount: 1,
+  },
+  {
     name: 'Amethyst Arrows',
     pattern: [[A], [S], [F]],
     outputId: ItemId.Arrow,
@@ -251,6 +271,12 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
     name: 'Azure Crystal Tonic',
     pattern: [[X], [ItemId.DriedCaveBerries], [M]],
     outputId: ItemId.CrystalTonic,
+    outputCount: 1,
+  },
+  {
+    name: 'Crystal Fish Tonic',
+    pattern: [[ItemId.CrystalFish], [ItemId.CleanWaterBottle]],
+    outputId: ItemId.CrystalFishTonic,
     outputCount: 1,
   },
   {

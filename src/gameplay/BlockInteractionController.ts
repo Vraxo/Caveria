@@ -2,6 +2,7 @@ import type * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { ArrowProjectileManager } from './ArrowProjectileManager';
 import { FarmUseResult } from './FarmingManager';
+import { FishingManager } from './FishingManager';
 import { WaterSurvivalSystem } from './WaterSurvivalSystem';
 import { Input } from '../core/Input';
 import { MobHit, MobManager } from '../entities/MobManager';
@@ -35,6 +36,7 @@ interface BlockInteractionDependencies {
   mobs: MobManager;
   vitals: PlayerVitals;
   arrows: ArrowProjectileManager;
+  fishing: FishingManager;
   waterSurvival: WaterSurvivalSystem;
   onOpenWorkbench: () => void;
   onOpenFurnace: (x: number, y: number, z: number) => void;
@@ -69,6 +71,7 @@ export class BlockInteractionController {
   private readonly mobs: MobManager;
   private readonly vitals: PlayerVitals;
   private readonly arrows: ArrowProjectileManager;
+  private readonly fishing: FishingManager;
   private readonly waterSurvival: WaterSurvivalSystem;
   private readonly onOpenWorkbench: () => void;
   private readonly onOpenFurnace: (x: number, y: number, z: number) => void;
@@ -113,6 +116,7 @@ export class BlockInteractionController {
     this.mobs = deps.mobs;
     this.vitals = deps.vitals;
     this.arrows = deps.arrows;
+    this.fishing = deps.fishing;
     this.waterSurvival = deps.waterSurvival;
     this.onOpenWorkbench = deps.onOpenWorkbench;
     this.onOpenFurnace = deps.onOpenFurnace;
@@ -340,6 +344,35 @@ export class BlockInteractionController {
     const sneaking =
       this.input.isKeyDown('ShiftLeft') || this.input.isKeyDown('ShiftRight');
     const held = this.hotbar.selectedStack;
+    if (held?.id === ItemId.FishingRod) {
+      const fishingResult = this.fishing.use(
+        this.player.getEyePosition(),
+        this.player.getForwardDirection()
+      );
+      if (fishingResult.catchStack && fishingResult.catchPosition) {
+        const travelTime = 0.7;
+        const dropDrag = -Math.log(0.18);
+        const dragTravel = (1 - Math.exp(-dropDrag * travelTime)) / dropDrag;
+        const velocity = this.player.getEyePosition()
+          .sub(fishingResult.catchPosition)
+          .multiplyScalar(1 / dragTravel);
+        velocity.y += 10 * travelTime;
+        this.drops.spawnDrop(
+          fishingResult.catchPosition.x,
+          fishingResult.catchPosition.y + 0.25,
+          fishingResult.catchPosition.z,
+          fishingResult.catchStack,
+          velocity,
+          0.3
+        );
+      }
+      if (fishingResult.rodWear && !creativeMode) {
+        if (this.inventory.damageTool(this.hotbar.selectedIndex)) this.audio.playToolBreak();
+        this.vitals.addExhaustion(0.025);
+      }
+      this.heldItemView.triggerPlace();
+      return;
+    }
     if (allowWorldUse && sneaking && this.waterHit) {
       if (!held) {
         this.waterSurvival.drinkSource(this.waterHit.blockX, this.waterHit.blockY, this.waterHit.blockZ);
@@ -404,7 +437,8 @@ export class BlockInteractionController {
     if (held && this.onConsumeSpecial(held.id)) {
       const returnsBottle = held.id === ItemId.CleanWaterBottle
         || held.id === ItemId.DirtyWaterBottle
-        || held.id === ItemId.PurifiedCrystalTonic;
+        || held.id === ItemId.PurifiedCrystalTonic
+        || held.id === ItemId.CrystalFishTonic;
       if (!creativeMode) {
         this.inventory.consumeOne(this.hotbar.selectedIndex);
         if (returnsBottle) {

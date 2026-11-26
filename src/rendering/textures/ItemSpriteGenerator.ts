@@ -261,11 +261,12 @@ export class ItemSpriteGenerator {
         break;
       case ItemId.Antidote:
       case ItemId.CrystalTonic:
-      case ItemId.PurifiedCrystalTonic: {
-        const tonic = itemId === ItemId.CrystalTonic || itemId === ItemId.PurifiedCrystalTonic;
+      case ItemId.PurifiedCrystalTonic:
+      case ItemId.CrystalFishTonic: {
+        const tonic = itemId === ItemId.CrystalTonic || itemId === ItemId.PurifiedCrystalTonic || itemId === ItemId.CrystalFishTonic;
         for (let y = 5; y <= 13; y++) for (let x = 5; x <= 10; x++) {
           const edge = x === 5 || x === 10 || y === 13;
-          px(x, y, edge ? [184, 208, 214, 255] : itemId === ItemId.PurifiedCrystalTonic ? [92, 174, 242, 255] : tonic ? [148, 74, 220, 255] : [70, 174, 112, 255]);
+          px(x, y, edge ? [184, 208, 214, 255] : itemId === ItemId.CrystalFishTonic ? [56, 214, 220, 255] : itemId === ItemId.PurifiedCrystalTonic ? [92, 174, 242, 255] : tonic ? [148, 74, 220, 255] : [70, 174, 112, 255]);
         }
         px(7, 3, [142, 106, 66, 255]); px(8, 3, [142, 106, 66, 255]);
         px(7, 4, [214, 226, 222, 255]); px(8, 4, [214, 226, 222, 255]);
@@ -277,6 +278,35 @@ export class ItemSpriteGenerator {
         }
         px(5, 6, [255, 190, 76, 255]); px(9, 6, [192, 66, 82, 255]);
         break;
+      case ItemId.FishingRod:
+        for (let i = 0; i < 11; i++) {
+          px(2 + i, 13 - i, i % 3 === 0 ? [154, 102, 54, 255] : [108, 70, 38, 255]);
+          if (i < 7) px(3 + i, 13 - i, [128, 82, 44, 255]);
+        }
+        for (let y = 4; y <= 12; y++) px(13, y, [216, 224, 218, 255]);
+        px(12, 12, [216, 224, 218, 255]); px(11, 12, [216, 224, 218, 255]);
+        px(11, 11, [216, 224, 218, 255]);
+        break;
+      case ItemId.RawCaveFish:
+      case ItemId.RawRiverFish:
+      case ItemId.CrystalFish:
+      case ItemId.CookedCaveFish:
+      case ItemId.CookedRiverFish:
+      case ItemId.BlightedFish: {
+        const crystal = itemId === ItemId.CrystalFish;
+        const blighted = itemId === ItemId.BlightedFish;
+        const cooked = itemId === ItemId.CookedCaveFish || itemId === ItemId.CookedRiverFish;
+        const river = itemId === ItemId.RawRiverFish || itemId === ItemId.CookedRiverFish;
+        const body = crystal ? [80, 224, 234, 255] : blighted ? [112, 70, 132, 255] : cooked ? [208, 128, 66, 255] : river ? [88, 162, 208, 255] : [106, 124, 148, 255];
+        for (let y = 6; y <= 10; y++) for (let x = 4; x <= 11; x++) {
+          if (Math.abs(y - 8) + Math.abs(x - 7.5) * 0.45 <= 3.5) px(x, y, body as [number, number, number, number]);
+        }
+        px(2, 6, body as [number, number, number, number]); px(3, 7, body as [number, number, number, number]);
+        px(3, 9, body as [number, number, number, number]); px(2, 10, body as [number, number, number, number]);
+        px(10, 7, [238, 242, 224, 255]); px(11, 7, [28, 32, 38, 255]);
+        if (crystal) { px(6, 5, [178, 112, 242, 255]); px(8, 11, [178, 112, 242, 255]); }
+        break;
+      }
       case ItemId.GlassBottle:
       case ItemId.DirtyWaterBottle:
       case ItemId.CleanWaterBottle: {

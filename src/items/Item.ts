@@ -95,6 +95,14 @@ export enum ItemId {
   DirtyWaterBottle = 175,
   CleanWaterBottle = 176,
   PurifiedCrystalTonic = 177,
+  FishingRod = 178,
+  RawCaveFish = 179,
+  RawRiverFish = 180,
+  CrystalFish = 181,
+  CookedCaveFish = 182,
+  CookedRiverFish = 183,
+  CrystalFishTonic = 184,
+  BlightedFish = 185,
 }
 
 export type ArmorSlot = 'helmet' | 'chestplate' | 'leggings' | 'boots';
@@ -348,6 +356,38 @@ export const ITEMS: Record<number, ItemDefinition> = {
   [ItemId.PurifiedCrystalTonic]: {
     id: ItemId.PurifiedCrystalTonic, name: 'Purified Crystal Tonic', maxStack: 8, placeBlockId: null,
     toolCategory: 'none', toolTier: 0, miningSpeed: 1,
+  },
+  [ItemId.FishingRod]: {
+    id: ItemId.FishingRod, name: 'Fishing Rod', maxStack: 1, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1, maxDurability: 96,
+  },
+  [ItemId.RawCaveFish]: {
+    id: ItemId.RawCaveFish, name: 'Raw Cave Fish', maxStack: 64, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1, nutrition: 2, saturation: 0.8,
+  },
+  [ItemId.RawRiverFish]: {
+    id: ItemId.RawRiverFish, name: 'Raw River Fish', maxStack: 64, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1, nutrition: 2, saturation: 1,
+  },
+  [ItemId.CrystalFish]: {
+    id: ItemId.CrystalFish, name: 'Crystal Fish', maxStack: 16, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1, nutrition: 3, saturation: 2,
+  },
+  [ItemId.CookedCaveFish]: {
+    id: ItemId.CookedCaveFish, name: 'Cooked Cave Fish', maxStack: 64, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1, nutrition: 6, saturation: 5,
+  },
+  [ItemId.CookedRiverFish]: {
+    id: ItemId.CookedRiverFish, name: 'Cooked River Fish', maxStack: 64, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1, nutrition: 7, saturation: 6,
+  },
+  [ItemId.CrystalFishTonic]: {
+    id: ItemId.CrystalFishTonic, name: 'Crystal Fish Tonic', maxStack: 8, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1,
+  },
+  [ItemId.BlightedFish]: {
+    id: ItemId.BlightedFish, name: 'Blighted Fish', maxStack: 32, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1, nutrition: 1, saturation: 0,
   },
 
   // Wooden Tools
