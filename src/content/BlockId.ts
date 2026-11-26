@@ -41,4 +41,6 @@ export enum BlockId {
   BerryBushMature = 38,
   ShroomSprout = 39,
   ShroomGrowing = 40,
+  Campfire = 41,
+  LitCampfire = 42,
 }

@@ -340,7 +340,10 @@ export class BlockInteractionController {
         this.onOpenWorkbench();
         return;
       }
-      if (this.hit.blockId === BlockId.Furnace || this.hit.blockId === BlockId.LitFurnace) {
+      if (
+        this.hit.blockId === BlockId.Furnace || this.hit.blockId === BlockId.LitFurnace ||
+        this.hit.blockId === BlockId.Campfire || this.hit.blockId === BlockId.LitCampfire
+      ) {
         this.onOpenFurnace(this.hit.blockX, this.hit.blockY, this.hit.blockZ);
         return;
       }
@@ -436,7 +439,10 @@ export class BlockInteractionController {
 
   private breakBlockAt(hit: VoxelHit, spawnDropItem: boolean, creativeMode: boolean): void {
     const { blockX, blockY, blockZ, blockId } = hit;
-    if (blockId === BlockId.Furnace || blockId === BlockId.LitFurnace) {
+    if (
+      blockId === BlockId.Furnace || blockId === BlockId.LitFurnace ||
+      blockId === BlockId.Campfire || blockId === BlockId.LitCampfire
+    ) {
       this.onFurnaceBroken(blockX, blockY, blockZ);
     }
     if (blockId === BlockId.BedFoot || blockId === BlockId.BedHead) {

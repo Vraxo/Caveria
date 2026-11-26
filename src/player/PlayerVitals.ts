@@ -1,6 +1,6 @@
 import { ArmorManager } from './ArmorManager';
 
-export type DamageCause = 'mob' | 'fall' | 'drowning' | 'starvation';
+export type DamageCause = 'mob' | 'fall' | 'drowning' | 'starvation' | 'temperature';
 
 const MAX_HEALTH = 20;
 const MAX_HUNGER = 20;
@@ -171,7 +171,9 @@ export class PlayerVitals {
           ? 'You discovered gravity the hard way.'
           : cause === 'starvation'
             ? 'The caves offered no meal.'
-            : 'A Cave Crawler claimed another explorer.';
+            : cause === 'temperature'
+              ? 'The elements overwhelmed you.'
+              : 'A Cave Crawler claimed another explorer.';
     this.deathEl.classList.remove('hidden');
     this.onDeath();
   }

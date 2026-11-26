@@ -7,6 +7,7 @@ import { ChestManager } from '../gameplay/ChestManager';
 import { FarmingManager } from '../gameplay/FarmingManager';
 import { FurnaceManager } from '../gameplay/FurnaceManager';
 import { MovementAudioController } from '../gameplay/MovementAudioController';
+import { TemperatureSystem } from '../gameplay/TemperatureSystem';
 import { MobManager } from '../entities/MobManager';
 import { Inventory } from '../items/Inventory';
 import { ItemId, createStack } from '../items/Item';
@@ -17,6 +18,7 @@ import { GamePersistenceController, GameSaveSnapshot } from '../persistence/Game
 import { WorldPersistence } from '../persistence/WorldPersistence';
 import { AtmosphereController } from '../rendering/AtmosphereController';
 import { BreakParticles } from '../rendering/BreakParticles';
+import { CampfireEffects } from '../rendering/CampfireEffects';
 import { DayNightCycle } from '../rendering/DayNightCycle';
 import { DroppedItemManager } from '../rendering/DroppedItems';
 import { HeldItemView } from '../rendering/HeldItemView';
@@ -47,7 +49,9 @@ export class Game {
   private readonly player: Player;
   private readonly vitals: PlayerVitals;
   private readonly armor: ArmorManager;
+  private readonly temperature: TemperatureSystem;
   private readonly particles: BreakParticles;
+  private readonly campfireEffects: CampfireEffects;
   private readonly drops: DroppedItemManager;
   private readonly mobs: MobManager;
   private readonly arrows: ArrowProjectileManager;
@@ -142,6 +146,7 @@ export class Game {
     this.weather = new WeatherSystem(this.scene, this.world, this.player, this.audio);
     if (savedGame) this.weather.restore(savedGame.weather);
     this.particles = new BreakParticles(this.scene);
+    this.campfireEffects = new CampfireEffects(this.scene, this.world, this.player);
     this.drops = new DroppedItemManager(this.scene, this.atlas, (itemId) => {
       if (itemId === ItemId.AmethystShard) this.audio.playCrystalPickup();
       else this.audio.playPickup();
@@ -149,6 +154,7 @@ export class Game {
     this.furnaces = new FurnaceManager(
       this.world,
       this.audio,
+      this.weather,
       savedGame?.furnaces,
       (x, y, z, stack) => this.drops.spawnDrop(x, y, z, stack)
     );
@@ -188,6 +194,16 @@ export class Game {
       () => this.audio.playToolBreak()
     );
     this.vitals.attachArmor(this.armor);
+    this.temperature = new TemperatureSystem(
+      this.world,
+      this.player,
+      this.dayNight,
+      this.weather,
+      this.armor,
+      this.vitals,
+      this.audio,
+      savedGame?.temperature
+    );
     this.mobs = new MobManager(
       this.scene,
       this.world,
@@ -213,7 +229,8 @@ export class Game {
       this.audio,
       savedGame?.beds,
       savedGame?.respawnBed,
-      (x, y, z, stack) => this.drops.spawnDrop(x, y, z, stack)
+      (x, y, z, stack) => this.drops.spawnDrop(x, y, z, stack),
+      () => this.temperature.recoverAfterSleep()
     );
     this.farms = new FarmingManager(
       this.world,
@@ -389,6 +406,7 @@ export class Game {
   private update(dt: number): void {
     this.persistence.update(dt);
     this.weather.update(dt);
+    this.campfireEffects.update(dt);
     this.beds.update(dt);
     this.farms.update(dt);
     this.furnaces.update(dt);
@@ -467,9 +485,10 @@ export class Game {
       const sprinting =
         !this.creativeMode && this.vitals.canSprint && !this.player.crouching && wantsToSprint;
       const maxStep = 1 / 90;
+      this.temperature.update(dt, this.creativeMode);
       const weatherMovementScale = this.weather.getMovementSpeedMultiplier(
         this.armor.hasFullGoldSet
-      );
+      ) * this.temperature.movementMultiplier;
       let remaining = dt;
       while (remaining > 0) {
         const step = Math.min(remaining, maxStep);
@@ -581,6 +600,7 @@ export class Game {
       timeOfDay: this.dayNight.timeOfDay,
       weather: this.weather.snapshot(),
       muted: this.audio.muted,
+      temperature: this.temperature.temperature,
       furnaces: this.furnaces.snapshot(),
       chests: this.chests.snapshots(),
       farms: this.farms.snapshots(),

@@ -2,7 +2,6 @@ import {
   FurnaceManager,
   FurnaceStateSnapshot,
   getFuelSeconds,
-  getFurnaceRecipe,
 } from '../gameplay/FurnaceManager';
 import { HOTBAR_SIZE, Inventory, TOTAL_INVENTORY_SLOTS } from '../items/Inventory';
 import { ITEMS, ItemStack } from '../items/Item';
@@ -16,6 +15,7 @@ export class FurnaceModal {
   public isOpen = false;
 
   private readonly modalEl = document.getElementById('furnace-modal')!;
+  private readonly titleEl = document.getElementById('furnace-title')!;
   private readonly inputEl = document.getElementById('furnace-input-slot')!;
   private readonly fuelEl = document.getElementById('furnace-fuel-slot')!;
   private readonly outputEl = document.getElementById('furnace-output-slot')!;
@@ -58,6 +58,7 @@ export class FurnaceModal {
 
   public open(x: number, y: number, z: number): void {
     this.state = this.furnaces.getOrCreate(x, y, z);
+    this.titleEl.textContent = this.furnaces.isCampfire(this.state) ? 'Campfire Cooking' : 'Furnace';
     this.isOpen = true;
     this.modalEl.classList.remove('hidden');
     this.renderAll();
@@ -95,7 +96,7 @@ export class FurnaceModal {
     const fuelRatio = this.state.burnTotal > 0
       ? this.state.burnRemaining / this.state.burnTotal
       : 0;
-    const recipe = getFurnaceRecipe(this.state.input);
+    const recipe = this.furnaces.getRecipe(this.state, this.state.input);
     const progressRatio = recipe ? this.state.smeltProgress / recipe.seconds : 0;
     this.fuelFillEl.style.width = `${Math.round(Math.min(1, fuelRatio) * 100)}%`;
     this.progressFillEl.style.width = `${Math.round(Math.min(1, progressRatio) * 100)}%`;
@@ -193,7 +194,7 @@ export class FurnaceModal {
   private handleInventoryClick(index: number, button: number, shift: boolean): void {
     const target = this.inventory.getSlot(index);
     if (shift && target && this.state) {
-      if (getFurnaceRecipe(target) && this.transferToMachine(index, 'input')) return;
+      if (this.state && this.furnaces.getRecipe(this.state, target) && this.transferToMachine(index, 'input')) return;
       if (getFuelSeconds(target) > 0 && this.transferToMachine(index, 'fuel')) return;
       const destination = index < HOTBAR_SIZE
         ? [HOTBAR_SIZE, TOTAL_INVENTORY_SLOTS]
@@ -250,7 +251,9 @@ export class FurnaceModal {
   }
 
   private accepts(slot: 'input' | 'fuel', stack: ItemStack): boolean {
-    return slot === 'input' ? getFurnaceRecipe(stack) !== null : getFuelSeconds(stack) > 0;
+    return slot === 'input'
+      ? this.state !== null && this.furnaces.getRecipe(this.state, stack) !== null
+      : getFuelSeconds(stack) > 0;
   }
 
   private quickMoveRange(from: number, start: number, end: number): void {

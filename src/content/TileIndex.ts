@@ -49,4 +49,6 @@ export enum TileIndex {
   BerryBushMature = 46,
   ShroomSprout = 47,
   ShroomGrowing = 48,
+  Campfire = 49,
+  LitCampfire = 50,
 }

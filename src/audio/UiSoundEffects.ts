@@ -70,6 +70,14 @@ export class UiSoundEffects {
   public playArrowHit(): void {
     this.synth.noiseBurst({ duration: 0.09, filterType: 'bandpass', freq: 850, q: 1.1, gain: 0.1 });
   }
+  public playTemperatureWarning(cold: boolean): void {
+    if (cold) {
+      this.synth.noiseBurst({ duration: 0.22, filterType: 'highpass', freq: 1800, q: 1.2, gain: 0.035 });
+      this.synth.tone({ type: 'triangle', freq: 150, freqEnd: 120, duration: 0.28, gain: 0.035 });
+    } else {
+      this.synth.noiseBurst({ duration: 0.25, filterType: 'lowpass', freq: 420, q: 0.7, gain: 0.045 });
+    }
+  }
   public playFarmGrowth(): void {
     this.synth.tone({ type: 'sine', freq: 520, freqEnd: 720, duration: 0.12, gain: 0.025 });
   }
