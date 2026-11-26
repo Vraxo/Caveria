@@ -102,6 +102,12 @@ export enum ItemId {
   CookedRiverFish = 183,
   CrystalFishTonic = 184,
   BlightedFish = 185,
+  RawChicken = 186,
+  CookedChicken = 187,
+  Feather = 188,
+  RawMutton = 189,
+  CookedMutton = 190,
+  Wool = 191,
 }
 
 export type ArmorSlot = 'helmet' | 'chestplate' | 'leggings' | 'boots';

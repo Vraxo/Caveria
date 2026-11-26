@@ -307,6 +307,36 @@ export class ItemSpriteGenerator {
         if (crystal) { px(6, 5, [178, 112, 242, 255]); px(8, 11, [178, 112, 242, 255]); }
         break;
       }
+      case ItemId.RawChicken:
+      case ItemId.CookedChicken:
+      case ItemId.RawMutton:
+      case ItemId.CookedMutton: {
+        const cooked = itemId === ItemId.CookedChicken || itemId === ItemId.CookedMutton;
+        const mutton = itemId === ItemId.RawMutton || itemId === ItemId.CookedMutton;
+        const meat = cooked
+          ? (mutton ? [154, 82, 44, 255] : [202, 126, 68, 255])
+          : (mutton ? [190, 70, 82, 255] : [224, 126, 130, 255]);
+        for (let y = 5; y <= 12; y++) for (let x = 4; x <= 11; x++) {
+          const distance = Math.abs(x - 7.5) + Math.abs(y - 8.5) * 0.75;
+          if (distance < 5) px(x, y, meat as [number, number, number, number]);
+        }
+        px(4, 5, [238, 224, 190, 255]); px(3, 4, [238, 224, 190, 255]);
+        px(11, 11, cooked ? [108, 58, 36, 255] : [152, 54, 62, 255]);
+        break;
+      }
+      case ItemId.Feather:
+        for (let i = 2; i <= 13; i++) {
+          px(14 - i, i, [220, 224, 218, 255]);
+          if (i > 4 && i < 12) px(13 - i, i, [246, 244, 228, 255]);
+          if (i > 3 && i < 10) px(15 - i, i, [178, 188, 184, 255]);
+        }
+        break;
+      case ItemId.Wool:
+        for (const [x, y] of [[5, 6], [8, 5], [10, 7], [6, 9], [9, 10], [7, 12]] as Array<[number, number]>) {
+          px(x, y, [240, 238, 220, 255]); px(x + 1, y, [220, 218, 202, 255]);
+          px(x, y + 1, [232, 230, 212, 255]); px(x + 1, y + 1, [196, 198, 188, 255]);
+        }
+        break;
       case ItemId.GlassBottle:
       case ItemId.DirtyWaterBottle:
       case ItemId.CleanWaterBottle: {

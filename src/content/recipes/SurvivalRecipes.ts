@@ -54,6 +54,12 @@ export const SURVIVAL_RECIPES: ReadonlyArray<CraftingRecipe> = [
     outputCount: 4,
   },
   {
+    name: 'Woven Fiber (Wool)',
+    pattern: [[ItemId.Wool]],
+    outputId: ItemId.WovenFiber,
+    outputCount: 2,
+  },
+  {
     name: 'Bed',
     pattern: [
       [F, F, F],
@@ -135,6 +141,12 @@ export const SURVIVAL_RECIPES: ReadonlyArray<CraftingRecipe> = [
   {
     name: 'Amethyst Arrows',
     pattern: [[A], [S], [F]],
+    outputId: ItemId.Arrow,
+    outputCount: 4,
+  },
+  {
+    name: 'Amethyst Arrows (Feather)',
+    pattern: [[A], [S], [ItemId.Feather]],
     outputId: ItemId.Arrow,
     outputCount: 4,
   },

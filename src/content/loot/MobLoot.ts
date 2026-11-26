@@ -15,6 +15,14 @@ export const MOB_LOOT_TABLES: Readonly<Record<string, ReadonlyArray<MobLootEntry
   'cave-crawler': [
     { item: ItemId.CaveChitin, chance: 1, minimum: 1, maximum: 2, maximumChance: 0.3 },
   ],
+  chicken: [
+    { item: ItemId.RawChicken, chance: 1, minimum: 1, maximum: 2, maximumChance: 0.2 },
+    { item: ItemId.Feather, chance: 1, minimum: 1, maximum: 2, maximumChance: 0.55 },
+  ],
+  sheep: [
+    { item: ItemId.RawMutton, chance: 1, minimum: 1, maximum: 2, maximumChance: 0.5 },
+    { item: ItemId.Wool, chance: 1, minimum: 1, maximum: 2, maximumChance: 0.35 },
+  ],
 };
 
 export function rollMobLoot(tableId: string, random: () => number = Math.random): ItemStack[] {
