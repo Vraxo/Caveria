@@ -1,52 +1,66 @@
 import * as THREE from 'three';
-import { AudioManager } from '../audio/AudioManager';
-import { Player } from '../player/Player';
-import { PlayerVitals } from '../player/PlayerVitals';
-import { BreakParticles } from '../rendering/BreakParticles';
-import { DroppedItemManager } from '../rendering/DroppedItems';
-import { World } from '../world/World';
-import { CaveCrawlerHit, CaveCrawlerManager } from './CaveCrawlerManager';
-import { CrystalMiteHit, CrystalMiteManager } from './CrystalMiteManager';
+import { MobHit, MobSpeciesController, MobSpeciesId, MobTag } from './MobTypes';
 
-export type MobHit = CrystalMiteHit | CaveCrawlerHit;
+export type { MobHit, MobSpeciesController, MobSpeciesId, MobTag } from './MobTypes';
 
-/** Routes shared spawning, targeting, and damage across all mob species. */
+/** Routes updates, targeting, damage, and semantic queries across registered species plugins. */
 export class MobManager {
-  public readonly mites: CrystalMiteManager;
-  public readonly crawlers: CaveCrawlerManager;
+  private readonly controllers: MobSpeciesController[] = [];
+  private readonly bySpecies = new Map<MobSpeciesId, MobSpeciesController>();
 
-  constructor(
-    scene: THREE.Scene,
-    world: World,
-    player: Player,
-    vitals: PlayerVitals,
-    drops: DroppedItemManager,
-    particles: BreakParticles,
-    audio: AudioManager,
-    onCrawlerPoison: () => void = () => {}
-  ) {
-    this.mites = new CrystalMiteManager(scene, world, player, drops, particles, audio);
-    this.crawlers = new CaveCrawlerManager(scene, world, player, vitals, drops, particles, audio, onCrawlerPoison);
+  public constructor(controllers: Iterable<MobSpeciesController> = []) {
+    for (const controller of controllers) this.register(controller);
   }
 
-  public get count(): number { return this.mites.count + this.crawlers.count; }
+  public register(controller: MobSpeciesController): this {
+    if (this.bySpecies.has(controller.species)) {
+      throw new Error(`Duplicate mob species controller: ${controller.species}`);
+    }
+    this.controllers.push(controller);
+    this.bySpecies.set(controller.species, controller);
+    return this;
+  }
+
+  public get count(): number {
+    return this.controllers.reduce((total, controller) => total + controller.count, 0);
+  }
+
+  public countSpecies(species: MobSpeciesId): number {
+    return this.bySpecies.get(species)?.count ?? 0;
+  }
+
+  public countTagged(tag: MobTag): number {
+    return this.controllers.reduce(
+      (total, controller) => total + (controller.tags.has(tag) ? controller.count : 0),
+      0
+    );
+  }
+
+  public hasWithin(position: THREE.Vector3, radius: number, tag?: MobTag): boolean {
+    return this.controllers.some(
+      (controller) => (!tag || controller.tags.has(tag)) && controller.hasWithin(position, radius)
+    );
+  }
 
   public update(dt: number): void {
-    this.mites.update(dt);
-    this.crawlers.update(dt);
+    for (const controller of this.controllers) controller.update(dt);
   }
 
-  public raycast(origin: THREE.Vector3, direction: THREE.Vector3, maxDistance: number, blockDistance: number): MobHit | null {
-    const mite = this.mites.raycast(origin, direction, maxDistance, blockDistance);
-    const crawler = this.crawlers.raycast(origin, direction, maxDistance, blockDistance);
-    if (!mite) return crawler;
-    if (!crawler) return mite;
-    return mite.distance < crawler.distance ? mite : crawler;
+  public raycast(
+    origin: THREE.Vector3,
+    direction: THREE.Vector3,
+    maxDistance: number,
+    blockDistance: number
+  ): MobHit | null {
+    let closest: MobHit | null = null;
+    for (const controller of this.controllers) {
+      const hit = controller.raycast(origin, direction, maxDistance, blockDistance);
+      if (hit && (!closest || hit.distance < closest.distance)) closest = hit;
+    }
+    return closest;
   }
 
   public damage(hit: MobHit, amount: number, direction: THREE.Vector3): boolean {
-    return hit.kind === 'crystal-mite'
-      ? this.mites.damage(hit.id, amount, direction)
-      : this.crawlers.damage(hit.id, amount, direction);
+    return this.bySpecies.get(hit.species)?.damage(hit.entityId, amount, direction) ?? false;
   }
 }

@@ -15,6 +15,8 @@ import { TemperatureSystem } from '../gameplay/TemperatureSystem';
 import { WaterSurvivalSystem } from '../gameplay/WaterSurvivalSystem';
 import { createDefaultUseRegistry } from '../gameplay/interactions/DefaultUseHandlers';
 import { MobManager } from '../entities/MobManager';
+import { CaveCrawlerManager } from '../entities/CaveCrawlerManager';
+import { CrystalMiteManager } from '../entities/CrystalMiteManager';
 import { Inventory } from '../items/Inventory';
 import { ItemId, createStack } from '../items/Item';
 import { Player } from '../player/Player';
@@ -227,7 +229,15 @@ export class Game {
       this.statusEffects,
       this.audio
     );
-    this.mobs = new MobManager(
+    const mites = new CrystalMiteManager(
+      this.scene,
+      this.world,
+      this.player,
+      this.drops,
+      this.particles,
+      this.audio
+    );
+    const crawlers = new CaveCrawlerManager(
       this.scene,
       this.world,
       this.player,
@@ -237,6 +247,7 @@ export class Game {
       this.audio,
       () => this.statusEffects.poison(18)
     );
+    this.mobs = new MobManager([mites, crawlers]);
     this.arrows = new ArrowProjectileManager(
       this.scene,
       this.world,
@@ -249,7 +260,7 @@ export class Game {
       this.player,
       this.dayNight,
       this.weather,
-      this.mobs.crawlers,
+      (position, radius) => this.mobs.hasWithin(position, radius, 'blocks-sleep'),
       this.audio,
       savedGame?.beds,
       savedGame?.respawnBed,

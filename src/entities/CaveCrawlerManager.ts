@@ -2,22 +2,17 @@ import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { BlockId } from '../content/BlockId';
 import { isBlockSolid } from '../content/BlockQueries';
-import { ItemId, createStack } from '../items/Item';
+import { CAVE_CRAWLER_ID, MOB_DEFINITIONS } from '../content/mobs/MobDefinitions';
+import { rollMobLoot } from '../content/loot/MobLoot';
 import { Player } from '../player/Player';
 import { PlayerVitals } from '../player/PlayerVitals';
 import { raycastVoxel } from '../player/Raycaster';
 import { BreakParticles } from '../rendering/BreakParticles';
 import { DroppedItemManager } from '../rendering/DroppedItems';
 import { World } from '../world/World';
+import { MobHit, MobSpeciesController, MobTag } from './MobTypes';
 
-export interface CaveCrawlerHit {
-  kind: 'cave-crawler';
-  id: number;
-  name: 'Cave Crawler';
-  distance: number;
-  health: number;
-  maxHealth: number;
-}
+export type CaveCrawlerHit = MobHit;
 
 interface CaveCrawler {
   id: number;
@@ -38,13 +33,14 @@ interface CaveCrawler {
   onGround: boolean;
 }
 
-const MAX_CRAWLERS = 4;
-const MAX_HEALTH = 10;
-const RADIUS = 0.38;
-const HEIGHT = 0.65;
+const DEFINITION = MOB_DEFINITIONS[CAVE_CRAWLER_ID];
+const RADIUS = DEFINITION.radius;
+const HEIGHT = DEFINITION.height;
 
 /** Hostile underground predator with pursuit, line of sight, and melee attacks. */
-export class CaveCrawlerManager {
+export class CaveCrawlerManager implements MobSpeciesController {
+  public readonly species = CAVE_CRAWLER_ID;
+  public readonly tags: ReadonlySet<MobTag> = new Set(DEFINITION.tags);
   private readonly crawlers: CaveCrawler[] = [];
   private readonly bodyGeometry = new THREE.BoxGeometry(0.58, 0.3, 0.72);
   private readonly headGeometry = new THREE.BoxGeometry(0.42, 0.3, 0.38);
@@ -68,15 +64,19 @@ export class CaveCrawlerManager {
 
   public get count(): number { return this.crawlers.length; }
 
-  public hasCrawlerWithin(position: THREE.Vector3, radius: number): boolean {
+  public hasWithin(position: THREE.Vector3, radius: number): boolean {
     const radiusSq = radius * radius;
     return this.crawlers.some((crawler) => crawler.position.distanceToSquared(position) <= radiusSq);
+  }
+
+  public hasCrawlerWithin(position: THREE.Vector3, radius: number): boolean {
+    return this.hasWithin(position, radius);
   }
 
   public update(dt: number): void {
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
-      this.spawnTimer = 3.5 + Math.random() * 4;
+      this.spawnTimer = DEFINITION.spawnDelay.minimum + Math.random() * DEFINITION.spawnDelay.variance;
       this.trySpawn();
     }
 
@@ -91,7 +91,7 @@ export class CaveCrawlerManager {
       const toPlayerX = this.player.position.x - crawler.position.x;
       const toPlayerZ = this.player.position.z - crawler.position.z;
       const distance = Math.hypot(toPlayerX, toPlayerZ);
-      if (distance > 46) {
+      if (distance > DEFINITION.despawnDistance) {
         this.remove(i);
         continue;
       }
@@ -159,7 +159,7 @@ export class CaveCrawlerManager {
       const distance = origin.distanceTo(hitPoint);
       if (distance > maxDistance || distance >= blockDistance) continue;
       if (!closest || distance < closest.distance) {
-        closest = { kind: 'cave-crawler', id: crawler.id, name: 'Cave Crawler', distance, health: crawler.health, maxHealth: MAX_HEALTH };
+        closest = { species: this.species, entityId: crawler.id, id: crawler.id, name: DEFINITION.name, distance, health: crawler.health, maxHealth: DEFINITION.maxHealth };
       }
     }
     return closest;
@@ -179,14 +179,16 @@ export class CaveCrawlerManager {
     if (crawler.health <= 0) {
       this.audio.playCaveCrawlerDeath();
       this.particles.spawnBurst(crawler.position.x - 0.5, crawler.position.y, crawler.position.z - 0.5, BlockId.DeepSlate);
-      this.drops.spawnDrop(crawler.position.x, crawler.position.y + 0.3, crawler.position.z, createStack(ItemId.CaveChitin, 1 + (Math.random() < 0.3 ? 1 : 0)));
+      for (const stack of rollMobLoot(DEFINITION.lootTable)) {
+        this.drops.spawnDrop(crawler.position.x, crawler.position.y + 0.3, crawler.position.z, stack);
+      }
       this.remove(index);
     }
     return true;
   }
 
   private trySpawn(): void {
-    if (this.crawlers.length >= MAX_CRAWLERS || this.vitals.dead) return;
+    if (this.crawlers.length >= DEFINITION.maxPopulation || this.vitals.dead) return;
     const surface = this.world.terrainGen.getSurfaceHeight(Math.floor(this.player.position.x), Math.floor(this.player.position.z));
     if (this.player.position.y > surface - 7) return;
     for (let attempt = 0; attempt < 14; attempt++) {
@@ -236,7 +238,7 @@ export class CaveCrawlerManager {
     this.scene.add(group);
     this.crawlers.push({
       id: this.nextId++, group, body, carapace, material, legs, position,
-      velocity: new THREE.Vector3(), health: MAX_HEALTH, age: Math.random() * 5,
+      velocity: new THREE.Vector3(), health: DEFINITION.maxHealth, age: Math.random() * 5,
       attackTimer: 0, decisionTimer: 0, growlTimer: 1 + Math.random() * 5,
       hurtTimer: 0, angle: Math.random() * Math.PI * 2, onGround: false,
     });
