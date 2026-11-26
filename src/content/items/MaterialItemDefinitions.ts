@@ -208,5 +208,29 @@ export const MATERIAL_ITEM_DEFINITIONS: ItemCatalog = {
     id: ItemId.BlightedFish, name: 'Blighted Fish', maxStack: 32, placeBlockId: null,
     toolCategory: 'none', toolTier: 0, miningSpeed: 1, nutrition: 1, saturation: 0,
   },
+  [ItemId.RawChicken]: {
+    id: ItemId.RawChicken, name: 'Raw Chicken', maxStack: 64, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1, nutrition: 2, saturation: 1,
+  },
+  [ItemId.CookedChicken]: {
+    id: ItemId.CookedChicken, name: 'Cooked Chicken', maxStack: 64, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1, nutrition: 6, saturation: 5,
+  },
+  [ItemId.Feather]: {
+    id: ItemId.Feather, name: 'Feather', maxStack: 64, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1,
+  },
+  [ItemId.RawMutton]: {
+    id: ItemId.RawMutton, name: 'Raw Mutton', maxStack: 64, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1, nutrition: 3, saturation: 1.5,
+  },
+  [ItemId.CookedMutton]: {
+    id: ItemId.CookedMutton, name: 'Cooked Mutton', maxStack: 64, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1, nutrition: 8, saturation: 7,
+  },
+  [ItemId.Wool]: {
+    id: ItemId.Wool, name: 'Wool', maxStack: 64, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1,
+  },
 
 };

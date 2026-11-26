@@ -21,7 +21,7 @@ A registered `MobSpeciesBehavior` owns only species-specific policy and feedback
 - visual creation, animation, and disposal;
 - damage reactions, death particles, and loot.
 
-`MobMechanics.ts` contains stateless mechanics shared through composition, including ground movement, body collision, raycasting, and ground-spawn searches.
+`MobMechanics.ts` contains stateless mechanics shared through composition, including ground movement, body collision, raycasting, and ground-spawn searches. Closely related passive animals share `SurfaceAnimalSpecies`, while their species files remain small declarations of tuning, visuals, sounds, biomes, and loot.
 
 ## Adding a species
 

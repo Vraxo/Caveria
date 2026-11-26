@@ -40,6 +40,12 @@ export class AudioManager {
   public playCaveCrawlerGrowl(): void { this.creatures.playCaveCrawlerGrowl(); }
   public playCaveCrawlerHit(): void { this.creatures.playCaveCrawlerHit(); }
   public playCaveCrawlerDeath(): void { this.creatures.playCaveCrawlerDeath(); }
+  public playChickenCluck(): void { this.creatures.playChickenCluck(); }
+  public playChickenHit(): void { this.creatures.playChickenHit(); }
+  public playChickenDeath(): void { this.creatures.playChickenDeath(); }
+  public playSheepBleat(): void { this.creatures.playSheepBleat(); }
+  public playSheepHit(): void { this.creatures.playSheepHit(); }
+  public playSheepDeath(): void { this.creatures.playSheepDeath(); }
 
   public playPickup(): void { this.ui.playPickup(); }
   public playCrystalPickup(): void { this.ui.playCrystalPickup(); }

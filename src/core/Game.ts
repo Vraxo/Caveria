@@ -16,7 +16,9 @@ import { createDefaultUseRegistry } from '../gameplay/interactions/DefaultUseHan
 import { createDefaultBlockBehaviorRegistries } from '../gameplay/interactions/DefaultBlockBehaviors';
 import { MobManager } from '../entities/MobManager';
 import { CaveCrawlerSpecies } from '../entities/CaveCrawlerSpecies';
+import { createChickenSpecies } from '../entities/ChickenSpecies';
 import { CrystalMiteSpecies } from '../entities/CrystalMiteSpecies';
+import { createSheepSpecies } from '../entities/SheepSpecies';
 import { Inventory } from '../items/Inventory';
 import { ItemId, createStack } from '../items/Item';
 import { Player } from '../player/Player';
@@ -247,7 +249,28 @@ export class Game {
       this.audio,
       () => this.statusEffects.poison(18)
     );
-    this.mobs = new MobManager([crystalMiteSpecies, caveCrawlerSpecies]);
+    const chickenSpecies = createChickenSpecies(
+      this.scene,
+      this.world,
+      this.player,
+      this.drops,
+      this.particles,
+      this.audio
+    );
+    const sheepSpecies = createSheepSpecies(
+      this.scene,
+      this.world,
+      this.player,
+      this.drops,
+      this.particles,
+      this.audio
+    );
+    this.mobs = new MobManager([
+      crystalMiteSpecies,
+      caveCrawlerSpecies,
+      chickenSpecies,
+      sheepSpecies,
+    ]);
     this.arrows = new ArrowProjectileManager(
       this.scene,
       this.world,

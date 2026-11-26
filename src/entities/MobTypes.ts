@@ -2,7 +2,14 @@ import * as THREE from 'three';
 
 export type MobEntityId = number;
 export type MobSpeciesId = string;
-export type MobTag = 'passive' | 'hostile' | 'underground' | 'blocks-sleep' | 'poisonous';
+export type MobTag =
+  | 'passive'
+  | 'hostile'
+  | 'animal'
+  | 'surface'
+  | 'underground'
+  | 'blocks-sleep'
+  | 'poisonous';
 
 export interface MobHit {
   species: MobSpeciesId;

@@ -33,4 +33,30 @@ export class CreatureSoundEffects {
     this.synth.noiseBurst({ duration: 0.52, filterType: 'lowpass', freq: 600, freqEnd: 65, gain: 0.1, attack: 0.008 });
     this.synth.tone({ type: 'sawtooth', freq: 160, freqEnd: 45, duration: 0.5, gain: 0.045, attack: 0.01 });
   }
+
+  public playChickenCluck(): void {
+    this.synth.tone({ type: 'square', freq: 540, freqEnd: 380, duration: 0.08, gain: 0.025, attack: 0.008 });
+    this.synth.tone({ type: 'triangle', freq: 420, freqEnd: 610, duration: 0.07, gain: 0.02, attack: 0.006, delay: 0.07 });
+  }
+
+  public playChickenHit(): void {
+    this.synth.noiseBurst({ duration: 0.1, filterType: 'bandpass', freq: 950, freqEnd: 420, gain: 0.045, attack: 0.004 });
+  }
+
+  public playChickenDeath(): void {
+    this.synth.tone({ type: 'square', freq: 480, freqEnd: 120, duration: 0.3, gain: 0.035, attack: 0.006 });
+  }
+
+  public playSheepBleat(): void {
+    this.synth.tone({ type: 'sawtooth', freq: 210, freqEnd: 145, duration: 0.32, gain: 0.028, attack: 0.035 });
+    this.synth.tone({ type: 'triangle', freq: 310, freqEnd: 190, duration: 0.26, gain: 0.018, attack: 0.025, delay: 0.05 });
+  }
+
+  public playSheepHit(): void {
+    this.synth.noiseBurst({ duration: 0.13, filterType: 'bandpass', freq: 520, freqEnd: 180, gain: 0.055, attack: 0.004 });
+  }
+
+  public playSheepDeath(): void {
+    this.synth.tone({ type: 'sawtooth', freq: 190, freqEnd: 65, duration: 0.42, gain: 0.04, attack: 0.01 });
+  }
 }
