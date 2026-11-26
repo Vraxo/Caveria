@@ -18,6 +18,7 @@ const A = ItemId.AmethystShard;
 const M = ItemId.CaveShroom;
 const B = ItemId.CaveBerries;
 const H = ItemId.CaveChitin;
+const G = ItemId.GoldIngot;
 const _ = null;
 
 export const RECIPES: ReadonlyArray<CraftingRecipe> = [
@@ -187,6 +188,68 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
     outputId: ItemId.ChitinBoots,
     outputCount: 1,
   },
+  {
+    name: 'Gold Helmet',
+    pattern: [
+      [G, G, G],
+      [G, _, G],
+    ],
+    outputId: ItemId.GoldHelmet,
+    outputCount: 1,
+  },
+  {
+    name: 'Gold Chestplate',
+    pattern: [
+      [G, _, G],
+      [G, G, G],
+      [G, G, G],
+    ],
+    outputId: ItemId.GoldChestplate,
+    outputCount: 1,
+  },
+  {
+    name: 'Gold Leggings',
+    pattern: [
+      [G, G, G],
+      [G, _, G],
+      [G, _, G],
+    ],
+    outputId: ItemId.GoldLeggings,
+    outputCount: 1,
+  },
+  {
+    name: 'Gold Boots',
+    pattern: [
+      [G, _, G],
+      [G, _, G],
+    ],
+    outputId: ItemId.GoldBoots,
+    outputCount: 1,
+  },
+  {
+    name: 'Repair Gold Helmet',
+    pattern: [[ItemId.GoldHelmet], [G]],
+    outputId: ItemId.GoldHelmet,
+    outputCount: 1,
+  },
+  {
+    name: 'Repair Gold Chestplate',
+    pattern: [[ItemId.GoldChestplate], [G]],
+    outputId: ItemId.GoldChestplate,
+    outputCount: 1,
+  },
+  {
+    name: 'Repair Gold Leggings',
+    pattern: [[ItemId.GoldLeggings], [G]],
+    outputId: ItemId.GoldLeggings,
+    outputCount: 1,
+  },
+  {
+    name: 'Repair Gold Boots',
+    pattern: [[ItemId.GoldBoots], [G]],
+    outputId: ItemId.GoldBoots,
+    outputCount: 1,
+  },
 
   // Wooden Tools
   {
@@ -285,6 +348,50 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
       [_, S, _],
     ],
     outputId: ItemId.StonePickaxe,
+    outputCount: 1,
+  },
+
+  // Gold equipment: fast tier-3 tools with moderate durability.
+  {
+    name: 'Gold Pickaxe',
+    pattern: [
+      [G, G, G],
+      [_, S, _],
+      [_, S, _],
+    ],
+    outputId: ItemId.GoldPickaxe,
+    outputCount: 1,
+  },
+  {
+    name: 'Gold Axe',
+    pattern: [
+      [G, G],
+      [G, S],
+      [_, S],
+    ],
+    outputId: ItemId.GoldAxe,
+    outputCount: 1,
+  },
+  {
+    name: 'Gold Axe (Mirrored)',
+    pattern: [
+      [G, G],
+      [S, G],
+      [S, _],
+    ],
+    outputId: ItemId.GoldAxe,
+    outputCount: 1,
+  },
+  {
+    name: 'Gold Shovel',
+    pattern: [[G], [S], [S]],
+    outputId: ItemId.GoldShovel,
+    outputCount: 1,
+  },
+  {
+    name: 'Gold Sword',
+    pattern: [[G], [G], [S]],
+    outputId: ItemId.GoldSword,
     outputCount: 1,
   },
 

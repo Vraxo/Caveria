@@ -1,7 +1,21 @@
 import { ArmorSlot, ITEMS, ItemId, ItemStack } from '../items/Item';
 
 export const ARMOR_SLOTS: readonly ArmorSlot[] = ['helmet', 'chestplate', 'leggings', 'boots'];
+export const MAX_ARMOR_POINTS = 14;
 export type ArmorSnapshot = Record<ArmorSlot, ItemStack | null>;
+
+const CHITIN_SET: Record<ArmorSlot, ItemId> = {
+  helmet: ItemId.ChitinHelmet,
+  chestplate: ItemId.ChitinChestplate,
+  leggings: ItemId.ChitinLeggings,
+  boots: ItemId.ChitinBoots,
+};
+const GOLD_SET: Record<ArmorSlot, ItemId> = {
+  helmet: ItemId.GoldHelmet,
+  chestplate: ItemId.GoldChestplate,
+  leggings: ItemId.GoldLeggings,
+  boots: ItemId.GoldBoots,
+};
 
 type ArmorDamageCause = 'mob' | 'fall' | 'drowning' | 'starvation';
 
@@ -58,12 +72,11 @@ export class ArmorManager {
   }
 
   public get hasFullChitinSet(): boolean {
-    return ARMOR_SLOTS.every((slot) => this.equipped[slot]?.id === {
-      helmet: ItemId.ChitinHelmet,
-      chestplate: ItemId.ChitinChestplate,
-      leggings: ItemId.ChitinLeggings,
-      boots: ItemId.ChitinBoots,
-    }[slot]);
+    return ARMOR_SLOTS.every((slot) => this.equipped[slot]?.id === CHITIN_SET[slot]);
+  }
+
+  public get hasFullGoldSet(): boolean {
+    return ARMOR_SLOTS.every((slot) => this.equipped[slot]?.id === GOLD_SET[slot]);
   }
 
   public get knockbackMultiplier(): number {
@@ -76,7 +89,8 @@ export class ArmorManager {
     if (points <= 0) return amount;
 
     const reductionPerPoint = cause === 'mob' ? 0.05 : 0.025;
-    const reduced = Math.max(1, Math.round(amount * (1 - points * reductionPerPoint)));
+    const reduction = Math.min(cause === 'mob' ? 0.7 : 0.35, points * reductionPerPoint);
+    const reduced = Math.max(1, Math.round(amount * (1 - reduction)));
     this.damageEquippedArmor();
     return reduced;
   }
@@ -123,12 +137,13 @@ export class ArmorManager {
   private render(): void {
     this.hudEl.replaceChildren();
     const points = this.armorPoints;
-    for (let point = 0; point < 10; point++) {
+    for (let point = 0; point < MAX_ARMOR_POINTS; point++) {
       const element = document.createElement('span');
       element.className = `armor-pip${point >= points ? ' empty' : ''}`;
       element.textContent = '⬟';
       this.hudEl.append(element);
     }
     this.hudEl.classList.toggle('hidden', points === 0);
+    this.hudEl.classList.toggle('gold-set', this.hasFullGoldSet);
   }
 }

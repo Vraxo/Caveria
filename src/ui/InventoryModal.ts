@@ -1,7 +1,7 @@
 import { matchCraftingGrid } from '../items/Crafting';
 import { HOTBAR_SIZE, Inventory, TOTAL_INVENTORY_SLOTS } from '../items/Inventory';
 import { ArmorSlot, ITEMS, ItemStack } from '../items/Item';
-import { ARMOR_SLOTS, ArmorManager } from '../player/ArmorManager';
+import { ARMOR_SLOTS, MAX_ARMOR_POINTS, ArmorManager } from '../player/ArmorManager';
 import { TextureAtlas } from '../rendering/TextureAtlas';
 import { renderItemStackIntoSlot } from './Hotbar';
 
@@ -65,7 +65,7 @@ export class InventoryModal {
       gridSize === 3 ? 'Crafting Table (3×3)' : 'Hand Crafting (2×2)';
     this.recipeHintEl.textContent =
       gridSize === 3
-        ? 'Recipes: 8 Cobblestone around an empty center → Furnace · Chitin in classic armor shapes → Armor · Planks/Cobble/Shards + Sticks → Tools & Swords'
+        ? 'Recipes: Gold Ingots or Chitin in classic equipment shapes → Gear · 8 Cobblestone around an empty center → Furnace · Materials + Sticks → Tools & Swords'
         : 'Recipes: 1 Log → 4 Planks · 2 Planks (vertical) → 4 Sticks · 4 Planks (2×2) → Crafting Table (place & Right-Click for 3×3 equipment!) · Cook Cave Shrooms in a Furnace';
 
     this.renderAll();
@@ -201,8 +201,10 @@ export class InventoryModal {
   private renderArmorSlots(): void {
     this.armorGridEl.innerHTML = '';
     this.armorBonusEl.textContent = this.armor.hasFullChitinSet
-      ? 'Full set: 45% less Crawler knockback'
-      : `${this.armor.armorPoints}/10 protection`;
+      ? 'Full Chitin set: 45% less Crawler knockback'
+      : this.armor.hasFullGoldSet
+        ? 'Full Gold set: cold-weather resistance'
+        : `${this.armor.armorPoints}/${MAX_ARMOR_POINTS} protection`;
     for (const slot of ARMOR_SLOTS) {
       const wrapper = document.createElement('div');
       wrapper.className = 'armor-slot-wrap';

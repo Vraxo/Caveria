@@ -126,10 +126,11 @@ export class WeatherSystem {
   }
 
   /** Wet ground and driving snow have a small, readable traversal cost. */
-  public getMovementSpeedMultiplier(): number {
+  public getMovementSpeedMultiplier(coldResistant = false): number {
     if (!this.exposedToSky || this.intensity < 0.12) return 1;
     const local = this.localWeather;
-    const weatherPenalty = local === 'Snow' || local === 'Snowstorm' ? 0.12 : 0.06;
+    const snowing = local === 'Snow' || local === 'Snowstorm';
+    const weatherPenalty = snowing ? (coldResistant ? 0.07 : 0.12) : 0.06;
     const stormPenalty = this.phase === 'storm' ? 0.04 : 0;
     return 1 - (weatherPenalty + stormPenalty) * this.intensity;
   }
