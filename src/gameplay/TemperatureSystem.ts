@@ -1,5 +1,5 @@
 import { AudioManager } from '../audio/AudioManager';
-import { BlockId } from '../content/BlockId';
+import { BLOCKS } from '../content/BlockRegistry';
 import { isBlockSolid } from '../content/BlockQueries';
 import { ArmorManager } from '../player/ArmorManager';
 import { Player } from '../player/Player';
@@ -138,7 +138,7 @@ export class TemperatureSystem {
       const distance = Math.hypot(dx, dy, dz);
       if (distance > 6) continue;
       const block = this.world.getBlock(x + dx, y + dy, z + dz);
-      const strength = block === BlockId.LitCampfire ? 30 : block === BlockId.LitFurnace ? 20 : block === BlockId.Torch ? 6 : 0;
+      const strength = BLOCKS[block].heatSource ?? 0;
       if (strength > 0) warmth = Math.max(warmth, strength * (1 - distance / 7));
     }
     return warmth;

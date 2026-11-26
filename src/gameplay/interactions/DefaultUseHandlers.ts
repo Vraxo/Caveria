@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 import { AudioManager } from '../../audio/AudioManager';
-import { BlockId } from '../../content/BlockId';
+import { BLOCKS } from '../../content/BlockRegistry';
 import { ItemId, createStack, getFoodStats } from '../../items/Item';
 import { Player } from '../../player/Player';
 import { PlayerVitals } from '../../player/PlayerVitals';
-import { VoxelHit } from '../../player/Raycaster';
 import { ConsumableActionRegistry } from '../ConsumableActionRegistry';
 import { FarmUseResult } from '../FarmingManager';
 import { FishingManager } from '../FishingManager';
 import { WaterSurvivalSystem } from '../WaterSurvivalSystem';
+import { BlockUseBehaviorRegistry } from './BlockBehaviorRegistry';
 import { UseInteractionRegistry } from './UseInteractionRegistry';
 
 interface DefaultUseHandlerDependencies {
@@ -18,18 +18,14 @@ interface DefaultUseHandlerDependencies {
   fishing: FishingManager;
   waterSurvival: WaterSurvivalSystem;
   consumables: ConsumableActionRegistry;
+  blockUse: BlockUseBehaviorRegistry;
   onUseFarm: (x: number, y: number, z: number, held: ItemId | null) => FarmUseResult;
-  onOpenWorkbench: () => void;
-  onOpenFurnace: (x: number, y: number, z: number) => void;
-  onOpenChest: (x: number, y: number, z: number) => void;
-  onUseBed: (x: number, y: number, z: number) => void;
 }
 
 export function createDefaultUseRegistry(
   deps: DefaultUseHandlerDependencies
 ): UseInteractionRegistry {
   const registry = new UseInteractionRegistry();
-  const blockActions = createBlockActionRegistry(deps);
 
   registry.register((context) => {
     if (context.held?.id !== ItemId.FishingRod) return null;
@@ -116,10 +112,8 @@ export function createDefaultUseRegistry(
 
   registry.register((context) => {
     if (!context.allowWorldUse || !context.hit || context.sneaking) return null;
-    const action = blockActions.get(context.hit.blockId);
-    if (!action) return null;
-    action(context.hit);
-    return {};
+    const behavior = BLOCKS[context.hit.blockId].useBehavior;
+    return deps.blockUse.execute(behavior, context.hit) ? {} : null;
   });
 
   registry.register((context) => {
@@ -149,19 +143,4 @@ export function createDefaultUseRegistry(
   });
 
   return registry;
-}
-
-function createBlockActionRegistry(
-  deps: DefaultUseHandlerDependencies
-): ReadonlyMap<BlockId, (hit: VoxelHit) => void> {
-  return new Map<BlockId, (hit: VoxelHit) => void>([
-    [BlockId.CraftingTable, () => deps.onOpenWorkbench()],
-    [BlockId.Furnace, (hit) => deps.onOpenFurnace(hit.blockX, hit.blockY, hit.blockZ)],
-    [BlockId.LitFurnace, (hit) => deps.onOpenFurnace(hit.blockX, hit.blockY, hit.blockZ)],
-    [BlockId.Campfire, (hit) => deps.onOpenFurnace(hit.blockX, hit.blockY, hit.blockZ)],
-    [BlockId.LitCampfire, (hit) => deps.onOpenFurnace(hit.blockX, hit.blockY, hit.blockZ)],
-    [BlockId.BedFoot, (hit) => deps.onUseBed(hit.blockX, hit.blockY, hit.blockZ)],
-    [BlockId.BedHead, (hit) => deps.onUseBed(hit.blockX, hit.blockY, hit.blockZ)],
-    [BlockId.Chest, (hit) => deps.onOpenChest(hit.blockX, hit.blockY, hit.blockZ)],
-  ]);
 }

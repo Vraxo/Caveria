@@ -16,6 +16,7 @@ export const BIOME_BLOCKS: BlockCatalog = {
     hardness: 0.55,
     faces: columnFaces(TileIndex.CactusSide, TileIndex.CactusTop),
     preferredTool: 'axe',
+    contactDamage: 1,
   }),
   [BlockId.SnowGrass]: defineBlock(BlockId.SnowGrass, {
     name: 'Snowy Grass',

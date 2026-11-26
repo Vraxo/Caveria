@@ -1,5 +1,5 @@
 import { AudioManager } from '../audio/AudioManager';
-import { BlockId } from '../content/BlockId';
+import { BLOCKS } from '../content/BlockRegistry';
 import {
   STATUS_EFFECT_DEFINITIONS,
   StatusEffectId,
@@ -19,7 +19,7 @@ export class StatusEffectManager {
   private poisonTick = 1.5;
   private healingTick = 2;
   private wellFedTick = 5;
-  private cactusTick = 0;
+  private hazardTick = 0;
   private severeColdSeconds = 0;
   private elapsed = 0;
   private readonly hudEl = document.getElementById('status-effects')!;
@@ -58,7 +58,7 @@ export class StatusEffectManager {
     if (!creativeMode) {
       this.updateColdExposure(dt);
       this.updatePeriodicEffects(dt);
-      this.updateCactus(dt);
+      this.updateContactHazards(dt);
     }
     if (this.messageTimer > 0) {
       this.messageTimer -= dt;
@@ -150,17 +150,19 @@ export class StatusEffectManager {
     } else this.wellFedTick = 5;
   }
 
-  private updateCactus(dt: number): void {
-    this.cactusTick = Math.max(0, this.cactusTick - dt);
-    if (this.cactusTick > 0) return;
+  private updateContactHazards(dt: number): void {
+    this.hazardTick = Math.max(0, this.hazardTick - dt);
+    if (this.hazardTick > 0) return;
     const x = this.player.position.x;
     const y = this.player.position.y;
     const z = this.player.position.z;
     for (const ox of [-0.28, 0.28]) for (const oz of [-0.28, 0.28]) {
-      if (this.world.getBlock(x + ox, y + 0.2, z + oz) === BlockId.Cactus ||
-          this.world.getBlock(x + ox, y + 1.2, z + oz) === BlockId.Cactus) {
-        this.cactusTick = 1;
-        this.vitals.damage(1, 'environment');
+      const lower = this.world.getBlock(x + ox, y + 0.2, z + oz);
+      const upper = this.world.getBlock(x + ox, y + 1.2, z + oz);
+      const damage = Math.max(BLOCKS[lower].contactDamage ?? 0, BLOCKS[upper].contactDamage ?? 0);
+      if (damage > 0) {
+        this.hazardTick = 1;
+        this.vitals.damage(damage, 'environment');
         return;
       }
     }

@@ -1,3 +1,4 @@
+import { BLOCK_BREAK, BLOCK_USE } from './BlockCapabilities';
 import { BlockId } from './BlockId';
 import { allFaces, columnFaces, defineBlock } from './BlockDefinitionHelpers';
 import { BlockCatalog } from './BlockTypes';
@@ -13,6 +14,7 @@ export const BASE_BLOCKS: BlockCatalog = {
     transparent: true,
     breakable: false,
     lightOpacity: 0,
+    replaceable: true,
   }),
   [BlockId.Grass]: defineBlock(BlockId.Grass, {
     name: 'Grass Block',
@@ -60,6 +62,7 @@ export const BASE_BLOCKS: BlockCatalog = {
     liquid: true,
     breakable: false,
     lightOpacity: 2,
+    replaceable: true,
   }),
   [BlockId.Bedrock]: defineBlock(BlockId.Bedrock, {
     name: 'Bedrock', hardness: Infinity, faces: allFaces(TileIndex.Bedrock), breakable: false, minToolTier: 99,
@@ -73,6 +76,8 @@ export const BASE_BLOCKS: BlockCatalog = {
     lightEmission: 14,
     lightOpacity: 0,
     shape: 'torch',
+    supportBehavior: 'floor',
+    heatSource: 6,
   }),
   [BlockId.GlowCrystal]: defineBlock(BlockId.GlowCrystal, {
     name: 'Azure Crystal',
@@ -87,6 +92,7 @@ export const BASE_BLOCKS: BlockCatalog = {
     hardness: 1.6,
     faces: columnFaces(TileIndex.CraftingTableSide, TileIndex.CraftingTableTop, TileIndex.OakPlanks),
     preferredTool: 'axe',
+    useBehavior: BLOCK_USE.crafting,
   }),
   [BlockId.Furnace]: defineBlock(BlockId.Furnace, {
     name: 'Furnace',
@@ -94,6 +100,8 @@ export const BASE_BLOCKS: BlockCatalog = {
     faces: columnFaces(TileIndex.FurnaceSide, TileIndex.FurnaceTop),
     preferredTool: 'pickaxe',
     minToolTier: 1,
+    useBehavior: BLOCK_USE.furnace,
+    breakBehaviors: [BLOCK_BREAK.furnace],
   }),
   [BlockId.LitFurnace]: defineBlock(BlockId.LitFurnace, {
     name: 'Lit Furnace',
@@ -102,6 +110,9 @@ export const BASE_BLOCKS: BlockCatalog = {
     preferredTool: 'pickaxe',
     minToolTier: 1,
     lightEmission: 12,
+    useBehavior: BLOCK_USE.furnace,
+    breakBehaviors: [BLOCK_BREAK.furnace],
+    heatSource: 20,
   }),
   [BlockId.BedFoot]: defineBlock(BlockId.BedFoot, {
     name: 'Bed',
@@ -111,6 +122,9 @@ export const BASE_BLOCKS: BlockCatalog = {
     transparent: true,
     lightOpacity: 0,
     shape: 'bed',
+    useBehavior: BLOCK_USE.bed,
+    breakBehaviors: [BLOCK_BREAK.bed],
+    supportBehavior: 'floor',
   }),
   [BlockId.BedHead]: defineBlock(BlockId.BedHead, {
     name: 'Bed',
@@ -120,6 +134,9 @@ export const BASE_BLOCKS: BlockCatalog = {
     transparent: true,
     lightOpacity: 0,
     shape: 'bed',
+    useBehavior: BLOCK_USE.bed,
+    breakBehaviors: [BLOCK_BREAK.bed],
+    supportBehavior: 'floor',
   }),
   [BlockId.Chest]: defineBlock(BlockId.Chest, {
     name: 'Chest',
@@ -136,43 +153,54 @@ export const BASE_BLOCKS: BlockCatalog = {
     transparent: true,
     lightOpacity: 0,
     shape: 'chest',
+    useBehavior: BLOCK_USE.chest,
+    breakBehaviors: [BLOCK_BREAK.chest],
   }),
   [BlockId.FarmlandDry]: defineBlock(BlockId.FarmlandDry, {
     name: 'Dry Farmland', hardness: 0.65,
     faces: columnFaces(TileIndex.Dirt, TileIndex.FarmlandDry, TileIndex.Dirt),
     preferredTool: 'shovel',
+    breakBehaviors: [BLOCK_BREAK.farm],
   }),
   [BlockId.FarmlandWet]: defineBlock(BlockId.FarmlandWet, {
     name: 'Hydrated Farmland', hardness: 0.65,
     faces: columnFaces(TileIndex.Dirt, TileIndex.FarmlandWet, TileIndex.Dirt),
     preferredTool: 'shovel',
+    breakBehaviors: [BLOCK_BREAK.farm],
   }),
   [BlockId.BerrySprout]: defineBlock(BlockId.BerrySprout, {
     name: 'Berry Sprout', hardness: 0.08, faces: allFaces(TileIndex.BerrySprout),
     solid: false, transparent: true, lightOpacity: 0, shape: 'cross',
+    breakBehaviors: [BLOCK_BREAK.farm],
   }),
   [BlockId.BerryBush]: defineBlock(BlockId.BerryBush, {
     name: 'Growing Berry Bush', hardness: 0.12, faces: allFaces(TileIndex.BerryBush),
     solid: false, transparent: true, lightOpacity: 0, shape: 'cross',
+    breakBehaviors: [BLOCK_BREAK.farm],
   }),
   [BlockId.BerryBushMature]: defineBlock(BlockId.BerryBushMature, {
     name: 'Mature Berry Bush', hardness: 0.15, faces: allFaces(TileIndex.BerryBushMature),
     solid: false, transparent: true, lightOpacity: 0, shape: 'cross',
+    breakBehaviors: [BLOCK_BREAK.farm],
   }),
   [BlockId.ShroomSprout]: defineBlock(BlockId.ShroomSprout, {
     name: 'Cave Shroom Sprout', hardness: 0.06, faces: allFaces(TileIndex.ShroomSprout),
     solid: false, transparent: true, lightOpacity: 0, shape: 'cross',
+    breakBehaviors: [BLOCK_BREAK.farm],
   }),
   [BlockId.ShroomGrowing]: defineBlock(BlockId.ShroomGrowing, {
     name: 'Growing Cave Shroom', hardness: 0.08, faces: allFaces(TileIndex.ShroomGrowing),
     solid: false, transparent: true, lightOpacity: 0, shape: 'cross',
+    breakBehaviors: [BLOCK_BREAK.farm],
   }),
   [BlockId.Campfire]: defineBlock(BlockId.Campfire, {
     name: 'Campfire', hardness: 0.7, faces: allFaces(TileIndex.Campfire),
     preferredTool: 'axe', solid: false, transparent: true, lightOpacity: 0, shape: 'cross',
+    supportBehavior: 'floor', useBehavior: BLOCK_USE.furnace, breakBehaviors: [BLOCK_BREAK.furnace],
   }),
   [BlockId.LitCampfire]: defineBlock(BlockId.LitCampfire, {
     name: 'Lit Campfire', hardness: 0.7, faces: allFaces(TileIndex.LitCampfire),
     preferredTool: 'axe', solid: false, transparent: true, lightOpacity: 0, shape: 'cross', lightEmission: 14,
+    supportBehavior: 'floor', useBehavior: BLOCK_USE.furnace, breakBehaviors: [BLOCK_BREAK.furnace], heatSource: 30,
   }),
 };

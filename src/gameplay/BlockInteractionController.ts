@@ -5,6 +5,10 @@ import {
   UseInteractionRegistry,
   UseInteractionResult,
 } from './interactions/UseInteractionRegistry';
+import {
+  BlockBreakBehaviorRegistry,
+  BlockSupportRegistry,
+} from './interactions/BlockBehaviorRegistry';
 import { Input } from '../core/Input';
 import { MobHit, MobManager } from '../entities/MobManager';
 import { Inventory } from '../items/Inventory';
@@ -38,13 +42,10 @@ interface BlockInteractionDependencies {
   vitals: PlayerVitals;
   arrows: ArrowProjectileManager;
   useRegistry: UseInteractionRegistry;
+  blockBreakRegistry: BlockBreakBehaviorRegistry;
+  blockSupportRegistry: BlockSupportRegistry;
   onWaterTarget: (hit: VoxelHit | null) => void;
-  onFurnaceBroken: (x: number, y: number, z: number) => void;
-  onChestBroken: (x: number, y: number, z: number) => void;
   onPlaceBed: (x: number, y: number, z: number) => boolean;
-  onBedBroken: (x: number, y: number, z: number, drop: boolean) => void;
-  onFarmBroken: (x: number, y: number, z: number, drop: boolean) => boolean;
-  onHazardBlockBroken: (blockId: BlockId) => void;
   getMiningSpeedMultiplier: () => number;
 }
 
@@ -66,13 +67,10 @@ export class BlockInteractionController {
   private readonly vitals: PlayerVitals;
   private readonly arrows: ArrowProjectileManager;
   private readonly useRegistry: UseInteractionRegistry;
+  private readonly blockBreakRegistry: BlockBreakBehaviorRegistry;
+  private readonly blockSupportRegistry: BlockSupportRegistry;
   private readonly onWaterTarget: (hit: VoxelHit | null) => void;
-  private readonly onFurnaceBroken: (x: number, y: number, z: number) => void;
-  private readonly onChestBroken: (x: number, y: number, z: number) => void;
   private readonly onPlaceBed: (x: number, y: number, z: number) => boolean;
-  private readonly onBedBroken: (x: number, y: number, z: number, drop: boolean) => void;
-  private readonly onFarmBroken: (x: number, y: number, z: number, drop: boolean) => boolean;
-  private readonly onHazardBlockBroken: (blockId: BlockId) => void;
   private readonly getMiningSpeedMultiplier: () => number;
   private readonly highlight: BlockHighlight;
   private readonly miningOverlay: MiningOverlay;
@@ -104,13 +102,10 @@ export class BlockInteractionController {
     this.vitals = deps.vitals;
     this.arrows = deps.arrows;
     this.useRegistry = deps.useRegistry;
+    this.blockBreakRegistry = deps.blockBreakRegistry;
+    this.blockSupportRegistry = deps.blockSupportRegistry;
     this.onWaterTarget = deps.onWaterTarget;
-    this.onFurnaceBroken = deps.onFurnaceBroken;
-    this.onChestBroken = deps.onChestBroken;
     this.onPlaceBed = deps.onPlaceBed;
-    this.onBedBroken = deps.onBedBroken;
-    this.onFarmBroken = deps.onFarmBroken;
-    this.onHazardBlockBroken = deps.onHazardBlockBroken;
     this.getMiningSpeedMultiplier = deps.getMiningSpeedMultiplier;
     this.highlight = new BlockHighlight(deps.scene);
     this.miningOverlay = new MiningOverlay(deps.scene);
@@ -362,28 +357,19 @@ export class BlockInteractionController {
     const placeDefinition = BLOCKS[placeBlock];
 
     const existing = this.world.getBlock(placeX, placeY, placeZ);
-    if (placeDefinition.shape === 'torch' || placeDefinition.shape === 'cross') {
-      const below = this.world.getBlock(placeX, placeY - 1, placeZ);
-      const above = this.world.getBlock(placeX, placeY + 1, placeZ);
-      const hasSupport =
-        placeBlock === BlockId.CaveVine
-          ? BLOCKS[above].solid || above === BlockId.CaveVine
-          : placeBlock === BlockId.DripstoneSpike
-            ? BLOCKS[below].solid || BLOCKS[above].solid
-            : BLOCKS[below].solid;
-
-      if (existing === BlockId.Air && hasSupport) {
-        this.placeBlock(placeX, placeY, placeZ, placeBlock, creativeMode);
-      }
-      return;
-    }
-
-    if (
-      (existing === BlockId.Air || existing === BlockId.Water) &&
-      (!placeDefinition.solid || !this.player.intersectsBlock(placeX, placeY, placeZ))
-    ) {
-      this.placeBlock(placeX, placeY, placeZ, placeBlock, creativeMode);
-    }
+    const canReplace = placeDefinition.supportBehavior
+      ? existing === BlockId.Air
+      : BLOCKS[existing].replaceable === true;
+    if (!canReplace) return;
+    if (!this.blockSupportRegistry.isSupported(
+      placeDefinition.supportBehavior,
+      this.world,
+      placeX,
+      placeY,
+      placeZ
+    )) return;
+    if (placeDefinition.solid && this.player.intersectsBlock(placeX, placeY, placeZ)) return;
+    this.placeBlock(placeX, placeY, placeZ, placeBlock, creativeMode);
   }
 
   private applyUseResult(result: UseInteractionResult): void {
@@ -434,20 +420,11 @@ export class BlockInteractionController {
 
   private breakBlockAt(hit: VoxelHit, spawnDropItem: boolean, creativeMode: boolean): void {
     const { blockX, blockY, blockZ, blockId } = hit;
-    if (
-      blockId === BlockId.Furnace || blockId === BlockId.LitFurnace ||
-      blockId === BlockId.Campfire || blockId === BlockId.LitCampfire
-    ) {
-      this.onFurnaceBroken(blockX, blockY, blockZ);
-    }
-    if (blockId === BlockId.BedFoot || blockId === BlockId.BedHead) {
-      this.onBedBroken(blockX, blockY, blockZ, !creativeMode);
-    }
-    if (blockId === BlockId.Chest) {
-      this.onChestBroken(blockX, blockY, blockZ);
-    }
-    this.onFarmBroken(blockX, blockY, blockZ, !creativeMode);
-    if (!creativeMode) this.onHazardBlockBroken(blockId);
+    this.blockBreakRegistry.execute(BLOCKS[blockId].breakBehaviors, {
+      hit,
+      creativeMode,
+      cause: 'mined',
+    });
     this.world.setBlock(blockX, blockY, blockZ, BlockId.Air);
     this.particles.spawnBurst(blockX, blockY, blockZ, blockId);
     this.audio.playBreak(blockId);
@@ -458,38 +435,39 @@ export class BlockInteractionController {
       if (drop) this.drops.spawnDrop(blockX + 0.5, blockY + 0.45, blockZ + 0.5, drop);
     }
 
-    const aboveId = this.world.getBlock(blockX, blockY + 1, blockZ);
-    if (aboveId === BlockId.BedFoot || aboveId === BlockId.BedHead) {
-      this.onBedBroken(blockX, blockY + 1, blockZ, !creativeMode);
-      this.particles.spawnBurst(blockX, blockY + 1, blockZ, aboveId);
-    } else if (aboveId === BlockId.Torch || aboveId === BlockId.CaveShroom) {
-      this.world.setBlock(blockX, blockY + 1, blockZ, BlockId.Air);
-      this.particles.spawnBurst(blockX, blockY + 1, blockZ, aboveId);
-      if (!creativeMode) {
-        this.drops.spawnDrop(
-          blockX + 0.5,
-          blockY + 1.35,
-          blockZ + 0.5,
-          createStack(aboveId as number, 1)
-        );
-      }
-    }
-
-    let vineY = blockY - 1;
-    while (vineY >= 1 && this.world.getBlock(blockX, vineY, blockZ) === BlockId.CaveVine) {
-      this.world.setBlock(blockX, vineY, blockZ, BlockId.Air);
-      this.particles.spawnBurst(blockX, vineY, blockZ, BlockId.CaveVine);
-      if (!creativeMode) {
-        this.drops.spawnDrop(
-          blockX + 0.5,
-          vineY + 0.45,
-          blockZ + 0.5,
-          createStack(BlockId.CaveVine as number, 1)
-        );
-      }
-      vineY--;
-    }
-
+    this.removeUnsupportedAt(blockX, blockY + 1, blockZ, creativeMode);
+    this.removeUnsupportedAt(blockX, blockY - 1, blockZ, creativeMode);
     this.updateTarget();
+  }
+
+  private removeUnsupportedAt(x: number, y: number, z: number, creativeMode: boolean): void {
+    if (y < 0 || y >= CHUNK_HEIGHT) return;
+    const blockId = this.world.getBlock(x, y, z);
+    if (blockId === BlockId.Air) return;
+    const definition = BLOCKS[blockId];
+    if (!definition.supportBehavior) return;
+    if (this.blockSupportRegistry.isSupported(definition.supportBehavior, this.world, x, y, z)) return;
+
+    const hit: VoxelHit = {
+      blockX: x, blockY: y, blockZ: z,
+      normalX: 0, normalY: 0, normalZ: 0,
+      blockId,
+      distance: 0,
+    };
+    this.blockBreakRegistry.execute(definition.breakBehaviors, {
+      hit,
+      creativeMode,
+      cause: 'support-loss',
+    });
+    this.world.setBlock(x, y, z, BlockId.Air);
+    this.particles.spawnBurst(x, y, z, blockId);
+    if (!creativeMode) {
+      const drop = definition.unsupportedDrop !== undefined
+        ? createStack(definition.unsupportedDrop as unknown as ItemId)
+        : getBlockDrop(blockId);
+      if (drop) this.drops.spawnDrop(x + 0.5, y + 0.35, z + 0.5, drop);
+    }
+    this.removeUnsupportedAt(x, y + 1, z, creativeMode);
+    this.removeUnsupportedAt(x, y - 1, z, creativeMode);
   }
 }
