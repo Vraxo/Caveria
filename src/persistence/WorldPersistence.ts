@@ -1,6 +1,11 @@
 import type { BedSnapshot } from '../gameplay/BedManager';
 import type { FarmPlotSnapshot } from '../gameplay/FarmingManager';
-import type { StatusEffectId, StatusEffectSnapshot } from '../gameplay/StatusEffectManager';
+import {
+  STATUS_EFFECT_DEFINITIONS,
+  STATUS_EFFECT_IDS,
+  type StatusEffectId,
+  type StatusEffectSnapshot,
+} from '../content/effects/StatusEffectDefinitions';
 import { CHEST_SLOT_COUNT, type ChestStateSnapshot } from '../gameplay/ChestManager';
 import type { FurnaceStateSnapshot } from '../gameplay/FurnaceManager';
 import { ArmorSlot, ItemStack, ITEMS } from '../items/Item';
@@ -294,15 +299,17 @@ export class WorldPersistence {
           ]
         : null;
 
-    const validEffects = new Set<StatusEffectId>([
-      'well-fed', 'regeneration', 'poisoned', 'warmth', 'chilled', 'antidote', 'hydrated', 'nausea', 'water-breathing',
-    ]);
+    const validEffects = new Set<StatusEffectId>(STATUS_EFFECT_IDS);
     const statusEffects: StatusEffectSnapshot[] = [];
     if (Array.isArray(raw.statusEffects)) {
       for (const effect of raw.statusEffects.slice(0, 12)) {
         if (!effect || typeof effect !== 'object' || !validEffects.has(effect.id as StatusEffectId)) continue;
-        const remaining = Math.max(0, Math.min(600, finite(effect.remaining, 0)));
-        if (remaining > 0) statusEffects.push({ id: effect.id as StatusEffectId, remaining });
+        const id = effect.id as StatusEffectId;
+        const remaining = Math.max(
+          0,
+          Math.min(STATUS_EFFECT_DEFINITIONS[id].maxPersistedSeconds, finite(effect.remaining, 0))
+        );
+        if (remaining > 0) statusEffects.push({ id, remaining });
       }
     }
 

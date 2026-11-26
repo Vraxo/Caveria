@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { BlockId } from '../content/BlockId';
+import { FISHING_BIOME_WEIGHT_SHIFTS, getFishingLootTable } from '../content/loot/FishingLoot';
 import { ItemId, ItemStack, createStack } from '../items/Item';
 import { Player } from '../player/Player';
 import { raycastWater } from '../player/Raycaster';
@@ -14,8 +15,6 @@ export interface FishingUseResult {
   catchPosition?: THREE.Vector3;
 }
 
-interface CatchEntry { item: ItemId; weight: number; }
-
 /** Chooses biome-, depth-, and quality-sensitive catches from a stable roll in [0, 1). */
 export function selectFishingCatch(
   world: World,
@@ -28,46 +27,14 @@ export function selectFishingCatch(
   const surface = world.terrainGen.getSurfaceHeight(x, z);
   const biome = world.terrainGen.getSurfaceBiome(x, z, surface);
   const deep = y < surface - 5;
-  let entries: CatchEntry[];
-  if (quality === 'tainted') {
-    entries = [
-      { item: ItemId.BlightedFish, weight: 43 },
-      { item: ItemId.RawCaveFish, weight: 22 },
-      { item: ItemId.CrystalFish, weight: 3 },
-      { item: ItemId.Stick, weight: 15 },
-      { item: ItemId.GlassBottle, weight: 10 },
-      { item: ItemId.Coal, weight: 6 },
-      { item: ItemId.GoldIngot, weight: 1 },
-    ];
-  } else if (quality === 'murky') {
-    entries = [
-      { item: ItemId.RawCaveFish, weight: deep ? 48 : 36 },
-      { item: ItemId.RawRiverFish, weight: deep ? 12 : 24 },
-      { item: ItemId.CrystalFish, weight: 4 },
-      { item: ItemId.Stick, weight: 17 },
-      { item: ItemId.GlassBottle, weight: 10 },
-      { item: ItemId.Coal, weight: 7 },
-      { item: ItemId.CrystalShard, weight: 2 },
-    ];
-  } else {
-    entries = [
-      { item: ItemId.RawRiverFish, weight: deep ? 18 : 52 },
-      { item: ItemId.RawCaveFish, weight: deep ? 48 : 15 },
-      { item: ItemId.CrystalFish, weight: deep ? 9 : 7 },
-      { item: ItemId.Stick, weight: 9 },
-      { item: ItemId.GlassBottle, weight: 7 },
-      { item: ItemId.Coal, weight: 5 },
-      { item: ItemId.GoldIngot, weight: 2 },
-    ];
-  }
-  if (biome === 'Desert Dunes') {
-    const river = entries.find((entry) => entry.item === ItemId.RawRiverFish);
-    const junk = entries.find((entry) => entry.item === ItemId.Stick);
-    if (river && junk) {
-      const shift = Math.min(10, river.weight);
-      river.weight -= shift;
-      junk.weight += shift;
-    }
+  const entries = getFishingLootTable(quality, deep).map((entry) => ({ ...entry }));
+  for (const shift of FISHING_BIOME_WEIGHT_SHIFTS[biome] ?? []) {
+    const from = entries.find((entry) => entry.item === shift.from);
+    const to = entries.find((entry) => entry.item === shift.to);
+    if (!from || !to) continue;
+    const amount = Math.min(shift.weight, from.weight);
+    from.weight -= amount;
+    to.weight += amount;
   }
   const total = entries.reduce((sum, entry) => sum + entry.weight, 0);
   let cursor = Math.max(0, Math.min(0.999999, roll)) * total;
