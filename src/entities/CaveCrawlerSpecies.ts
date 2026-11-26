@@ -19,38 +19,26 @@ import {
   findGroundMobSpawn,
   MovementIntent,
   moveGroundMob,
-  raycastMobs,
 } from './MobMechanics';
-import { MobHit, MobSpeciesController, MobTag } from './MobTypes';
-
-export type CaveCrawlerHit = MobHit;
+import {
+  MobEntity,
+  MobRuntime,
+  MobSpeciesBehavior,
+  MobTag,
+} from './MobTypes';
 
 type CaveCrawlerActivity = 'wandering' | 'pursuing-player';
 
 interface CaveCrawlerState {
-  // Identity and health
-  id: number;
-  health: number;
-
-  // World motion
-  position: THREE.Vector3;
-  velocity: THREE.Vector3;
-  onGround: boolean;
-
-  // Behavior
   activity: CaveCrawlerActivity;
   facingAngle: number;
   decisionTimer: number;
   attackTimer: number;
 
-  // Feedback
-  age: number;
   growlTimer: number;
-  hurtTimer: number;
-
-  // Rendering
-  visual: CaveCrawlerVisual;
 }
+
+type CaveCrawlerEntity = MobEntity<CaveCrawlerState, CaveCrawlerVisual>;
 
 interface PlayerRelation {
   towardX: number;
@@ -89,18 +77,21 @@ const HURT_INVULNERABILITY_SECONDS = 0.24;
 const BODY_SHAPE = { radius: DEFINITION.radius, height: DEFINITION.height };
 
 /**
- * Owns the complete Cave Crawler lifecycle.
+ * Owns Cave Crawler-specific spawning, decisions, attacks, feedback, and visuals.
  *
  * Frame order: spawn scheduling → timers → sensing → behavior → attacks → movement → animation.
  * Behavior priority: pursue a visible living player; otherwise choose a wandering direction.
  */
-export class CaveCrawlerManager implements MobSpeciesController {
+export class CaveCrawlerSpecies implements MobSpeciesBehavior<CaveCrawlerState, CaveCrawlerVisual> {
   public readonly species = CAVE_CRAWLER_ID;
+  public readonly name = DEFINITION.name;
   public readonly tags: ReadonlySet<MobTag> = new Set(DEFINITION.tags);
+  public readonly maxHealth = DEFINITION.maxHealth;
+  public readonly radius = DEFINITION.radius;
+  public readonly height = DEFINITION.height;
+  public readonly hurtInvulnerabilitySeconds = HURT_INVULNERABILITY_SECONDS;
 
-  private readonly crawlers: CaveCrawlerState[] = [];
   private spawnTimer = INITIAL_SPAWN_DELAY;
-  private nextId = 1;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -115,77 +106,23 @@ export class CaveCrawlerManager implements MobSpeciesController {
 
   // ---- Public species contract ------------------------------------------------
 
-  public get count(): number {
-    return this.crawlers.length;
-  }
-
-  public hasWithin(position: THREE.Vector3, radius: number): boolean {
-    const radiusSquared = radius * radius;
-    return this.crawlers.some(
-      (crawler) => crawler.position.distanceToSquared(position) <= radiusSquared
-    );
-  }
-
-  /** Kept as a descriptive compatibility alias for sleep and proximity callers. */
-  public hasCrawlerWithin(position: THREE.Vector3, radius: number): boolean {
-    return this.hasWithin(position, radius);
-  }
-
-  public update(dt: number): void {
-    this.updateSpawning(dt);
-    for (let index = this.crawlers.length - 1; index >= 0; index--) {
-      this.updateCrawler(index, dt);
-    }
-  }
-
-  public raycast(
-    origin: THREE.Vector3,
-    direction: THREE.Vector3,
-    maxDistance: number,
-    blockDistance: number
-  ): CaveCrawlerHit | null {
-    return raycastMobs(this.crawlers, {
-      species: this.species,
-      name: DEFINITION.name,
-      maxHealth: DEFINITION.maxHealth,
-      shape: BODY_SHAPE,
-      origin,
-      direction,
-      maxDistance,
-      blockDistance,
-    });
-  }
-
-  public damage(id: number, amount: number, direction: THREE.Vector3): boolean {
-    const index = this.crawlers.findIndex((crawler) => crawler.id === id);
-    if (index < 0) return false;
-
-    const crawler = this.crawlers[index];
-    if (crawler.hurtTimer > 0) return false;
-
-    this.applyDamage(crawler, amount, direction);
-    if (crawler.health <= 0) this.killCrawler(index);
-    return true;
-  }
-
-  // ---- Per-frame lifecycle ----------------------------------------------------
-
-  private updateSpawning(dt: number): void {
+  public updateSpawning(dt: number, runtime: MobRuntime): void {
     this.spawnTimer -= dt;
     if (this.spawnTimer > 0) return;
 
     this.spawnTimer = DEFINITION.spawnDelay.minimum
       + Math.random() * DEFINITION.spawnDelay.variance;
-    this.trySpawn();
+    this.trySpawn(runtime);
   }
 
-  private updateCrawler(index: number, dt: number): void {
-    const crawler = this.crawlers[index];
-    this.tickTimers(crawler, dt);
+  public update(crawler: CaveCrawlerEntity, dt: number, runtime: MobRuntime): void {
+    crawler.state.attackTimer = Math.max(0, crawler.state.attackTimer - dt);
+    crawler.state.decisionTimer -= dt;
+    crawler.state.growlTimer -= dt;
 
     const player = this.relationToPlayer(crawler);
     if (player.horizontalDistance > DEFINITION.despawnDistance) {
-      this.removeCrawler(index);
+      runtime.remove(crawler.id);
       return;
     }
 
@@ -194,15 +131,9 @@ export class CaveCrawlerManager implements MobSpeciesController {
     this.updateAnimation(crawler);
   }
 
-  private tickTimers(crawler: CaveCrawlerState, dt: number): void {
-    crawler.age += dt;
-    crawler.attackTimer = Math.max(0, crawler.attackTimer - dt);
-    crawler.decisionTimer -= dt;
-    crawler.growlTimer -= dt;
-    crawler.hurtTimer = Math.max(0, crawler.hurtTimer - dt);
-  }
+  // ---- Per-frame sensing ------------------------------------------------------
 
-  private relationToPlayer(crawler: CaveCrawlerState): PlayerRelation {
+  private relationToPlayer(crawler: CaveCrawlerEntity): PlayerRelation {
     const towardX = this.player.position.x - crawler.position.x;
     const towardZ = this.player.position.z - crawler.position.z;
     return {
@@ -216,7 +147,7 @@ export class CaveCrawlerManager implements MobSpeciesController {
   // ---- Behavior and attacks ---------------------------------------------------
 
   private chooseMovement(
-    crawler: CaveCrawlerState,
+    crawler: CaveCrawlerEntity,
     player: PlayerRelation
   ): MovementIntent {
     if (this.canPursuePlayer(crawler, player)) {
@@ -226,7 +157,7 @@ export class CaveCrawlerManager implements MobSpeciesController {
   }
 
   private canPursuePlayer(
-    crawler: CaveCrawlerState,
+    crawler: CaveCrawlerEntity,
     player: PlayerRelation
   ): boolean {
     return player.horizontalDistance < PLAYER_SIGHT_DISTANCE
@@ -235,15 +166,15 @@ export class CaveCrawlerManager implements MobSpeciesController {
   }
 
   private pursuePlayer(
-    crawler: CaveCrawlerState,
+    crawler: CaveCrawlerEntity,
     player: PlayerRelation
   ): MovementIntent {
     const inverseDistance = 1 / Math.max(0.001, player.horizontalDistance);
     const directionX = player.towardX * inverseDistance;
     const directionZ = player.towardZ * inverseDistance;
 
-    crawler.activity = 'pursuing-player';
-    crawler.facingAngle = Math.atan2(directionX, directionZ);
+    crawler.state.activity = 'pursuing-player';
+    crawler.state.facingAngle = Math.atan2(directionX, directionZ);
     this.tryGrowl(crawler, player.horizontalDistance);
     this.tryAttackPlayer(crawler, player, directionX, directionZ);
 
@@ -256,36 +187,36 @@ export class CaveCrawlerManager implements MobSpeciesController {
     };
   }
 
-  private wander(crawler: CaveCrawlerState): MovementIntent {
-    crawler.activity = 'wandering';
-    if (crawler.decisionTimer <= 0) {
-      crawler.facingAngle += (Math.random() - 0.5) * Math.PI * 1.7;
-      crawler.decisionTimer = 1.2 + Math.random() * 3.5;
+  private wander(crawler: CaveCrawlerEntity): MovementIntent {
+    crawler.state.activity = 'wandering';
+    if (crawler.state.decisionTimer <= 0) {
+      crawler.state.facingAngle += (Math.random() - 0.5) * Math.PI * 1.7;
+      crawler.state.decisionTimer = 1.2 + Math.random() * 3.5;
     }
     return {
-      directionX: Math.sin(crawler.facingAngle),
-      directionZ: Math.cos(crawler.facingAngle),
+      directionX: Math.sin(crawler.state.facingAngle),
+      directionZ: Math.cos(crawler.state.facingAngle),
       speed: WANDER_SPEED,
     };
   }
 
-  private tryGrowl(crawler: CaveCrawlerState, playerDistance: number): void {
-    if (crawler.growlTimer > 0 || playerDistance >= GROWL_DISTANCE) return;
-    crawler.growlTimer = 4 + Math.random() * 7;
+  private tryGrowl(crawler: CaveCrawlerEntity, playerDistance: number): void {
+    if (crawler.state.growlTimer > 0 || playerDistance >= GROWL_DISTANCE) return;
+    crawler.state.growlTimer = 4 + Math.random() * 7;
     this.audio.playCaveCrawlerGrowl();
   }
 
   private tryAttackPlayer(
-    crawler: CaveCrawlerState,
+    crawler: CaveCrawlerEntity,
     player: PlayerRelation,
     directionX: number,
     directionZ: number
   ): void {
     const inMeleeRange = player.horizontalDistance < ATTACK_DISTANCE
       && player.verticalDistance < ATTACK_MAXIMUM_HEIGHT_DIFFERENCE;
-    if (!inMeleeRange || crawler.attackTimer > 0) return;
+    if (!inMeleeRange || crawler.state.attackTimer > 0) return;
 
-    crawler.attackTimer = ATTACK_COOLDOWN_SECONDS;
+    crawler.state.attackTimer = ATTACK_COOLDOWN_SECONDS;
     const knockback = this.vitals.knockbackMultiplier;
     if (!this.vitals.damage(ATTACK_DAMAGE, 'mob')) return;
 
@@ -298,7 +229,7 @@ export class CaveCrawlerManager implements MobSpeciesController {
     this.player.velocity.z += directionZ * ATTACK_KNOCKBACK * knockback;
   }
 
-  private hasLineOfSight(crawler: CaveCrawlerState, distance: number): boolean {
+  private hasLineOfSight(crawler: CaveCrawlerEntity, distance: number): boolean {
     const origin = new THREE.Vector3(
       crawler.position.x,
       crawler.position.y + 0.4,
@@ -312,7 +243,7 @@ export class CaveCrawlerManager implements MobSpeciesController {
   // ---- Movement and animation -------------------------------------------------
 
   private applyMovement(
-    crawler: CaveCrawlerState,
+    crawler: CaveCrawlerEntity,
     intent: MovementIntent,
     dt: number
   ): void {
@@ -329,11 +260,11 @@ export class CaveCrawlerManager implements MobSpeciesController {
     // A blocked crawler rebounds and immediately chooses a new wandering direction.
     crawler.velocity.x *= -0.2;
     crawler.velocity.z *= -0.2;
-    crawler.facingAngle += Math.PI * (0.6 + Math.random() * 0.8);
-    crawler.decisionTimer = 0;
+    crawler.state.facingAngle += Math.PI * (0.6 + Math.random() * 0.8);
+    crawler.state.decisionTimer = 0;
   }
 
-  private updateAnimation(crawler: CaveCrawlerState): void {
+  private updateAnimation(crawler: CaveCrawlerEntity): void {
     updateCaveCrawlerVisual(crawler.visual, {
       age: crawler.age,
       hurt: crawler.hurtTimer > 0,
@@ -344,14 +275,14 @@ export class CaveCrawlerManager implements MobSpeciesController {
 
   // ---- Spawning ---------------------------------------------------------------
 
-  private trySpawn(): void {
-    if (!this.canSpawnMore() || this.vitals.dead || !this.playerIsUnderground()) return;
+  private trySpawn(runtime: MobRuntime): void {
+    if (!this.canSpawnMore(runtime) || this.vitals.dead || !this.playerIsUnderground()) return;
     const position = this.findSpawnPosition();
-    if (position) this.spawn(position.x, position.y, position.z);
+    if (position) this.spawn(position, runtime);
   }
 
-  private canSpawnMore(): boolean {
-    return this.crawlers.length < DEFINITION.maxPopulation;
+  private canSpawnMore(runtime: MobRuntime): boolean {
+    return runtime.countSpecies(this.species) < DEFINITION.maxPopulation;
   }
 
   private playerIsUnderground(): boolean {
@@ -377,8 +308,7 @@ export class CaveCrawlerManager implements MobSpeciesController {
     return skyLight <= MAXIMUM_SPAWN_SKY_LIGHT;
   }
 
-  private spawn(x: number, y: number, z: number): void {
-    const position = new THREE.Vector3(x, y, z);
+  private spawn(position: THREE.Vector3, runtime: MobRuntime): void {
     const visual = createCaveCrawlerVisual();
     visual.root.position.copy(position);
     this.scene.add(visual.root);
@@ -387,40 +317,34 @@ export class CaveCrawlerManager implements MobSpeciesController {
     const age = Math.random() * 5;
     const growlTimer = 1 + Math.random() * 5;
     const facingAngle = Math.random() * Math.PI * 2;
-    this.crawlers.push({
-      id: this.nextId++,
-      health: DEFINITION.maxHealth,
+    runtime.spawn(this, {
       position,
-      velocity: new THREE.Vector3(),
-      onGround: false,
-      activity: 'wandering',
-      facingAngle,
-      decisionTimer: 0,
-      attackTimer: 0,
       age,
-      growlTimer,
-      hurtTimer: 0,
+      state: {
+        activity: 'wandering',
+        facingAngle,
+        decisionTimer: 0,
+        attackTimer: 0,
+        growlTimer,
+      },
       visual,
     });
   }
 
   // ---- Combat and removal -----------------------------------------------------
 
-  private applyDamage(
-    crawler: CaveCrawlerState,
-    amount: number,
-    direction: THREE.Vector3
+  public onDamaged(
+    crawler: CaveCrawlerEntity,
+    direction: THREE.Vector3,
+    _runtime: MobRuntime
   ): void {
-    crawler.health -= Math.max(1, amount);
-    crawler.hurtTimer = HURT_INVULNERABILITY_SECONDS;
     crawler.velocity.x += direction.x * 3;
     crawler.velocity.y = 3;
     crawler.velocity.z += direction.z * 3;
     this.audio.playCaveCrawlerHit();
   }
 
-  private killCrawler(index: number): void {
-    const crawler = this.crawlers[index];
+  public onDeath(crawler: CaveCrawlerEntity, _runtime: MobRuntime): void {
     this.audio.playCaveCrawlerDeath();
     this.particles.spawnBurst(
       crawler.position.x - 0.5,
@@ -436,13 +360,10 @@ export class CaveCrawlerManager implements MobSpeciesController {
         stack
       );
     }
-    this.removeCrawler(index);
   }
 
-  private removeCrawler(index: number): void {
-    const crawler = this.crawlers[index];
+  public dispose(crawler: CaveCrawlerEntity): void {
     this.scene.remove(crawler.visual.root);
     disposeCaveCrawlerVisual(crawler.visual);
-    this.crawlers.splice(index, 1);
   }
 }

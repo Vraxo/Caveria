@@ -15,8 +15,8 @@ import { WaterSurvivalSystem } from '../gameplay/WaterSurvivalSystem';
 import { createDefaultUseRegistry } from '../gameplay/interactions/DefaultUseHandlers';
 import { createDefaultBlockBehaviorRegistries } from '../gameplay/interactions/DefaultBlockBehaviors';
 import { MobManager } from '../entities/MobManager';
-import { CaveCrawlerManager } from '../entities/CaveCrawlerManager';
-import { CrystalMiteManager } from '../entities/CrystalMiteManager';
+import { CaveCrawlerSpecies } from '../entities/CaveCrawlerSpecies';
+import { CrystalMiteSpecies } from '../entities/CrystalMiteSpecies';
 import { Inventory } from '../items/Inventory';
 import { ItemId, createStack } from '../items/Item';
 import { Player } from '../player/Player';
@@ -229,7 +229,7 @@ export class Game {
       this.statusEffects,
       this.audio
     );
-    const mites = new CrystalMiteManager(
+    const crystalMiteSpecies = new CrystalMiteSpecies(
       this.scene,
       this.world,
       this.player,
@@ -237,7 +237,7 @@ export class Game {
       this.particles,
       this.audio
     );
-    const crawlers = new CaveCrawlerManager(
+    const caveCrawlerSpecies = new CaveCrawlerSpecies(
       this.scene,
       this.world,
       this.player,
@@ -247,7 +247,7 @@ export class Game {
       this.audio,
       () => this.statusEffects.poison(18)
     );
-    this.mobs = new MobManager([mites, crawlers]);
+    this.mobs = new MobManager([crystalMiteSpecies, caveCrawlerSpecies]);
     this.arrows = new ArrowProjectileManager(
       this.scene,
       this.world,

@@ -11,9 +11,13 @@ import {
   findGroundMobSpawn,
   MovementIntent,
   moveGroundMob,
-  raycastMobs,
 } from './MobMechanics';
-import { MobHit, MobSpeciesController, MobTag } from './MobTypes';
+import {
+  MobEntity,
+  MobRuntime,
+  MobSpeciesBehavior,
+  MobTag,
+} from './MobTypes';
 import {
   CrystalMiteVisual,
   createCrystalMiteVisual,
@@ -21,34 +25,18 @@ import {
   updateCrystalMiteVisual,
 } from './CrystalMiteVisual';
 
-export type CrystalMiteHit = MobHit;
-
 type CrystalMiteActivity = 'idle' | 'wandering' | 'inspecting-crystal' | 'fleeing-player';
 
 interface CrystalMiteState {
-  // Identity and health
-  id: number;
-  health: number;
-
-  // World motion
-  position: THREE.Vector3;
-  velocity: THREE.Vector3;
-  onGround: boolean;
-
-  // Behavior
   activity: CrystalMiteActivity;
   activityTimer: number;
   facingAngle: number;
   targetCrystal: THREE.Vector3 | null;
 
-  // Feedback
-  age: number;
-  hurtTimer: number;
   chirpTimer: number;
-
-  // Rendering
-  visual: CrystalMiteVisual;
 }
+
+type CrystalMiteEntity = MobEntity<CrystalMiteState, CrystalMiteVisual>;
 
 interface PlayerRelation {
   awayX: number;
@@ -83,20 +71,21 @@ const BODY_SHAPE = { radius: DEFINITION.radius, height: DEFINITION.height };
 const NO_MOVEMENT: MovementIntent = { directionX: 0, directionZ: 0, speed: 0 };
 
 /**
- * Owns the complete Crystal Mite lifecycle.
+ * Owns Crystal Mite-specific spawning, decisions, feedback, and visuals.
  *
  * Frame order: spawn scheduling → timers → sensing → behavior → movement → animation → sound.
  * Behavior priority: flee nearby players, otherwise inspect crystals, otherwise wander or idle.
  */
-export class CrystalMiteManager implements MobSpeciesController {
+export class CrystalMiteSpecies implements MobSpeciesBehavior<CrystalMiteState, CrystalMiteVisual> {
   public readonly species = CRYSTAL_MITE_ID;
+  public readonly name = DEFINITION.name;
   public readonly tags: ReadonlySet<MobTag> = new Set(DEFINITION.tags);
+  public readonly maxHealth = DEFINITION.maxHealth;
+  public readonly radius = DEFINITION.radius;
+  public readonly height = DEFINITION.height;
+  public readonly hurtInvulnerabilitySeconds = HURT_INVULNERABILITY_SECONDS;
 
-  private readonly mites: CrystalMiteState[] = [];
-  private nextId = 1;
   private spawnTimer = INITIAL_SPAWN_DELAY;
-
-
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -109,72 +98,22 @@ export class CrystalMiteManager implements MobSpeciesController {
 
   // ---- Public species contract ------------------------------------------------
 
-  public get count(): number {
-    return this.mites.length;
-  }
-
-  public hasWithin(position: THREE.Vector3, radius: number): boolean {
-    const radiusSquared = radius * radius;
-    return this.mites.some(
-      (mite) => mite.position.distanceToSquared(position) <= radiusSquared
-    );
-  }
-
-  public update(dt: number): void {
-    this.updateSpawning(dt);
-    for (let index = this.mites.length - 1; index >= 0; index--) {
-      this.updateMite(index, dt);
-    }
-  }
-
-  public raycast(
-    origin: THREE.Vector3,
-    direction: THREE.Vector3,
-    maxDistance: number,
-    blockDistance = maxDistance
-  ): CrystalMiteHit | null {
-    return raycastMobs(this.mites, {
-      species: this.species,
-      name: DEFINITION.name,
-      maxHealth: DEFINITION.maxHealth,
-      shape: BODY_SHAPE,
-      origin,
-      direction,
-      maxDistance,
-      blockDistance,
-    });
-  }
-
-  public damage(id: number, amount: number, direction: THREE.Vector3): boolean {
-    const index = this.mites.findIndex((mite) => mite.id === id);
-    if (index < 0) return false;
-
-    const mite = this.mites[index];
-    if (mite.hurtTimer > 0) return false;
-
-    this.applyDamage(mite, amount, direction);
-    if (mite.health <= 0) this.killMite(index);
-    return true;
-  }
-
-  // ---- Per-frame lifecycle ----------------------------------------------------
-
-  private updateSpawning(dt: number): void {
+  public updateSpawning(dt: number, runtime: MobRuntime): void {
     this.spawnTimer -= dt;
     if (this.spawnTimer > 0) return;
 
     this.spawnTimer = DEFINITION.spawnDelay.minimum
       + Math.random() * DEFINITION.spawnDelay.variance;
-    this.trySpawn();
+    this.trySpawn(runtime);
   }
 
-  private updateMite(index: number, dt: number): void {
-    const mite = this.mites[index];
-    this.tickTimers(mite, dt);
+  public update(mite: CrystalMiteEntity, dt: number, runtime: MobRuntime): void {
+    mite.state.activityTimer -= dt;
+    mite.state.chirpTimer -= dt;
 
     const player = this.relationToPlayer(mite);
     if (player.distance > DEFINITION.despawnDistance) {
-      this.removeMite(index);
+      runtime.remove(mite.id);
       return;
     }
 
@@ -184,14 +123,9 @@ export class CrystalMiteManager implements MobSpeciesController {
     this.updateChirping(mite, player.distance);
   }
 
-  private tickTimers(mite: CrystalMiteState, dt: number): void {
-    mite.age += dt;
-    mite.activityTimer -= dt;
-    mite.chirpTimer -= dt;
-    mite.hurtTimer = Math.max(0, mite.hurtTimer - dt);
-  }
+  // ---- Per-frame sensing ------------------------------------------------------
 
-  private relationToPlayer(mite: CrystalMiteState): PlayerRelation {
+  private relationToPlayer(mite: CrystalMiteEntity): PlayerRelation {
     const awayX = mite.position.x - this.player.position.x;
     const awayZ = mite.position.z - this.player.position.z;
     return { awayX, awayZ, distance: Math.hypot(awayX, awayZ) };
@@ -199,26 +133,26 @@ export class CrystalMiteManager implements MobSpeciesController {
 
   // ---- Behavior ---------------------------------------------------------------
 
-  private chooseMovement(mite: CrystalMiteState, player: PlayerRelation): MovementIntent {
+  private chooseMovement(mite: CrystalMiteEntity, player: PlayerRelation): MovementIntent {
     if (player.distance < PLAYER_FLEE_DISTANCE) {
       return this.fleeFromPlayer(mite, player);
     }
 
-    if (mite.activityTimer <= 0) this.chooseNewActivity(mite);
-    if (mite.targetCrystal) return this.moveTowardCrystal(mite);
-    if (mite.activityTimer > WANDER_STOP_SECONDS) return this.wander(mite);
+    if (mite.state.activityTimer <= 0) this.chooseNewActivity(mite);
+    if (mite.state.targetCrystal) return this.moveTowardCrystal(mite);
+    if (mite.state.activityTimer > WANDER_STOP_SECONDS) return this.wander(mite);
 
-    mite.activity = 'idle';
+    mite.state.activity = 'idle';
     return NO_MOVEMENT;
   }
 
   private fleeFromPlayer(
-    mite: CrystalMiteState,
+    mite: CrystalMiteEntity,
     player: PlayerRelation
   ): MovementIntent {
     const inverseDistance = 1 / Math.max(0.001, player.distance);
-    mite.activity = 'fleeing-player';
-    mite.targetCrystal = null;
+    mite.state.activity = 'fleeing-player';
+    mite.state.targetCrystal = null;
     return {
       directionX: player.awayX * inverseDistance,
       directionZ: player.awayZ * inverseDistance,
@@ -226,19 +160,19 @@ export class CrystalMiteManager implements MobSpeciesController {
     };
   }
 
-  private moveTowardCrystal(mite: CrystalMiteState): MovementIntent {
-    const targetX = mite.targetCrystal!.x - mite.position.x;
-    const targetZ = mite.targetCrystal!.z - mite.position.z;
+  private moveTowardCrystal(mite: CrystalMiteEntity): MovementIntent {
+    const targetX = mite.state.targetCrystal!.x - mite.position.x;
+    const targetZ = mite.state.targetCrystal!.z - mite.position.z;
     const distance = Math.hypot(targetX, targetZ);
 
     if (distance < CRYSTAL_REACHED_DISTANCE) {
-      mite.activity = 'idle';
-      mite.targetCrystal = null;
-      mite.activityTimer = 1.2 + Math.random() * 2.4;
+      mite.state.activity = 'idle';
+      mite.state.targetCrystal = null;
+      mite.state.activityTimer = 1.2 + Math.random() * 2.4;
       return NO_MOVEMENT;
     }
 
-    mite.activity = 'inspecting-crystal';
+    mite.state.activity = 'inspecting-crystal';
     return {
       directionX: targetX / distance,
       directionZ: targetZ / distance,
@@ -246,22 +180,22 @@ export class CrystalMiteManager implements MobSpeciesController {
     };
   }
 
-  private wander(mite: CrystalMiteState): MovementIntent {
-    mite.activity = 'wandering';
+  private wander(mite: CrystalMiteEntity): MovementIntent {
+    mite.state.activity = 'wandering';
     return {
-      directionX: Math.sin(mite.facingAngle),
-      directionZ: Math.cos(mite.facingAngle),
+      directionX: Math.sin(mite.state.facingAngle),
+      directionZ: Math.cos(mite.state.facingAngle),
       speed: WANDER_SPEED,
     };
   }
 
-  private chooseNewActivity(mite: CrystalMiteState): void {
-    mite.targetCrystal = Math.random() < CRYSTAL_INSPECTION_CHANCE
+  private chooseNewActivity(mite: CrystalMiteEntity): void {
+    mite.state.targetCrystal = Math.random() < CRYSTAL_INSPECTION_CHANCE
       ? this.findNearbyCrystal(mite.position)
       : null;
-    mite.facingAngle = Math.random() * Math.PI * 2;
-    mite.activity = mite.targetCrystal ? 'inspecting-crystal' : 'wandering';
-    mite.activityTimer = mite.targetCrystal
+    mite.state.facingAngle = Math.random() * Math.PI * 2;
+    mite.state.activity = mite.state.targetCrystal ? 'inspecting-crystal' : 'wandering';
+    mite.state.activityTimer = mite.state.targetCrystal
       ? 3 + Math.random() * 3
       : 1.4 + Math.random() * 3.8;
   }
@@ -289,7 +223,7 @@ export class CrystalMiteManager implements MobSpeciesController {
   // ---- Movement and animation -------------------------------------------------
 
   private applyMovement(
-    mite: CrystalMiteState,
+    mite: CrystalMiteEntity,
     intent: MovementIntent,
     dt: number
   ): void {
@@ -306,13 +240,13 @@ export class CrystalMiteManager implements MobSpeciesController {
     // A blocked mite abandons inspection and pauses before choosing another activity.
     mite.velocity.x *= -0.25;
     mite.velocity.z *= -0.25;
-    mite.facingAngle += Math.PI * (0.55 + Math.random() * 0.9);
-    mite.activity = 'idle';
-    mite.activityTimer = 0.6;
-    mite.targetCrystal = null;
+    mite.state.facingAngle += Math.PI * (0.55 + Math.random() * 0.9);
+    mite.state.activity = 'idle';
+    mite.state.activityTimer = 0.6;
+    mite.state.targetCrystal = null;
   }
 
-  private updateAnimation(mite: CrystalMiteState): void {
+  private updateAnimation(mite: CrystalMiteEntity): void {
     updateCrystalMiteVisual(mite.visual, {
       id: mite.id,
       age: mite.age,
@@ -322,22 +256,22 @@ export class CrystalMiteManager implements MobSpeciesController {
     });
   }
 
-  private updateChirping(mite: CrystalMiteState, playerDistance: number): void {
-    if (mite.chirpTimer > 0 || playerDistance >= CHIRP_DISTANCE) return;
-    mite.chirpTimer = 4 + Math.random() * 9;
+  private updateChirping(mite: CrystalMiteEntity, playerDistance: number): void {
+    if (mite.state.chirpTimer > 0 || playerDistance >= CHIRP_DISTANCE) return;
+    mite.state.chirpTimer = 4 + Math.random() * 9;
     this.audio.playCrystalMiteChirp();
   }
 
   // ---- Spawning ---------------------------------------------------------------
 
-  private trySpawn(): void {
-    if (!this.canSpawnMore() || !this.playerIsUnderground()) return;
-    const position = this.findSpawnPosition();
-    if (position) this.spawnMite(position.x, position.y, position.z);
+  private trySpawn(runtime: MobRuntime): void {
+    if (!this.canSpawnMore(runtime) || !this.playerIsUnderground()) return;
+    const position = this.findSpawnPosition(runtime);
+    if (position) this.spawnMite(position, runtime);
   }
 
-  private canSpawnMore(): boolean {
-    return this.mites.length < DEFINITION.maxPopulation;
+  private canSpawnMore(runtime: MobRuntime): boolean {
+    return runtime.countSpecies(this.species) < DEFINITION.maxPopulation;
   }
 
   private playerIsUnderground(): boolean {
@@ -347,7 +281,7 @@ export class CrystalMiteManager implements MobSpeciesController {
     return this.player.position.y <= surface - DESPAWN_DEPTH_BELOW_SURFACE;
   }
 
-  private findSpawnPosition(): THREE.Vector3 | null {
+  private findSpawnPosition(runtime: MobRuntime): THREE.Vector3 | null {
     const position = findGroundMobSpawn(this.world, this.player.position, {
       attempts: SPAWN_ATTEMPTS,
       minimumRadius: SPAWN_MINIMUM_RADIUS,
@@ -356,7 +290,11 @@ export class CrystalMiteManager implements MobSpeciesController {
       scanBelow: SPAWN_SCAN_BELOW_PLAYER,
       acceptsColumn: (x, z) => this.biomeAllowsSpawn(x, z),
     });
-    return position && !this.isSpawnAreaCrowded(position) ? position : null;
+    return position && !runtime.hasSpeciesWithinHorizontal(
+      this.species,
+      position,
+      MINIMUM_SPAWN_SPACING
+    ) ? position : null;
   }
 
   private biomeAllowsSpawn(x: number, z: number): boolean {
@@ -364,59 +302,41 @@ export class CrystalMiteManager implements MobSpeciesController {
     return biome === 'Crystal Geode Hall' || Math.random() <= GEODE_SPAWN_CHANCE_ELSEWHERE;
   }
 
-  private isSpawnAreaCrowded(position: THREE.Vector3): boolean {
-    return this.mites.some(
-      (mite) => Math.hypot(
-        mite.position.x - position.x,
-        mite.position.z - position.z
-      ) < MINIMUM_SPAWN_SPACING
-    );
-  }
-
-  private spawnMite(x: number, y: number, z: number): void {
-    const position = new THREE.Vector3(x, y, z);
+  private spawnMite(position: THREE.Vector3, runtime: MobRuntime): void {
     const visual = createCrystalMiteVisual();
     visual.root.position.copy(position);
     this.scene.add(visual.root);
 
-    this.mites.push({
-      id: this.nextId++,
-      health: DEFINITION.maxHealth,
+    runtime.spawn(this, {
       position,
-      velocity: new THREE.Vector3(),
-      onGround: false,
       age: Math.random() * 8,
-      hurtTimer: 0,
-      chirpTimer: 2 + Math.random() * 7,
-      activity: 'idle',
-      activityTimer: 0,
-      facingAngle: Math.random() * Math.PI * 2,
-      targetCrystal: null,
+      state: {
+        chirpTimer: 2 + Math.random() * 7,
+        activity: 'idle',
+        activityTimer: 0,
+        facingAngle: Math.random() * Math.PI * 2,
+        targetCrystal: null,
+      },
       visual,
     });
   }
 
-
-
   // ---- Combat and removal -----------------------------------------------------
 
-  private applyDamage(
-    mite: CrystalMiteState,
-    amount: number,
-    direction: THREE.Vector3
+  public onDamaged(
+    mite: CrystalMiteEntity,
+    direction: THREE.Vector3,
+    _runtime: MobRuntime
   ): void {
-    mite.health -= Math.max(1, amount);
-    mite.hurtTimer = HURT_INVULNERABILITY_SECONDS;
     mite.velocity.x += direction.x * 3.8;
     mite.velocity.y = 3.3;
     mite.velocity.z += direction.z * 3.8;
-    mite.activity = 'idle';
-    mite.activityTimer = 0;
+    mite.state.activity = 'idle';
+    mite.state.activityTimer = 0;
     this.audio.playCrystalMiteHit();
   }
 
-  private killMite(index: number): void {
-    const mite = this.mites[index];
+  public onDeath(mite: CrystalMiteEntity, _runtime: MobRuntime): void {
     this.audio.playCrystalMiteDeath();
     this.particles.spawnBurst(
       mite.position.x - 0.5,
@@ -432,13 +352,10 @@ export class CrystalMiteManager implements MobSpeciesController {
         stack
       );
     }
-    this.removeMite(index);
   }
 
-  private removeMite(index: number): void {
-    const mite = this.mites[index];
+  public dispose(mite: CrystalMiteEntity): void {
     this.scene.remove(mite.visual.root);
     disposeCrystalMiteVisual(mite.visual);
-    this.mites.splice(index, 1);
   }
 }
