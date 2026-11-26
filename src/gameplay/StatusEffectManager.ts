@@ -5,7 +5,6 @@ import {
   StatusEffectId,
   StatusEffectSnapshot,
 } from '../content/effects/StatusEffectDefinitions';
-import { ItemId } from '../items/Item';
 
 export type { StatusEffectId, StatusEffectSnapshot } from '../content/effects/StatusEffectDefinitions';
 import { Player } from '../player/Player';
@@ -68,87 +67,30 @@ export class StatusEffectManager {
     this.render();
   }
 
-  public consume(itemId: ItemId): boolean {
-    if (itemId === ItemId.HealingPoultice) {
-      this.add('regeneration', 15);
-      this.showMessage('Healing Poultice applied · Regeneration');
-    } else if (itemId === ItemId.Antidote) {
-      this.effects.delete('poisoned');
-      this.add('antidote', 120);
-      this.showMessage('Antidote taken · Poison immunity');
-    } else if (itemId === ItemId.WarmingStew) {
-      this.vitals.eat(8, 8);
-      this.add('warmth', 180);
-      this.add('well-fed', 120);
-      this.showMessage('Warming Stew · Warmth and Well Fed');
-    } else if (itemId === ItemId.CrystalTonic) {
-      this.vitals.heal(6);
-      this.add('regeneration', 10);
-      this.showMessage('Crystal Tonic · Health restored');
-    } else if (itemId === ItemId.CrystalFishTonic) {
-      this.vitals.heal(4);
-      this.add('hydrated', 90);
-      this.add('water-breathing', 180);
-      this.showMessage('Crystal Fish Tonic · Water Breathing');
-    } else if (itemId === ItemId.PurifiedCrystalTonic) {
-      this.vitals.heal(10);
-      this.add('regeneration', 18);
-      this.add('hydrated', 120);
-      this.showMessage('Purified Tonic · Strong restoration and Hydrated');
-    } else if (itemId === ItemId.CleanWaterBottle) {
-      this.add('hydrated', 180);
-      this.showMessage('Clean water · Hydrated');
-    } else if (itemId === ItemId.DirtyWaterBottle) {
-      this.add('hydrated', 90);
-      this.add('nausea', 25);
-      if (Math.random() < 0.35) this.poison(14);
-      else this.showMessage('Dirty water · Hydrated, but nauseous');
-    } else {
-      return false;
-    }
-    if (itemId === ItemId.CleanWaterBottle || itemId === ItemId.DirtyWaterBottle || itemId === ItemId.PurifiedCrystalTonic || itemId === ItemId.CrystalFishTonic) this.audio.playDrink();
-    else this.audio.playMedicineUse();
-    return true;
-  }
-
   public drinkWater(quality: WaterQuality): void {
     const hydratedSeconds = quality === 'fresh' ? 140 : quality === 'murky' ? 80 : 50;
-    this.add('hydrated', hydratedSeconds);
+    this.addEffect('hydrated', hydratedSeconds);
     if (quality === 'murky') {
-      this.add('nausea', 20);
+      this.addEffect('nausea', 20);
       if (Math.random() < 0.25) this.poison(12);
-      else this.showMessage('Murky water · Hydrated, but nauseous');
+      else this.notify('Murky water · Hydrated, but nauseous');
     } else if (quality === 'tainted') {
-      this.add('nausea', 35);
+      this.addEffect('nausea', 35);
       if (Math.random() < 0.65) this.poison(18);
-      else this.showMessage('Tainted water · You feel sick');
+      else this.notify('Tainted water · You feel sick');
     } else {
-      this.showMessage('Fresh water · Hydrated');
+      this.notify('Fresh water · Hydrated');
     }
     this.audio.playDrink();
   }
 
-  public onFoodConsumed(itemId: ItemId): void {
-    if (itemId === ItemId.CaveStew) {
-      this.add('well-fed', 120);
-      this.showMessage('Well Fed · Natural recovery improved');
-    } else if (itemId === ItemId.DriedCaveBerries) {
-      this.add('well-fed', 45);
-    } else if (itemId === ItemId.SmokedCaveShroom) {
-      this.add('warmth', 45);
-    } else if (itemId === ItemId.BlightedFish) {
-      this.add('nausea', 35);
-      this.poison(18);
-    }
-  }
-
   public poison(seconds: number): boolean {
     if (this.has('antidote')) {
-      this.showMessage('Antidote neutralized the poison.');
+      this.notify('Antidote neutralized the poison.');
       return false;
     }
-    this.add('poisoned', seconds);
-    this.showMessage('Poisoned! Use an Antidote.');
+    this.addEffect('poisoned', seconds);
+    this.notify('Poisoned! Use an Antidote.');
     return true;
   }
 
@@ -160,12 +102,13 @@ export class StatusEffectManager {
     return this.has('nausea') ? Math.sin(this.elapsed * 2.1) * 0.018 + Math.sin(this.elapsed * 0.73) * 0.01 : 0;
   }
   public has(id: StatusEffectId): boolean { return (this.effects.get(id) ?? 0) > 0; }
+  public removeEffect(id: StatusEffectId): void { this.effects.delete(id); }
 
   public snapshots(): StatusEffectSnapshot[] {
     return [...this.effects].map(([id, remaining]) => ({ id, remaining }));
   }
 
-  private add(id: StatusEffectId, seconds: number): void {
+  public addEffect(id: StatusEffectId, seconds: number): void {
     this.effects.set(id, Math.max(this.effects.get(id) ?? 0, seconds));
   }
 
@@ -173,7 +116,7 @@ export class StatusEffectManager {
     if (this.temperature.temperature < 20 && !this.has('warmth')) {
       this.severeColdSeconds += dt;
       if (this.severeColdSeconds >= 8) {
-        this.add('chilled', 12);
+        this.addEffect('chilled', 12);
         this.severeColdSeconds = 0;
       }
     } else {
@@ -223,7 +166,7 @@ export class StatusEffectManager {
     }
   }
 
-  private showMessage(message: string): void {
+  public notify(message: string): void {
     this.messageEl.textContent = message;
     this.messageEl.classList.add('visible');
     this.messageTimer = 3.2;
