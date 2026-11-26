@@ -194,4 +194,44 @@ export function paintStructureTextures(drawTile: TileDrawer): void {
       }
     });
 
+    const farmland = (wet: boolean): Parameters<typeof drawTile>[1] => (px, rng) => {
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        const furrow = x % 4 === 0 || x % 4 === 1;
+        const n = (rng() - 0.5) * 12;
+        const base = wet ? (furrow ? [62, 43, 32] : [88, 58, 38]) : (furrow ? [102, 69, 43] : [136, 91, 52]);
+        px(x, y, varyColor(base as [number, number, number], n));
+      }
+    };
+    drawTile(TileIndex.FarmlandDry, farmland(false));
+    drawTile(TileIndex.FarmlandWet, farmland(true));
+
+    const berryPlant = (stage: 0 | 1 | 2): Parameters<typeof drawTile>[1] => (px, rng) => {
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        const height = stage === 0 ? 6 : stage === 1 ? 11 : 14;
+        const center = Math.abs(x - 7.5);
+        if (y >= 16 - height && center <= (stage === 0 ? 1.5 : 4.5 - Math.abs(y - 10) * 0.18)) {
+          const berry = stage === 2 && ((x * 3 + y * 5) % 11 < 2);
+          const n = (rng() - 0.5) * 12;
+          px(x, y, berry ? [196, 42, 88, 255] : [clampByte(48 + n), clampByte(132 + n), clampByte(58 + n), 255]);
+        } else px(x, y, [0, 0, 0, 0]);
+      }
+    };
+    drawTile(TileIndex.BerrySprout, berryPlant(0));
+    drawTile(TileIndex.BerryBush, berryPlant(1));
+    drawTile(TileIndex.BerryBushMature, berryPlant(2));
+
+    const shroomPlant = (growing: boolean): Parameters<typeof drawTile>[1] => (px, rng) => {
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        const stemTop = growing ? 7 : 10;
+        const capWidth = growing ? 5 : 3;
+        if (x >= 7 && x <= 8 && y >= stemTop) px(x, y, [208, 188, 148, 255]);
+        else if (y >= stemTop - 3 && y < stemTop && Math.abs(x - 7.5) <= capWidth) {
+          const n = (rng() - 0.5) * 10;
+          px(x, y, [clampByte(164 + n), clampByte(62 + n), clampByte(190 + n), 255]);
+        } else px(x, y, [0, 0, 0, 0]);
+      }
+    };
+    drawTile(TileIndex.ShroomSprout, shroomPlant(false));
+    drawTile(TileIndex.ShroomGrowing, shroomPlant(true));
+
 }

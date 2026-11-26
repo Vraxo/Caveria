@@ -137,4 +137,34 @@ export const BASE_BLOCKS: BlockCatalog = {
     lightOpacity: 0,
     shape: 'chest',
   }),
+  [BlockId.FarmlandDry]: defineBlock(BlockId.FarmlandDry, {
+    name: 'Dry Farmland', hardness: 0.65,
+    faces: columnFaces(TileIndex.Dirt, TileIndex.FarmlandDry, TileIndex.Dirt),
+    preferredTool: 'shovel',
+  }),
+  [BlockId.FarmlandWet]: defineBlock(BlockId.FarmlandWet, {
+    name: 'Hydrated Farmland', hardness: 0.65,
+    faces: columnFaces(TileIndex.Dirt, TileIndex.FarmlandWet, TileIndex.Dirt),
+    preferredTool: 'shovel',
+  }),
+  [BlockId.BerrySprout]: defineBlock(BlockId.BerrySprout, {
+    name: 'Berry Sprout', hardness: 0.08, faces: allFaces(TileIndex.BerrySprout),
+    solid: false, transparent: true, lightOpacity: 0, shape: 'cross',
+  }),
+  [BlockId.BerryBush]: defineBlock(BlockId.BerryBush, {
+    name: 'Growing Berry Bush', hardness: 0.12, faces: allFaces(TileIndex.BerryBush),
+    solid: false, transparent: true, lightOpacity: 0, shape: 'cross',
+  }),
+  [BlockId.BerryBushMature]: defineBlock(BlockId.BerryBushMature, {
+    name: 'Mature Berry Bush', hardness: 0.15, faces: allFaces(TileIndex.BerryBushMature),
+    solid: false, transparent: true, lightOpacity: 0, shape: 'cross',
+  }),
+  [BlockId.ShroomSprout]: defineBlock(BlockId.ShroomSprout, {
+    name: 'Cave Shroom Sprout', hardness: 0.06, faces: allFaces(TileIndex.ShroomSprout),
+    solid: false, transparent: true, lightOpacity: 0, shape: 'cross',
+  }),
+  [BlockId.ShroomGrowing]: defineBlock(BlockId.ShroomGrowing, {
+    name: 'Growing Cave Shroom', hardness: 0.08, faces: allFaces(TileIndex.ShroomGrowing),
+    solid: false, transparent: true, lightOpacity: 0, shape: 'cross',
+  }),
 };

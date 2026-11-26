@@ -83,6 +83,8 @@ export enum ItemId {
   WovenFiber = 164,
   Bow = 165,
   Arrow = 166,
+  WoodenHoe = 167,
+  DriedCaveBerries = 168,
 }
 
 export type ArmorSlot = 'helmet' | 'chestplate' | 'leggings' | 'boots';
@@ -284,6 +286,27 @@ export const ITEMS: Record<number, ItemDefinition> = {
     toolCategory: 'none',
     toolTier: 0,
     miningSpeed: 1,
+  },
+  [ItemId.WoodenHoe]: {
+    id: ItemId.WoodenHoe,
+    name: 'Wooden Hoe',
+    maxStack: 1,
+    placeBlockId: null,
+    toolCategory: 'none',
+    toolTier: 1,
+    miningSpeed: 1,
+    maxDurability: 128,
+  },
+  [ItemId.DriedCaveBerries]: {
+    id: ItemId.DriedCaveBerries,
+    name: 'Dried Cave Berries',
+    maxStack: 64,
+    placeBlockId: null,
+    toolCategory: 'none',
+    toolTier: 0,
+    miningSpeed: 1,
+    nutrition: 5,
+    saturation: 3.2,
   },
 
   // Wooden Tools
@@ -598,7 +621,15 @@ export function getBlockDrop(blockId: BlockId): ItemStack | null {
     case BlockId.Glass: // Glass shatters without silk touch
     case BlockId.BedFoot:
     case BlockId.BedHead:
+    case BlockId.BerrySprout:
+    case BlockId.BerryBush:
+    case BlockId.BerryBushMature:
+    case BlockId.ShroomSprout:
+    case BlockId.ShroomGrowing:
       return null;
+    case BlockId.FarmlandDry:
+    case BlockId.FarmlandWet:
+      return createStack(ItemId.Dirt, 1);
     case BlockId.Grass:
     case BlockId.SnowGrass:
       return createStack(ItemId.Dirt, 1);

@@ -70,6 +70,19 @@ export class UiSoundEffects {
   public playArrowHit(): void {
     this.synth.noiseBurst({ duration: 0.09, filterType: 'bandpass', freq: 850, q: 1.1, gain: 0.1 });
   }
+  public playFarmGrowth(): void {
+    this.synth.tone({ type: 'sine', freq: 520, freqEnd: 720, duration: 0.12, gain: 0.025 });
+  }
+  public playFarmAction(action: 'tilled' | 'planted' | 'harvested'): void {
+    if (action === 'tilled') {
+      this.synth.noiseBurst({ duration: 0.12, filterType: 'lowpass', freq: 520, q: 0.8, gain: 0.09 });
+    } else if (action === 'planted') {
+      this.synth.noiseBurst({ duration: 0.07, filterType: 'bandpass', freq: 760, q: 1.2, gain: 0.055 });
+    } else {
+      this.synth.noiseBurst({ duration: 0.11, filterType: 'highpass', freq: 1100, q: 0.8, gain: 0.075 });
+      this.synth.tone({ type: 'triangle', freq: 480, freqEnd: 680, duration: 0.1, gain: 0.04 });
+    }
+  }
   public playEat(): void {
     for (let bite = 0; bite < 3; bite++) {
       this.synth.noiseBurst({

@@ -61,6 +61,8 @@ export class AudioManager {
   public playBowRelease(): void { this.ui.playBowRelease(); }
   public playArrowImpact(): void { this.ui.playArrowImpact(); }
   public playArrowHit(): void { this.ui.playArrowHit(); }
+  public playFarmGrowth(): void { this.ui.playFarmGrowth(); }
+  public playFarmAction(action: 'tilled' | 'planted' | 'harvested'): void { this.ui.playFarmAction(action); }
   public playToolBreak(): void { this.ui.playToolBreak(); }
   public playModeToggle(): void { this.ui.playModeToggle(); }
   public playThunder(intensity: number): void { this.ambience.playThunder(intensity); }

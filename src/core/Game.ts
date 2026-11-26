@@ -4,6 +4,7 @@ import { ArrowProjectileManager } from '../gameplay/ArrowProjectileManager';
 import { BedManager } from '../gameplay/BedManager';
 import { BlockInteractionController } from '../gameplay/BlockInteractionController';
 import { ChestManager } from '../gameplay/ChestManager';
+import { FarmingManager } from '../gameplay/FarmingManager';
 import { FurnaceManager } from '../gameplay/FurnaceManager';
 import { MovementAudioController } from '../gameplay/MovementAudioController';
 import { MobManager } from '../entities/MobManager';
@@ -52,6 +53,7 @@ export class Game {
   private readonly arrows: ArrowProjectileManager;
   private readonly beds: BedManager;
   private readonly chests: ChestManager;
+  private readonly farms: FarmingManager;
   private readonly furnaces: FurnaceManager;
   private readonly heldItemView: HeldItemView;
   private readonly audio: AudioManager;
@@ -213,6 +215,14 @@ export class Game {
       savedGame?.respawnBed,
       (x, y, z, stack) => this.drops.spawnDrop(x, y, z, stack)
     );
+    this.farms = new FarmingManager(
+      this.world,
+      this.player,
+      this.weather,
+      this.audio,
+      savedGame?.farms,
+      (x, y, z, stack) => this.drops.spawnDrop(x, y, z, stack)
+    );
     this.heldItemView = new HeldItemView(this.camera, this.atlas);
 
     this.inventory = new Inventory();
@@ -244,6 +254,8 @@ export class Game {
       onUseBed: (x, y, z) => this.beds.use(x, y, z),
       onPlaceBed: (x, y, z) => this.beds.place(x, y, z),
       onBedBroken: (x, y, z, drop) => this.beds.breakAt(x, y, z, drop),
+      onUseFarm: (x, y, z, held) => this.farms.use(x, y, z, held),
+      onFarmBroken: (x, y, z, drop) => this.farms.breakAt(x, y, z, drop),
     });
     this.inventoryModal = new InventoryModal(
       this.inventory,
@@ -378,6 +390,7 @@ export class Game {
     this.persistence.update(dt);
     this.weather.update(dt);
     this.beds.update(dt);
+    this.farms.update(dt);
     this.furnaces.update(dt);
     this.furnaceModal.update(dt);
 
@@ -570,6 +583,7 @@ export class Game {
       muted: this.audio.muted,
       furnaces: this.furnaces.snapshot(),
       chests: this.chests.snapshots(),
+      farms: this.farms.snapshots(),
       beds: this.beds.snapshots(),
       respawnBed: this.beds.respawnSnapshot(),
       worldEdits: this.world.exportEdits(),

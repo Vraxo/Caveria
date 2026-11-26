@@ -25,6 +25,7 @@ export const FURNACE_RECIPES: Readonly<Partial<Record<ItemId, FurnaceRecipe>>> =
   [ItemId.GoldOre]: { output: ItemId.GoldIngot, count: 1, seconds: 8 },
   [ItemId.Sand]: { output: ItemId.Glass, count: 1, seconds: 6 },
   [ItemId.CaveShroom]: { output: ItemId.RoastedCaveShroom, count: 1, seconds: 5 },
+  [ItemId.CaveBerries]: { output: ItemId.DriedCaveBerries, count: 1, seconds: 4 },
   [ItemId.Cactus]: { output: ItemId.CactusGreen, count: 1, seconds: 6 },
 };
 

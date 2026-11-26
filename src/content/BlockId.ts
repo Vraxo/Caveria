@@ -34,4 +34,11 @@ export enum BlockId {
   BedFoot = 31,
   BedHead = 32,
   Chest = 33,
+  FarmlandDry = 34,
+  FarmlandWet = 35,
+  BerrySprout = 36,
+  BerryBush = 37,
+  BerryBushMature = 38,
+  ShroomSprout = 39,
+  ShroomGrowing = 40,
 }
