@@ -104,4 +104,38 @@ export function paintStructureTextures(drawTile: TileDrawer): void {
       }
     });
 
+    drawTile(TileIndex.FurnaceTop, (px, rng) => {
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        const edge = x < 2 || x > 13 || y < 2 || y > 13;
+        const seam = x % 5 === 0 || y % 5 === 0;
+        const n = (rng() - 0.5) * 18;
+        const base = edge ? 66 : seam ? 82 : 112;
+        px(x, y, [clampByte(base + n), clampByte(base + n), clampByte(base + 4 + n), 255]);
+      }
+    });
+
+    const furnaceSide = (lit: boolean): Parameters<typeof drawTile>[1] => (px, rng) => {
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+        const n = (rng() - 0.5) * 16;
+        const border = x === 0 || x === 15 || y === 0 || y === 15;
+        const mouth = x >= 4 && x <= 11 && y >= 8 && y <= 13;
+        const rim = x >= 3 && x <= 12 && y >= 7 && y <= 14 && !mouth;
+        if (mouth) {
+          if (lit && y >= 10) {
+            const flame = (x + y) % 3;
+            px(x, y, flame === 0 ? [255, 226, 92, 255] : flame === 1 ? [248, 116, 34, 255] : [164, 48, 24, 255]);
+          } else {
+            px(x, y, [24, 24, 28, 255]);
+          }
+        } else if (rim || border) {
+          px(x, y, [clampByte(58 + n), clampByte(60 + n), clampByte(66 + n), 255]);
+        } else {
+          const stone = 104 + ((x * 7 + y * 3) % 4) * 7;
+          px(x, y, [clampByte(stone + n), clampByte(stone + n), clampByte(stone + 5 + n), 255]);
+        }
+      }
+    };
+    drawTile(TileIndex.FurnaceSide, furnaceSide(false));
+    drawTile(TileIndex.LitFurnaceSide, furnaceSide(true));
+
 }

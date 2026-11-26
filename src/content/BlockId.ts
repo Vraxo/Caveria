@@ -29,4 +29,6 @@ export enum BlockId {
   CaveShroom = 26,
   DripstoneSpike = 27,
   CaveVine = 28,
+  Furnace = 29,
+  LitFurnace = 30,
 }

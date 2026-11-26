@@ -375,7 +375,8 @@
       }
 
       /* Inventory & Crafting Modal (E) */
-      #inventory-modal {
+      #inventory-modal,
+      #furnace-modal {
         position: fixed;
         inset: 0;
         z-index: 25;
@@ -385,7 +386,8 @@
         align-items: center;
         justify-content: center;
       }
-      #inventory-modal.hidden {
+      #inventory-modal.hidden,
+      #furnace-modal.hidden {
         display: none;
       }
 
@@ -521,6 +523,50 @@
         text-align: center;
         font-size: 11px;
         color: #64748b;
+      }
+
+      .furnace-machine {
+        display: grid;
+        grid-template-columns: 60px 34px 60px 34px 60px;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 16px;
+        margin-bottom: 14px;
+        background: rgba(8, 12, 22, 0.58);
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 8px;
+      }
+      .furnace-column { display: grid; justify-items: center; gap: 7px; }
+      .furnace-slot-label { color: #94a3b8; font-size: 9px; text-transform: uppercase; }
+      .furnace-flame { color: #f97316; font-size: 22px; filter: drop-shadow(0 0 5px #ea580c); }
+      .furnace-arrow { color: #cbd5e1; font-size: 22px; }
+      .furnace-meter {
+        width: 34px;
+        height: 5px;
+        overflow: hidden;
+        background: #111827;
+        border: 1px solid #334155;
+      }
+      .furnace-meter > div { height: 100%; width: 0; transition: width 0.1s linear; }
+      #furnace-fuel-fill { background: #f97316; }
+      #furnace-progress-fill { background: #facc15; }
+      #furnace-output-slot.craft-ready {
+        border-color: #4ade80;
+        background: rgba(74, 222, 128, 0.14);
+      }
+      #furnace-backpack-grid {
+        display: grid;
+        grid-template-columns: repeat(9, 48px);
+        gap: 4px;
+        justify-content: center;
+        margin-bottom: 12px;
+      }
+      #furnace-hotbar-grid {
+        display: grid;
+        grid-template-columns: repeat(9, 48px);
+        gap: 4px;
+        justify-content: center;
       }
 
       /* Floating Cursor Stack */
@@ -898,6 +944,42 @@
         <div class="inv-footer-tip">
           Left-Click: Pick/Place · Right-Click: Split/Place 1 · Shift-Click: Quick Move / Craft Stack
         </div>
+      </div>
+    </div>
+
+    <div id="furnace-modal" class="hidden">
+      <div class="inv-window">
+        <div class="inv-header">
+          <div class="inv-title">Furnace</div>
+          <button id="furnace-close-btn" class="inv-close" type="button">[E / Esc] Resume</button>
+        </div>
+        <div class="furnace-machine">
+          <div class="furnace-column">
+            <div id="furnace-input-slot" class="inv-slot"></div>
+            <span class="furnace-slot-label">Input</span>
+          </div>
+          <div class="furnace-column">
+            <span class="furnace-flame">♨</span>
+            <div class="furnace-meter"><div id="furnace-fuel-fill"></div></div>
+          </div>
+          <div class="furnace-column">
+            <div id="furnace-fuel-slot" class="inv-slot"></div>
+            <span class="furnace-slot-label">Fuel</span>
+          </div>
+          <div class="furnace-column">
+            <span class="furnace-arrow">➔</span>
+            <div class="furnace-meter"><div id="furnace-progress-fill"></div></div>
+          </div>
+          <div class="furnace-column">
+            <div id="furnace-output-slot" class="inv-slot"></div>
+            <span class="furnace-slot-label">Output</span>
+          </div>
+        </div>
+        <div class="inv-section-label">Backpack</div>
+        <div id="furnace-backpack-grid"></div>
+        <div class="inv-section-label">Hotbar</div>
+        <div id="furnace-hotbar-grid"></div>
+        <div class="inv-footer-tip">Coal, logs, planks, and sticks burn as fuel · Shift-click for quick transfer</div>
       </div>
     </div>
 

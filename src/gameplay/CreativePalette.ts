@@ -9,6 +9,6 @@ export const HOTBAR_BLOCKS: BlockId[] = [
   BlockId.GlowCrystal,
   BlockId.AmethystCrystal,
   BlockId.CaveShroom,
-  BlockId.Sandstone,
+  BlockId.Furnace,
   BlockId.CraftingTable,
 ];

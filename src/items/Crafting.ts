@@ -51,6 +51,17 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
     outputId: ItemId.CraftingTable,
     outputCount: 1,
   },
+  // 3x3: Cobblestone ring -> Furnace
+  {
+    name: 'Furnace',
+    pattern: [
+      [C, C, C],
+      [C, _, C],
+      [C, C, C],
+    ],
+    outputId: ItemId.Furnace,
+    outputCount: 1,
+  },
   // 1x2: Coal over Stick -> 4 Torches
   {
     name: 'Torches (Coal)',
@@ -101,12 +112,6 @@ export const RECIPES: ReadonlyArray<CraftingRecipe> = [
     ],
     outputId: ItemId.Sandstone,
     outputCount: 1,
-  },
-  {
-    name: 'Roasted Cave Shroom',
-    pattern: [[M], [K]],
-    outputId: ItemId.RoastedCaveShroom,
-    outputCount: 2,
   },
   {
     name: 'Cave Stew',

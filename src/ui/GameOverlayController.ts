@@ -13,6 +13,7 @@ interface GameOverlayDependencies {
   input: Input;
   audio: AudioManager;
   inventoryModal: InventoryModal;
+  isGameplayModalOpen: () => boolean;
   currentWorld: WorldSummary;
   onAudioChanged: () => void;
   onBeforeWorldSwitch: (saveCurrent: boolean) => void;
@@ -38,6 +39,7 @@ export class GameOverlayController {
   private readonly input: Input;
   private readonly audio: AudioManager;
   private readonly inventoryModal: InventoryModal;
+  private readonly isGameplayModalOpen: () => boolean;
   private readonly currentWorld: WorldSummary;
   private readonly onAudioChanged: () => void;
   private readonly onBeforeWorldSwitch: (saveCurrent: boolean) => void;
@@ -81,6 +83,7 @@ export class GameOverlayController {
     this.input = deps.input;
     this.audio = deps.audio;
     this.inventoryModal = deps.inventoryModal;
+    this.isGameplayModalOpen = deps.isGameplayModalOpen;
     this.currentWorld = deps.currentWorld;
     this.onAudioChanged = deps.onAudioChanged;
     this.onBeforeWorldSwitch = deps.onBeforeWorldSwitch;
@@ -98,13 +101,21 @@ export class GameOverlayController {
   public openInventory(gridSize: 2 | 3): void {
     this.audio.playInventoryOpen();
     this.inventoryModal.open(gridSize);
-    this.hideMenus();
-    this.input.exitPointerLock();
+    this.openGameplayModal();
   }
 
   public closeInventoryAndResume(): void {
     this.audio.playInventoryClose();
     this.inventoryModal.close();
+    this.resumeGameplay();
+  }
+
+  public openGameplayModal(): void {
+    this.hideMenus();
+    this.input.exitPointerLock();
+  }
+
+  public resumeGameplay(): void {
     this.requestPlay();
   }
 
@@ -201,10 +212,13 @@ export class GameOverlayController {
       if (target.closest('#craft-output-slot')) this.audio.playCraft();
       else if (target.closest('button, .inv-slot')) this.audio.playUiClick();
     });
+    document.getElementById('furnace-modal')!.addEventListener('pointerdown', (event) => {
+      if ((event.target as HTMLElement).closest('button, .inv-slot')) this.audio.playUiClick();
+    });
 
     this.input.onPointerLockChange((locked) => {
       if (locked) this.hideMenus();
-      else if (!this.inventoryModal.isOpen && !this.deathScreenActive) {
+      else if (!this.isGameplayModalOpen() && !this.deathScreenActive) {
         this.showMenu(this.hasEnteredWorld ? 'pause' : 'title');
       }
     });

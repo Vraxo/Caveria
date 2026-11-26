@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { BlockInteractionController } from '../gameplay/BlockInteractionController';
+import { FurnaceManager } from '../gameplay/FurnaceManager';
 import { MovementAudioController } from '../gameplay/MovementAudioController';
 import { MobManager } from '../entities/MobManager';
 import { Inventory } from '../items/Inventory';
@@ -18,6 +19,7 @@ import { HeldItemView } from '../rendering/HeldItemView';
 import { TextureAtlas } from '../rendering/TextureAtlas';
 import { WeatherSystem } from '../rendering/WeatherSystem';
 import { DebugHud } from '../ui/DebugHud';
+import { FurnaceModal } from '../ui/FurnaceModal';
 import { GameOverlayController } from '../ui/GameOverlayController';
 import { Hotbar } from '../ui/Hotbar';
 import { InventoryModal } from '../ui/InventoryModal';
@@ -43,6 +45,7 @@ export class Game {
   private readonly particles: BreakParticles;
   private readonly drops: DroppedItemManager;
   private readonly mobs: MobManager;
+  private readonly furnaces: FurnaceManager;
   private readonly heldItemView: HeldItemView;
   private readonly audio: AudioManager;
   private readonly interactions: BlockInteractionController;
@@ -54,6 +57,7 @@ export class Game {
   private readonly inventory: Inventory;
   private readonly hotbar: Hotbar;
   private readonly inventoryModal: InventoryModal;
+  private readonly furnaceModal: FurnaceModal;
   private readonly debugHud: DebugHud;
   private readonly overlay: GameOverlayController;
   private readonly seedLabel: string;
@@ -132,6 +136,12 @@ export class Game {
       if (itemId === ItemId.AmethystShard) this.audio.playCrystalPickup();
       else this.audio.playPickup();
     });
+    this.furnaces = new FurnaceManager(
+      this.world,
+      this.audio,
+      savedGame?.furnaces,
+      (x, y, z, stack) => this.drops.spawnDrop(x, y, z, stack)
+    );
     this.vitals = new PlayerVitals(
       () => {
         this.interactions.clearTarget();
@@ -196,6 +206,8 @@ export class Game {
       mobs: this.mobs,
       vitals: this.vitals,
       onOpenWorkbench: () => this.openInventoryScreen(3),
+      onOpenFurnace: (x, y, z) => this.openFurnaceScreen(x, y, z),
+      onFurnaceBroken: (x, y, z) => this.furnaces.breakAt(x, y, z),
     });
     this.inventoryModal = new InventoryModal(
       this.inventory,
@@ -203,6 +215,13 @@ export class Game {
       this.armor,
       (overflow) => this.interactions.tossStackFromPlayer(overflow),
       () => this.closeInventoryAndResume()
+    );
+    this.furnaceModal = new FurnaceModal(
+      this.inventory,
+      this.atlas,
+      this.furnaces,
+      (overflow) => this.interactions.tossStackFromPlayer(overflow),
+      () => this.closeFurnaceAndResume()
     );
     this.debugHud = new DebugHud();
     this.movementAudio = new MovementAudioController(this.audio, this.player, this.world);
@@ -220,6 +239,7 @@ export class Game {
       input: this.input,
       audio: this.audio,
       inventoryModal: this.inventoryModal,
+      isGameplayModalOpen: () => this.inventoryModal.isOpen || this.furnaceModal.isOpen,
       currentWorld: {
         worldId,
         worldName: savedGame?.worldName ?? worldName,
@@ -267,6 +287,19 @@ export class Game {
     this.overlay.closeInventoryAndResume();
   }
 
+  private openFurnaceScreen(x: number, y: number, z: number): void {
+    this.interactions.clearTarget();
+    this.audio.playInventoryOpen();
+    this.furnaceModal.open(x, y, z);
+    this.overlay.openGameplayModal();
+  }
+
+  private closeFurnaceAndResume(): void {
+    this.audio.playInventoryClose();
+    this.furnaceModal.close();
+    this.overlay.resumeGameplay();
+  }
+
   private loop(now: number): void {
     const rawDt = (now - this.lastTime) / 1000;
     this.lastTime = now;
@@ -282,6 +315,8 @@ export class Game {
   private update(dt: number): void {
     this.persistence.update(dt);
     this.weather.update(dt);
+    this.furnaces.update(dt);
+    this.furnaceModal.update(dt);
 
     if (this.input.consumeKeyPress('KeyM')) {
       this.overlay.toggleAudio();
@@ -291,16 +326,17 @@ export class Game {
       this.debugHud.toggle();
     }
 
-    // Toggle Inventory with [E] (or close with [Escape] when modal is open)
-    if (this.inventoryModal.isOpen) {
+    // Toggle workstation/inventory screens with [E] or close with [Escape].
+    if (this.inventoryModal.isOpen || this.furnaceModal.isOpen) {
       if (this.input.consumeKeyPress('KeyE') || this.input.consumeKeyPress('Escape')) {
-        this.closeInventoryAndResume();
+        if (this.furnaceModal.isOpen) this.closeFurnaceAndResume();
+        else this.closeInventoryAndResume();
       }
     } else if (this.input.isPointerLocked && this.input.consumeKeyPress('KeyE')) {
       this.openInventoryScreen(2);
     }
 
-    if (this.input.isPointerLocked && !this.inventoryModal.isOpen) {
+    if (this.input.isPointerLocked && !this.inventoryModal.isOpen && !this.furnaceModal.isOpen) {
       if (this.input.consumeKeyPress('KeyF')) {
         this.player.flyMode = !this.player.flyMode;
         this.player.velocity.y = 0;
@@ -390,6 +426,7 @@ export class Game {
     const activelyMining =
       this.input.isPointerLocked &&
       !this.inventoryModal.isOpen &&
+      !this.furnaceModal.isOpen &&
       this.interactions.activelyMining;
 
     this.heldItemView.setEquipped(this.hotbar.selectedStack);
@@ -448,6 +485,7 @@ export class Game {
       timeOfDay: this.dayNight.timeOfDay,
       weather: this.weather.snapshot(),
       muted: this.audio.muted,
+      furnaces: this.furnaces.snapshot(),
       worldEdits: this.world.exportEdits(),
     };
   }

@@ -33,4 +33,7 @@ export enum TileIndex {
   CaveShroom = 30,
   DripstoneSpike = 31,
   CaveVine = 32,
+  FurnaceTop = 33,
+  FurnaceSide = 34,
+  LitFurnaceSide = 35,
 }

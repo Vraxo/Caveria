@@ -217,6 +217,21 @@ export class ItemSpriteGenerator {
         px(6, 6, [188, 64, 220, 255]);
         px(9, 6, [228, 178, 112, 255]);
         break;
+      case ItemId.GoldIngot:
+        for (let y = 6; y <= 11; y++) for (let x = 3; x <= 12; x++) {
+          const bevel = (x === 3 || x === 12 || y === 6 || y === 11);
+          px(x, y, bevel ? [174, 112, 16, 255] : x < 7 && y < 9 ? [255, 232, 108, 255] : [238, 178, 38, 255]);
+        }
+        px(5, 5, [255, 244, 160, 255]);
+        px(10, 5, [214, 148, 24, 255]);
+        break;
+      case ItemId.CactusGreen:
+        for (let y = 4; y <= 12; y++) for (let x = 4; x <= 11; x++) {
+          const d = Math.abs(x - 7.5) + Math.abs(y - 8) * 0.7;
+          if (d < 5) px(x, y, d > 4 ? [28, 86, 40, 255] : [54, 154, 66, 255]);
+        }
+        px(6, 5, [112, 210, 104, 255]);
+        break;
       case ItemId.AmethystShard:
         for (let y = 2; y <= 13; y++) {
           for (let x = 4; x <= 11; x++) {
