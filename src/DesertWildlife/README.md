@@ -2,7 +2,7 @@
 
 This feature owns the built-in animals that give `arid` surface biomes an ecosystem:
 
-- Camels are large passive herd animals that can be fed and bred with Cactus.
+- Camels are large passive herd animals that can be fed and bred with Cactus. Adult Camels can be mounted with an empty-hand interaction, ridden with normal movement controls, sprinted with Control, jumped with Space, and dismounted with Shift.
 - Scorpions pursue nearby players, sting, and can poison them.
 - Snakes pursue nearby players and have a stronger venom chance.
 - Lizards are small passive animals that flee players and can be bred with Cactus.

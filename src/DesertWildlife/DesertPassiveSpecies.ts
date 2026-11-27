@@ -12,6 +12,7 @@ import { Player } from '../player/Player';
 import { BreakParticles } from '../rendering/BreakParticles';
 import { DroppedItemManager } from '../rendering/DroppedItems';
 import { World } from '../world/World';
+import { CamelRidingController } from './CamelRidingController';
 import {
   WildlifeVisual,
   createCamelVisual,
@@ -36,10 +37,11 @@ interface DesertPassiveDependencies {
   drops: DroppedItemManager;
   particles: BreakParticles;
   audio: AudioManager;
+  camelRiding: CamelRidingController;
 }
 
 export function createCamelSpecies({
-  scene, world, player, drops, particles, audio,
+  scene, world, player, drops, particles, audio, camelRiding,
 }: DesertPassiveDependencies): SurfaceAnimalSpecies<WildlifeVisual> {
   return new SurfaceAnimalSpecies(scene, world, player, drops, particles, {
     definition: MOB_DEFINITIONS[CAMEL_ID],
@@ -56,6 +58,9 @@ export function createCamelSpecies({
     playAmbientSound: () => audio.playCamelCall(),
     playHitSound: () => audio.playDesertWildlifeHit(),
     playDeathSound: () => audio.playDesertWildlifeDeath(),
+    onEmptyHandInteract: (camel) => camelRiding.mount(camel) ? { swing: true } : null,
+    isExternallyControlled: (camel) => camelRiding.isMounted(camel),
+    onRemoved: (camel) => camelRiding.dismountIfMounted(camel),
   });
 }
 

@@ -11,6 +11,7 @@ import { World } from '../world/World';
 import { findGroundMobSpawn, MovementIntent, moveGroundMob } from './MobMechanics';
 import {
   MobEntity,
+  MobInteractionResult,
   MobRuntime,
   MobSpeciesBehavior,
   MobTag,
@@ -65,9 +66,15 @@ export interface SurfaceAnimalConfig<TVisual> {
   playAmbientSound(): void;
   playHitSound(): void;
   playDeathSound(): void;
+  onEmptyHandInteract?(
+    animal: SurfaceAnimalEntity<TVisual>,
+    runtime: MobRuntime
+  ): MobInteractionResult | null;
+  isExternallyControlled?(animal: SurfaceAnimalEntity<TVisual>): boolean;
+  onRemoved?(animal: SurfaceAnimalEntity<TVisual>): void;
 }
 
-type SurfaceAnimalEntity<TVisual> = MobEntity<SurfaceAnimalState, TVisual>;
+export type SurfaceAnimalEntity<TVisual> = MobEntity<SurfaceAnimalState, TVisual>;
 
 const INITIAL_SPAWN_DELAY = 2.5;
 const MOVEMENT_RESPONSE = 5;
@@ -150,6 +157,10 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
       runtime.remove(animal.id);
       return;
     }
+    if (this.config.isExternallyControlled?.(animal)) {
+      this.updateVisual(animal);
+      return;
+    }
 
     const intent = this.chooseMovement(animal, awayX, awayZ, playerDistance, runtime);
     this.applyMovement(animal, intent, dt);
@@ -180,6 +191,9 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
       return { damageHeld: !creativeMode, swing: true };
     }
 
+    if (!held && this.config.onEmptyHandInteract) {
+      return this.config.onEmptyHandInteract(animal, runtime);
+    }
     if (held?.id !== this.config.breedingItem || animal.state.feedingCooldown > 0) return null;
     if (animal.state.growthRemaining > 0) {
       animal.state.feedingCooldown = FEEDING_COOLDOWN_SECONDS;
@@ -293,6 +307,7 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
   }
 
   public dispose(animal: SurfaceAnimalEntity<TVisual>): void {
+    this.config.onRemoved?.(animal);
     this.scene.remove(this.config.visual.root(animal.visual));
     this.config.visual.dispose(animal.visual);
   }
