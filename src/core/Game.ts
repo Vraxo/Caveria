@@ -18,6 +18,7 @@ import { MobManager } from '../entities/MobManager';
 import { CaveCrawlerSpecies } from '../entities/CaveCrawlerSpecies';
 import { createChickenSpecies } from '../entities/ChickenSpecies';
 import { CrystalMiteSpecies } from '../entities/CrystalMiteSpecies';
+import { createRabbitSpecies } from '../entities/RabbitSpecies';
 import { createSheepSpecies } from '../entities/SheepSpecies';
 import { Inventory } from '../items/Inventory';
 import { ItemId, createStack } from '../items/Item';
@@ -273,11 +274,20 @@ export class Game {
       this.particles,
       this.audio
     );
+    const rabbitSpecies = createRabbitSpecies(
+      this.scene,
+      this.world,
+      this.player,
+      this.drops,
+      this.particles,
+      this.audio
+    );
     this.mobs = new MobManager([
       crystalMiteSpecies,
       caveCrawlerSpecies,
       chickenSpecies,
       sheepSpecies,
+      rabbitSpecies,
     ]);
     this.mobs.restore(savedGame?.mobs ?? []);
     this.arrows = new ArrowProjectileManager(

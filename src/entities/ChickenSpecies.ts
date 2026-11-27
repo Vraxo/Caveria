@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { BlockId } from '../content/BlockId';
 import { CHICKEN_ID, MOB_DEFINITIONS } from '../content/mobs/MobDefinitions';
+import { ItemId } from '../items/Item';
 import { Player } from '../player/Player';
 import { BreakParticles } from '../rendering/BreakParticles';
 import { DroppedItemManager } from '../rendering/DroppedItems';
@@ -39,6 +40,8 @@ export function createChickenSpecies(
     fleeSpeed: 2.3,
     fleeDistance: 5.2,
     minimumSpawnSpacing: 2.5,
+    spawnGround: new Set([BlockId.Grass]),
+    breedingItem: ItemId.CaveBerries,
     resource: 'eggs',
     playAmbientSound: () => audio.playChickenCluck(),
     playHitSound: () => audio.playChickenHit(),

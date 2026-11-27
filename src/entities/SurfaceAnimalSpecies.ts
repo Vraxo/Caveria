@@ -59,7 +59,9 @@ export interface SurfaceAnimalConfig<TVisual> {
   fleeSpeed: number;
   fleeDistance: number;
   minimumSpawnSpacing: number;
-  resource: 'eggs' | 'wool';
+  spawnGround: ReadonlySet<BlockId>;
+  breedingItem: ItemId;
+  resource: 'eggs' | 'wool' | 'none';
   playAmbientSound(): void;
   playHitSound(): void;
   playDeathSound(): void;
@@ -178,7 +180,7 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
       return { damageHeld: !creativeMode, swing: true };
     }
 
-    if (held?.id !== ItemId.CaveBerries || animal.state.feedingCooldown > 0) return null;
+    if (held?.id !== this.config.breedingItem || animal.state.feedingCooldown > 0) return null;
     if (animal.state.growthRemaining > 0) {
       animal.state.feedingCooldown = FEEDING_COOLDOWN_SECONDS;
       animal.state.growthRemaining = Math.max(0, animal.state.growthRemaining - 30);
@@ -459,7 +461,7 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
 
   private hasNaturalGround(x: number, y: number, z: number): boolean {
     const floor = this.world.getBlock(x, y - 1, z);
-    return floor === BlockId.Grass || floor === BlockId.SnowGrass;
+    return this.config.spawnGround.has(floor);
   }
 
   private spawnAnimal(

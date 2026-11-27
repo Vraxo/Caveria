@@ -240,5 +240,13 @@ export const MATERIAL_ITEM_DEFINITIONS: ItemCatalog = {
     id: ItemId.CookedEgg, name: 'Cooked Egg', maxStack: 64, placeBlockId: null,
     toolCategory: 'none', toolTier: 0, miningSpeed: 1, nutrition: 5, saturation: 3.5,
   },
+  [ItemId.RawRabbit]: {
+    id: ItemId.RawRabbit, name: 'Raw Rabbit', maxStack: 64, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1, nutrition: 3, saturation: 1.5,
+  },
+  [ItemId.CookedRabbit]: {
+    id: ItemId.CookedRabbit, name: 'Cooked Rabbit', maxStack: 64, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1, nutrition: 7, saturation: 6,
+  },
 
 };

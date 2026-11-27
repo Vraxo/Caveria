@@ -62,6 +62,8 @@ function createHarness(options: {
       fleeSpeed: 2.3,
       fleeDistance: 5,
       minimumSpawnSpacing: 2.5,
+      spawnGround: new Set([BlockId.Grass]),
+      breedingItem: ItemId.CaveBerries,
       resource: options.resource ?? 'eggs',
       playAmbientSound,
       playHitSound,
