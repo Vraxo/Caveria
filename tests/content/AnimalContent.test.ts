@@ -16,6 +16,8 @@ describe('animal content', () => {
     expect(ItemId.Shears).toBe(192);
     expect(ItemId.Egg).toBe(193);
     expect(ItemId.CookedEgg).toBe(194);
+    expect(ItemId.RawRabbit).toBe(195);
+    expect(ItemId.CookedRabbit).toBe(196);
     expect(getFoodStats(createStack(ItemId.CookedChicken))).toEqual({
       nutrition: 6,
       saturation: 5,
@@ -24,13 +26,20 @@ describe('animal content', () => {
       nutrition: 8,
       saturation: 7,
     });
+    expect(getFoodStats(createStack(ItemId.CookedRabbit))).toEqual({
+      nutrition: 7,
+      saturation: 6,
+    });
   });
 
-  it('registers Chickens and Sheep as passive surface animals', () => {
+  it('registers Chickens, Sheep, and Rabbits as passive surface animals', () => {
     expect(MOB_DEFINITIONS.chicken.tags).toEqual(
       expect.arrayContaining(['passive', 'animal', 'surface'])
     );
     expect(MOB_DEFINITIONS.sheep.tags).toEqual(
+      expect.arrayContaining(['passive', 'animal', 'surface'])
+    );
+    expect(MOB_DEFINITIONS.rabbit.tags).toEqual(
       expect.arrayContaining(['passive', 'animal', 'surface'])
     );
   });
@@ -38,6 +47,7 @@ describe('animal content', () => {
   it('provides deterministic meat and resource drops', () => {
     const chicken = rollMobLoot('chicken', () => 0.9);
     const sheep = rollMobLoot('sheep', () => 0.9);
+    const rabbit = rollMobLoot('rabbit', () => 0.9);
 
     expect(chicken.map((stack) => stack.id)).toEqual([
       ItemId.RawChicken,
@@ -47,6 +57,7 @@ describe('animal content', () => {
       ItemId.RawMutton,
       ItemId.Wool,
     ]);
+    expect(rabbit).toEqual([createStack(ItemId.RawRabbit)]);
   });
 
   it('cooks meat in Furnaces and Campfires', () => {
@@ -60,6 +71,10 @@ describe('animal content', () => {
       .toBe(ItemId.CookedMutton);
     expect(getCookingRecipe(createStack(ItemId.Egg), false)?.output)
       .toBe(ItemId.CookedEgg);
+    expect(getCookingRecipe(createStack(ItemId.RawRabbit), false)?.output)
+      .toBe(ItemId.CookedRabbit);
+    expect(getCookingRecipe(createStack(ItemId.RawRabbit), true)?.output)
+      .toBe(ItemId.CookedRabbit);
   });
 
   it('uses Wool for fiber and Feathers for arrows', () => {

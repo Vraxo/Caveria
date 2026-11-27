@@ -22,7 +22,7 @@ A registered `MobSpeciesBehavior` owns only species-specific policy and feedback
 - damage reactions, death particles, and loot;
 - right-click interaction and species-state save/restore.
 
-Surface animals additionally compose feeding, breeding, baby growth/following, Sheep shearing and wool regrowth, and Chicken egg laying through `SurfaceAnimalSpecies`.
+Surface animals additionally compose feeding, breeding, baby growth/following, configurable biome and ground spawning, Sheep shearing and wool regrowth, and Chicken egg laying through `SurfaceAnimalSpecies`. Chickens and Sheep use Cave Berries; desert Rabbits use Cactus and provide cookable meat.
 
 `MobMechanics.ts` contains stateless mechanics shared through composition, including ground movement, body collision, raycasting, and ground-spawn searches. Closely related passive animals share `SurfaceAnimalSpecies`, while their species files remain small declarations of tuning, visuals, sounds, biomes, and loot.
 

@@ -291,13 +291,20 @@ export function createDefaultItemSpritePainterRegistry(): ItemSpritePainterRegis
       if (crystal) { px(6, 5, [178, 112, 242, 255]); px(8, 11, [178, 112, 242, 255]); }
     }
   });
-  registry.register([ItemId.RawChicken, ItemId.CookedChicken, ItemId.RawMutton, ItemId.CookedMutton], (px, itemId) => {
+  registry.register([
+    ItemId.RawChicken, ItemId.CookedChicken,
+    ItemId.RawMutton, ItemId.CookedMutton,
+    ItemId.RawRabbit, ItemId.CookedRabbit,
+  ], (px, itemId) => {
     {
-      const cooked = itemId === ItemId.CookedChicken || itemId === ItemId.CookedMutton;
+      const cooked = itemId === ItemId.CookedChicken
+        || itemId === ItemId.CookedMutton
+        || itemId === ItemId.CookedRabbit;
       const mutton = itemId === ItemId.RawMutton || itemId === ItemId.CookedMutton;
+      const rabbit = itemId === ItemId.RawRabbit || itemId === ItemId.CookedRabbit;
       const meat = cooked
-        ? (mutton ? [154, 82, 44, 255] : [202, 126, 68, 255])
-        : (mutton ? [190, 70, 82, 255] : [224, 126, 130, 255]);
+        ? (mutton ? [154, 82, 44, 255] : rabbit ? [176, 104, 58, 255] : [202, 126, 68, 255])
+        : (mutton ? [190, 70, 82, 255] : rabbit ? [206, 96, 102, 255] : [224, 126, 130, 255]);
       for (let y = 5; y <= 12; y++) for (let x = 4; x <= 11; x++) {
         const distance = Math.abs(x - 7.5) + Math.abs(y - 8.5) * 0.75;
         if (distance < 5) px(x, y, meat as [number, number, number, number]);

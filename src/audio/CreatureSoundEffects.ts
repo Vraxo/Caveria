@@ -59,4 +59,16 @@ export class CreatureSoundEffects {
   public playSheepDeath(): void {
     this.synth.tone({ type: 'sawtooth', freq: 190, freqEnd: 65, duration: 0.42, gain: 0.04, attack: 0.01 });
   }
+
+  public playRabbitSqueak(): void {
+    this.synth.tone({ type: 'triangle', freq: 720, freqEnd: 940, duration: 0.09, gain: 0.018, attack: 0.01 });
+  }
+
+  public playRabbitHit(): void {
+    this.synth.tone({ type: 'square', freq: 680, freqEnd: 330, duration: 0.12, gain: 0.026, attack: 0.004 });
+  }
+
+  public playRabbitDeath(): void {
+    this.synth.tone({ type: 'triangle', freq: 620, freqEnd: 140, duration: 0.28, gain: 0.03, attack: 0.006 });
+  }
 }

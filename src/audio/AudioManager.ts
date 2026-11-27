@@ -46,6 +46,9 @@ export class AudioManager {
   public playSheepBleat(): void { this.creatures.playSheepBleat(); }
   public playSheepHit(): void { this.creatures.playSheepHit(); }
   public playSheepDeath(): void { this.creatures.playSheepDeath(); }
+  public playRabbitSqueak(): void { this.creatures.playRabbitSqueak(); }
+  public playRabbitHit(): void { this.creatures.playRabbitHit(); }
+  public playRabbitDeath(): void { this.creatures.playRabbitDeath(); }
 
   public playPickup(): void { this.ui.playPickup(); }
   public playCrystalPickup(): void { this.ui.playCrystalPickup(); }

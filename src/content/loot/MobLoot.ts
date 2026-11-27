@@ -23,6 +23,9 @@ export const MOB_LOOT_TABLES: Readonly<Record<string, ReadonlyArray<MobLootEntry
     { item: ItemId.RawMutton, chance: 1, minimum: 1, maximum: 2, maximumChance: 0.5 },
     { item: ItemId.Wool, chance: 1, minimum: 1, maximum: 2, maximumChance: 0.35 },
   ],
+  rabbit: [
+    { item: ItemId.RawRabbit, chance: 1, minimum: 1, maximum: 1 },
+  ],
 };
 
 export function rollMobLoot(tableId: string, random: () => number = Math.random): ItemStack[] {

@@ -4,6 +4,7 @@ export const CRYSTAL_MITE_ID = 'crystal-mite';
 export const CAVE_CRAWLER_ID = 'cave-crawler';
 export const CHICKEN_ID = 'chicken';
 export const SHEEP_ID = 'sheep';
+export const RABBIT_ID = 'rabbit';
 
 export interface MobDefinition {
   id: MobSpeciesId;
@@ -66,5 +67,17 @@ export const MOB_DEFINITIONS: Readonly<Record<string, MobDefinition>> = {
     despawnDistance: 52,
     spawnDelay: { minimum: 4, variance: 6 },
     lootTable: 'sheep',
+  },
+  [RABBIT_ID]: {
+    id: RABBIT_ID,
+    name: 'Rabbit',
+    tags: ['passive', 'animal', 'surface'],
+    maxHealth: 4,
+    radius: 0.32,
+    height: 0.7,
+    maxPopulation: 7,
+    despawnDistance: 52,
+    spawnDelay: { minimum: 3.5, variance: 5 },
+    lootTable: 'rabbit',
   },
 };

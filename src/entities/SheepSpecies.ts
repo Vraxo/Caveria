@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { BlockId } from '../content/BlockId';
 import { MOB_DEFINITIONS, SHEEP_ID } from '../content/mobs/MobDefinitions';
+import { ItemId } from '../items/Item';
 import { Player } from '../player/Player';
 import { BreakParticles } from '../rendering/BreakParticles';
 import { DroppedItemManager } from '../rendering/DroppedItems';
@@ -39,6 +40,8 @@ export function createSheepSpecies(
     fleeSpeed: 1.9,
     fleeDistance: 5.8,
     minimumSpawnSpacing: 3.5,
+    spawnGround: new Set([BlockId.Grass, BlockId.SnowGrass]),
+    breedingItem: ItemId.CaveBerries,
     resource: 'wool',
     playAmbientSound: () => audio.playSheepBleat(),
     playHitSound: () => audio.playSheepHit(),
