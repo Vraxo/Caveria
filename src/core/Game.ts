@@ -43,7 +43,9 @@ import { CampfireEffects } from '../rendering/CampfireEffects';
 import { DayNightCycle } from '../rendering/DayNightCycle';
 import { DroppedItemManager } from '../rendering/DroppedItems';
 import { HeldItemView } from '../rendering/HeldItemView';
+import { TileIndex } from '../content/TileIndex';
 import { TextureAtlas } from '../rendering/TextureAtlas';
+import { readSettings } from '../settings/GameSettings';
 import { WeatherSystem } from '../rendering/WeatherSystem';
 import { ChestModal } from '../ui/ChestModal';
 import { DebugHud } from '../ui/DebugHud';
@@ -65,7 +67,7 @@ export class Game {
   private readonly scene: THREE.Scene;
   private readonly camera: THREE.PerspectiveCamera;
   private readonly input: Input;
-  private readonly atlas: TextureAtlas;
+  public readonly atlas: TextureAtlas;
   private readonly world: World;
   private readonly dayNight: DayNightCycle;
   private readonly player: Player;
@@ -108,7 +110,10 @@ export class Game {
   private lastTime = performance.now();
   private creativeMode = false;
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(
+    canvas: HTMLCanvasElement,
+    loadedTiles?: ReadonlyMap<TileIndex, HTMLCanvasElement>
+  ) {
     this.renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: false,
@@ -119,7 +124,7 @@ export class Game {
     this.renderer.setClearColor(INITIAL_SKY_COLOR);
 
     this.scene = new THREE.Scene();
-    const renderDistance = 5;
+    const renderDistance = readSettings().chunkRenderDistance;
     const fogFar = renderDistance * CHUNK_SIZE;
     this.scene.fog = new THREE.Fog(INITIAL_SKY_COLOR, fogFar * 0.58, fogFar * 0.98);
 
@@ -151,7 +156,7 @@ export class Game {
     const savedGame = this.persistence.load();
 
     this.input = new Input(canvas);
-    this.atlas = new TextureAtlas();
+    this.atlas = new TextureAtlas(loadedTiles);
     this.world = new World(
       this.scene,
       this.atlas,

@@ -10,7 +10,11 @@ import { paintUndergroundTextures } from './UndergroundTexturePainters';
 export class BlockTextureGenerator {
   public readonly tileCanvases = new Map<TileIndex, HTMLCanvasElement>();
 
-  constructor(private readonly context: CanvasRenderingContext2D) {}
+  constructor(
+    private readonly context: CanvasRenderingContext2D,
+    /** Tile canvases loaded from `public/generated-textures/tiles`; used instead of painting. */
+    private readonly loadedTiles?: ReadonlyMap<TileIndex, HTMLCanvasElement>
+  ) {}
 
   public generateAllTiles(): void {
     const draw = (tile: TileIndex, painter: TilePainter): void => this.drawTile(tile, painter);
@@ -32,6 +36,15 @@ export class BlockTextureGenerator {
   private drawTile(tile: TileIndex, painter: TilePainter): void {
     if (this.tileCanvases.has(tile)) {
       throw new Error(`Texture atlas has more than one painter for TileIndex ${tile}`);
+    }
+
+    const loadedTile = this.loadedTiles?.get(tile);
+    if (loadedTile) {
+      this.tileCanvases.set(tile, loadedTile);
+      const column = tile % ATLAS_COLS;
+      const row = Math.floor(tile / ATLAS_COLS);
+      this.context.drawImage(loadedTile, column * TILE_SIZE, row * TILE_SIZE);
+      return;
     }
 
     const { canvas: tileCanvas, context } = createCanvas2D(

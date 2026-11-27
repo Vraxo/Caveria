@@ -11,6 +11,7 @@ import {
 } from './textures/AtlasLayout';
 import { BlockIconRenderer } from './textures/BlockIconRenderer';
 import { BlockTextureGenerator } from './textures/BlockTextureGenerator';
+import { exportTiles } from './textures/TextureExport';
 import { ItemSpriteGenerator } from './textures/ItemSpriteGenerator';
 import { createCanvas2D } from './textures/PixelArt';
 
@@ -33,8 +34,9 @@ export class TextureAtlas {
 
   private readonly itemSprites = new ItemSpriteGenerator();
   private readonly icons: BlockIconRenderer;
+  private readonly blockTextures: BlockTextureGenerator;
 
-  constructor() {
+  constructor(loadedTiles?: ReadonlyMap<TileIndex, HTMLCanvasElement>) {
     const atlas = createCanvas2D(
       ATLAS_PIXEL_WIDTH,
       ATLAS_PIXEL_HEIGHT,
@@ -42,12 +44,12 @@ export class TextureAtlas {
     );
     this.canvas = atlas.canvas;
 
-    const blockTextures = new BlockTextureGenerator(atlas.context);
-    blockTextures.generateAllTiles();
-    blockTextures.validateCompleteness();
+    this.blockTextures = new BlockTextureGenerator(atlas.context, loadedTiles);
+    this.blockTextures.generateAllTiles();
+    this.blockTextures.validateCompleteness();
 
     this.icons = new BlockIconRenderer(
-      (tile) => blockTextures.tileCanvases.get(tile),
+      (tile) => this.blockTextures.tileCanvases.get(tile),
       this.itemSprites
     );
 
@@ -57,6 +59,16 @@ export class TextureAtlas {
     this.texture.colorSpace = THREE.SRGBColorSpace;
     this.texture.generateMipmaps = false;
     this.texture.needsUpdate = true;
+  }
+
+  /** Generated (or loaded) tile canvases, e.g. for exporting to PNG files. */
+  public get tileCanvases(): ReadonlyMap<TileIndex, HTMLCanvasElement> {
+    return this.blockTextures.tileCanvases;
+  }
+
+  /** Triggers browser downloads of all tile canvases as PNG files. */
+  public downloadTiles(): void {
+    void exportTiles(this.blockTextures.tileCanvases);
   }
 
   public getTileUVs(tile: TileIndex): UVBounds {
