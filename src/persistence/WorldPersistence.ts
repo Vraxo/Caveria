@@ -1,5 +1,6 @@
 import type { BedSnapshot } from '../gameplay/BedManager';
 import type { FarmPlotSnapshot } from '../gameplay/FarmingManager';
+import { getCropDefinition } from '../content/crops/CropDefinitions';
 import {
   STATUS_EFFECT_DEFINITIONS,
   STATUS_EFFECT_IDS,
@@ -266,14 +267,23 @@ export class WorldPersistence {
     if (Array.isArray(raw.farms)) {
       for (const farm of raw.farms.slice(0, 4096)) {
         if (!farm || typeof farm !== 'object') continue;
-        const crop = farm.crop === 'berries' || farm.crop === 'shroom' ? farm.crop : null;
+        const cropDefinition = getCropDefinition(farm.crop);
+        const crop = cropDefinition?.id ?? null;
         farms.push({
           x: Math.floor(worldCoord(farm.x, 0)),
           y: Math.max(0, Math.min(CHUNK_HEIGHT - 2, Math.floor(finite(farm.y, 0)))),
           z: Math.floor(worldCoord(farm.z, 0)),
           crop,
-          stage: crop ? Math.max(0, Math.min(2, Math.floor(finite(farm.stage, 0)))) : 0,
-          growthRemaining: Math.max(0, Math.min(300, finite(farm.growthRemaining, 40))),
+          stage: cropDefinition
+            ? Math.max(0, Math.min(
+                cropDefinition.stageBlocks.length - 1,
+                Math.floor(finite(farm.stage, 0))
+              ))
+            : 0,
+          growthRemaining: Math.max(0, Math.min(
+            300,
+            finite(farm.growthRemaining, cropDefinition?.growth.minimumSeconds ?? 40)
+          )),
           drySeconds: Math.max(0, Math.min(120, finite(farm.drySeconds, 0))),
         });
       }

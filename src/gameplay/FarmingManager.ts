@@ -1,11 +1,17 @@
 import { AudioManager } from '../audio/AudioManager';
 import { BlockId } from '../content/BlockId';
+import {
+  type CropDefinition,
+  type CropId,
+  getCropDefinition,
+  getCropForSeed,
+} from '../content/crops/CropDefinitions';
 import { ItemId, ItemStack, createStack } from '../items/Item';
 import { Player } from '../player/Player';
 import { WeatherSystem } from '../rendering/WeatherSystem';
 import { World } from '../world/World';
 
-export type FarmCrop = 'berries' | 'shroom';
+export type FarmCrop = CropId;
 export type FarmUseResult = 'none' | 'tilled' | 'planted' | 'harvested';
 
 export interface FarmPlotSnapshot {
@@ -29,10 +35,18 @@ export class FarmingManager {
     private readonly weather: WeatherSystem,
     private readonly audio: AudioManager,
     snapshots: FarmPlotSnapshot[] | undefined,
-    private readonly dropItem: (x: number, y: number, z: number, stack: ItemStack) => void
+    private readonly dropItem: (x: number, y: number, z: number, stack: ItemStack) => void,
+    private readonly random: () => number = Math.random
   ) {
     for (const saved of snapshots ?? []) {
-      const plot = { ...saved };
+      const definition = getCropDefinition(saved.crop);
+      const plot: FarmPlotSnapshot = {
+        ...saved,
+        crop: definition?.id ?? null,
+        stage: definition
+          ? Math.max(0, Math.min(definition.stageBlocks.length - 1, Math.floor(saved.stage)))
+          : 0,
+      };
       this.plots.set(this.key(plot.x, plot.y, plot.z), plot);
     }
   }
@@ -79,11 +93,18 @@ export class FarmingManager {
         plot.stage = 0;
         continue;
       }
-      if (!hydrated || !this.hasGrowthLight(plot) || plot.stage >= 2) continue;
+      const crop = getCropDefinition(plot.crop);
+      if (!crop) {
+        plot.crop = null;
+        plot.stage = 0;
+        continue;
+      }
+      if (!hydrated || !this.hasGrowthLight(plot)
+        || plot.stage >= crop.stageBlocks.length - 1) continue;
       plot.growthRemaining -= elapsed;
       if (plot.growthRemaining <= 0) {
         plot.stage++;
-        plot.growthRemaining = this.nextGrowthTime(plot.crop);
+        plot.growthRemaining = this.nextGrowthTime(crop);
         this.syncCropBlock(plot);
         if (Math.hypot(this.player.position.x - plot.x, this.player.position.z - plot.z) < 12) {
           this.audio.playFarmGrowth();
@@ -106,27 +127,26 @@ export class FarmingManager {
       return 'tilled';
     }
 
-    if (block === BlockId.BerryBushMature || block === BlockId.CaveShroom) {
-      const plot = this.plots.get(this.key(x, y - 1, z));
-      if (plot?.crop && plot.stage >= 2) {
-        const count = plot.crop === 'berries' ? 2 + Math.floor(Math.random() * 3) : 2 + Math.floor(Math.random() * 2);
-        const item = plot.crop === 'berries' ? ItemId.CaveBerries : ItemId.CaveShroom;
-        this.dropItem(x + 0.5, y + 0.35, z + 0.5, createStack(item, count));
-        plot.stage = 0;
-        plot.growthRemaining = this.nextGrowthTime(plot.crop);
-        this.syncCropBlock(plot);
-        return 'harvested';
-      }
+    const harvestedPlot = this.plots.get(this.key(x, y - 1, z));
+    const harvestedCrop = getCropDefinition(harvestedPlot?.crop);
+    if (harvestedPlot && harvestedCrop
+      && harvestedPlot.stage >= harvestedCrop.stageBlocks.length - 1
+      && block === harvestedCrop.stageBlocks.at(-1)) {
+      const { minimum, maximum, item } = harvestedCrop.harvest;
+      const count = minimum + Math.floor(this.random() * (maximum - minimum + 1));
+      this.dropItem(x + 0.5, y + 0.35, z + 0.5, createStack(item, count));
+      harvestedPlot.stage = 0;
+      harvestedPlot.growthRemaining = this.nextGrowthTime(harvestedCrop);
+      this.syncCropBlock(harvestedPlot);
+      return 'harvested';
     }
 
     if (block !== BlockId.FarmlandDry && block !== BlockId.FarmlandWet) return 'none';
     if (this.world.getBlock(x, y + 1, z) !== BlockId.Air) return 'none';
-    const crop: FarmCrop | null = held === ItemId.CaveBerries
-      ? 'berries'
-      : held === ItemId.CaveShroom ? 'shroom' : null;
+    const crop = getCropForSeed(held);
     if (!crop) return 'none';
     const plot = this.ensurePlot(x, y, z);
-    plot.crop = crop;
+    plot.crop = crop.id;
     plot.stage = 0;
     plot.growthRemaining = this.nextGrowthTime(crop);
     this.syncCropBlock(plot);
@@ -139,9 +159,14 @@ export class FarmingManager {
     const key = this.key(x, farmlandY, z);
     const plot = this.plots.get(key);
     if (!plot) return false;
-    if (drop && plot.crop) {
-      const item = plot.crop === 'berries' ? ItemId.CaveBerries : ItemId.CaveShroom;
-      this.dropItem(x + 0.5, farmlandY + 1.3, z + 0.5, createStack(item));
+    const crop = getCropDefinition(plot.crop);
+    if (drop && crop) {
+      this.dropItem(
+        x + 0.5,
+        farmlandY + 1.3,
+        z + 0.5,
+        createStack(crop.brokenDrop.item, crop.brokenDrop.count)
+      );
     }
     if ((block === BlockId.FarmlandDry || block === BlockId.FarmlandWet) && plot.crop && this.cropBlockMatches(plot)) {
       this.world.setBlock(x, farmlandY + 1, z, BlockId.Air);
@@ -199,20 +224,30 @@ export class FarmingManager {
   }
 
   private blockFor(plot: FarmPlotSnapshot): BlockId {
-    if (plot.crop === 'berries') {
-      return plot.stage === 0 ? BlockId.BerrySprout : plot.stage === 1 ? BlockId.BerryBush : BlockId.BerryBushMature;
-    }
-    return plot.stage === 0 ? BlockId.ShroomSprout : plot.stage === 1 ? BlockId.ShroomGrowing : BlockId.CaveShroom;
+    const crop = this.requireCrop(plot.crop);
+    const stage = Math.max(0, Math.min(crop.stageBlocks.length - 1, plot.stage));
+    return crop.stageBlocks[stage];
   }
 
-  private nextGrowthTime(crop: FarmCrop): number {
-    return (crop === 'berries' ? 32 : 40) + Math.random() * 18;
+  private nextGrowthTime(crop: CropDefinition): number {
+    return crop.growth.minimumSeconds + this.random() * crop.growth.varianceSeconds;
+  }
+
+  private requireCrop(id: CropId | null): CropDefinition {
+    const crop = getCropDefinition(id);
+    if (!crop) throw new Error(`Unknown farm crop: ${String(id)}`);
+    return crop;
   }
 
   private removePlot(plot: FarmPlotSnapshot, dropCrop: boolean): void {
-    if (dropCrop && plot.crop) {
-      const item = plot.crop === 'berries' ? ItemId.CaveBerries : ItemId.CaveShroom;
-      this.dropItem(plot.x + 0.5, plot.y + 1.25, plot.z + 0.5, createStack(item));
+    const crop = getCropDefinition(plot.crop);
+    if (dropCrop && crop) {
+      this.dropItem(
+        plot.x + 0.5,
+        plot.y + 1.25,
+        plot.z + 0.5,
+        createStack(crop.brokenDrop.item, crop.brokenDrop.count)
+      );
     }
     if (plot.crop && this.cropBlockMatches(plot)) {
       this.world.setBlock(plot.x, plot.y + 1, plot.z, BlockId.Air);
