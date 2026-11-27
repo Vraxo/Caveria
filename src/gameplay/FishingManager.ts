@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { BlockId } from '../content/BlockId';
-import { FISHING_BIOME_WEIGHT_SHIFTS, getFishingLootTable } from '../content/loot/FishingLoot';
+import { getFishingLootTable } from '../content/loot/FishingLoot';
 import { ItemId, ItemStack, createStack } from '../items/Item';
 import { Player } from '../player/Player';
 import { raycastWater } from '../player/Raycaster';
@@ -25,10 +25,10 @@ export function selectFishingCatch(
   roll: number
 ): ItemId {
   const surface = world.terrainGen.getSurfaceHeight(x, z);
-  const biome = world.terrainGen.getSurfaceBiome(x, z, surface);
+  const biome = world.terrainGen.getSurfaceBiomeDefinition(x, z, surface);
   const deep = y < surface - 5;
   const entries = getFishingLootTable(quality, deep).map((entry) => ({ ...entry }));
-  for (const shift of FISHING_BIOME_WEIGHT_SHIFTS[biome] ?? []) {
+  for (const shift of biome.fishingWeightShifts) {
     const from = entries.find((entry) => entry.item === shift.from);
     const to = entries.find((entry) => entry.item === shift.to);
     if (!from || !to) continue;

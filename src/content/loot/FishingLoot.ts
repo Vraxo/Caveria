@@ -1,5 +1,4 @@
 import { ItemId } from '../../items/ItemTypes';
-import { SurfaceBiome } from '../../world/TerrainGen';
 import { WaterQuality } from '../../gameplay/WaterQuality';
 
 export interface FishingLootEntry {
@@ -55,14 +54,6 @@ export const FISHING_LOOT_TABLES: Readonly<Record<FishingLootTableId, ReadonlyAr
     { item: ItemId.Coal, weight: 6 },
     { item: ItemId.GoldIngot, weight: 1 },
   ],
-};
-
-export const FISHING_BIOME_WEIGHT_SHIFTS: Readonly<Partial<Record<SurfaceBiome, ReadonlyArray<{
-  from: ItemId;
-  to: ItemId;
-  weight: number;
-}>>>> = {
-  'Desert Dunes': [{ from: ItemId.RawRiverFish, to: ItemId.Stick, weight: 10 }],
 };
 
 export function getFishingLootTable(quality: WaterQuality, deep: boolean): ReadonlyArray<FishingLootEntry> {

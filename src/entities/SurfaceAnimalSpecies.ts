@@ -2,11 +2,11 @@ import * as THREE from 'three';
 import { BlockId } from '../content/BlockId';
 import { MobDefinition } from '../content/mobs/MobDefinitions';
 import { rollMobLoot } from '../content/loot/MobLoot';
+import type { BiomeTag } from '../content/biomes/BiomeDefinitions';
 import { ItemId, ItemStack, createStack } from '../items/Item';
 import { Player } from '../player/Player';
 import { BreakParticles } from '../rendering/BreakParticles';
 import { DroppedItemManager } from '../rendering/DroppedItems';
-import { SurfaceBiome } from '../world/TerrainGen';
 import { World } from '../world/World';
 import { findGroundMobSpawn, MovementIntent, moveGroundMob } from './MobMechanics';
 import {
@@ -52,7 +52,7 @@ export interface SurfaceAnimalVisualAdapter<TVisual> {
 
 export interface SurfaceAnimalConfig<TVisual> {
   definition: MobDefinition;
-  allowedBiomes: ReadonlySet<SurfaceBiome>;
+  requiredBiomeTag: BiomeTag;
   visual: SurfaceAnimalVisualAdapter<TVisual>;
   particles: BlockId;
   wanderSpeed: number;
@@ -452,7 +452,9 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
 
   private columnAllowsSpawn(x: number, z: number): boolean {
     const surface = this.world.terrainGen.getSurfaceHeight(x, z);
-    return this.config.allowedBiomes.has(this.world.terrainGen.getSurfaceBiome(x, z, surface));
+    return this.world.terrainGen
+      .getSurfaceBiomeDefinition(x, z, surface)
+      .tags.includes(this.config.requiredBiomeTag);
   }
 
   private hasNaturalGround(x: number, y: number, z: number): boolean {

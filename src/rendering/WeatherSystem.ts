@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { BlockId } from '../content/BlockId';
 import { Player } from '../player/Player';
-import { SurfaceBiome } from '../world/TerrainGen';
 import { World } from '../world/World';
 
 export type WeatherPhase = 'clear' | 'rain' | 'storm';
@@ -16,7 +15,6 @@ export interface WeatherSnapshot {
 
 const PARTICLE_COUNT = 1100;
 const PRECIPITATION_RADIUS = 20;
-const COLD_BIOMES = new Set<SurfaceBiome>(['Snowy Taiga', 'Alpine Peaks']);
 
 /** Owns natural weather transitions, biome-aware precipitation, lightning, and local particles. */
 export class WeatherSystem {
@@ -118,7 +116,7 @@ export class WeatherSystem {
 
   public get localWeather(): LocalWeather {
     if (this.intensity < 0.08) return 'Clear';
-    const snowing = COLD_BIOMES.has(this.getSurfaceBiome());
+    const snowing = this.getSurfaceBiomeDefinition().precipitation === 'snow';
     if (snowing) return this.phase === 'storm' ? 'Snowstorm' : 'Snow';
     return this.phase === 'storm' ? 'Thunderstorm' : 'Rain';
   }
@@ -237,10 +235,10 @@ export class WeatherSystem {
     this.positions[base + 2] = this.player.position.z + Math.sin(angle) * radius;
   }
 
-  private getSurfaceBiome(): SurfaceBiome {
+  private getSurfaceBiomeDefinition() {
     const x = Math.floor(this.player.position.x);
     const z = Math.floor(this.player.position.z);
-    return this.world.terrainGen.getSurfaceBiome(x, z);
+    return this.world.terrainGen.getSurfaceBiomeDefinition(x, z);
   }
 
   private createRainTexture(): THREE.CanvasTexture {

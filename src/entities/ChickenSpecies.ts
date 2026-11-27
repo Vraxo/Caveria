@@ -32,7 +32,7 @@ export function createChickenSpecies(
 ): SurfaceAnimalSpecies<ChickenVisual> {
   return new SurfaceAnimalSpecies(scene, world, player, drops, particles, {
     definition: MOB_DEFINITIONS[CHICKEN_ID],
-    allowedBiomes: new Set(['Meadows', 'Oak Forest']),
+    requiredBiomeTag: 'temperate',
     visual: VISUAL,
     particles: BlockId.SnowBlock,
     wanderSpeed: 0.72,

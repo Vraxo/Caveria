@@ -97,11 +97,8 @@ export class TemperatureSystem {
     if (underground) {
       target = y < 25 ? 38 : 44;
     } else {
-      const biome = this.world.terrainGen.getSurfaceBiome(x, z, surface);
-      if (biome === 'Desert Dunes') target = night ? 38 : 78;
-      else if (biome === 'Snowy Taiga') target = night ? 10 : 23;
-      else if (biome === 'Alpine Peaks') target = night ? 5 : 17;
-      else target = night ? 34 : 52;
+      const biome = this.world.terrainGen.getSurfaceBiomeDefinition(x, z, surface);
+      target = night ? biome.temperature.night : biome.temperature.day;
       target -= Math.max(0, y - 70) * 0.55;
     }
 

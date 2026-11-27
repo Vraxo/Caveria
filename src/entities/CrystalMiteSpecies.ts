@@ -299,8 +299,8 @@ export class CrystalMiteSpecies implements MobSpeciesBehavior<CrystalMiteState, 
   }
 
   private biomeAllowsSpawn(x: number, z: number): boolean {
-    const biome = this.world.terrainGen.getCavernBiome(x, z);
-    return biome === 'Crystal Geode Hall' || Math.random() <= GEODE_SPAWN_CHANCE_ELSEWHERE;
+    const biome = this.world.terrainGen.getCavernBiomeDefinition(x, z);
+    return biome.tags.includes('geode') || Math.random() <= GEODE_SPAWN_CHANCE_ELSEWHERE;
   }
 
   private spawnMite(position: THREE.Vector3, runtime: MobRuntime): void {

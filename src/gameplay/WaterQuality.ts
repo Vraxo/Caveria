@@ -8,11 +8,11 @@ export function getWaterQuality(world: World, x: number, y: number, z: number): 
   const wy = Math.floor(y);
   const wz = Math.floor(z);
   const surface = world.terrainGen.getSurfaceHeight(wx, wz);
-  const biome = world.terrainGen.getSurfaceBiome(wx, wz, surface);
+  const biome = world.terrainGen.getSurfaceBiomeDefinition(wx, wz, surface);
   const hash = coordinateHash(wx, wy, wz);
 
   if (wy >= surface - 3) {
-    if (biome === 'Snowy Taiga' || biome === 'Alpine Peaks' || biome === 'Oak Forest') return 'fresh';
+    if (biome.surfaceWater === 'fresh') return 'fresh';
     return hash % 5 === 0 ? 'murky' : 'fresh';
   }
   if (wy < 24 || hash % 7 === 0) return 'tainted';
