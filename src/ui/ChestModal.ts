@@ -3,6 +3,11 @@ import { HOTBAR_SIZE, Inventory, TOTAL_INVENTORY_SLOTS } from '../items/Inventor
 import { ITEMS, ItemStack } from '../items/Item';
 import { TextureAtlas } from '../rendering/TextureAtlas';
 import { renderItemStackIntoSlot } from './Hotbar';
+import {
+  bindTouchSlotModeButton,
+  positionCursorStack,
+  resolveSlotPointerAction,
+} from './ModalPointerMode';
 
 export interface StorageState {
   slots: Array<ItemStack | null>;
@@ -30,10 +35,12 @@ export class ChestModal {
     onRequestClose: () => void
   ) {
     document.getElementById('chest-close-btn')!.addEventListener('click', onRequestClose);
-    window.addEventListener('mousemove', (event) => {
+    bindTouchSlotModeButton(
+      document.getElementById('chest-tap-mode-btn') as HTMLButtonElement | null
+    );
+    window.addEventListener('pointermove', (event) => {
       if (!this.isOpen) return;
-      this.cursorEl.style.left = `${event.clientX}px`;
-      this.cursorEl.style.top = `${event.clientY}px`;
+      positionCursorStack(this.cursorEl, event);
     });
     this.inventory.onChange(() => {
       if (this.isOpen) this.renderAll();
@@ -91,9 +98,11 @@ export class ChestModal {
       const slotEl = document.createElement('div');
       slotEl.className = 'inv-slot';
       renderItemStackIntoSlot(slotEl, this.state.slots[index], this.atlas);
-      slotEl.addEventListener('mousedown', (event) => {
+      slotEl.addEventListener('pointerdown', (event) => {
         event.preventDefault();
-        this.handleChestClick(index, event.button, event.shiftKey);
+        positionCursorStack(this.cursorEl, event);
+        const { button, shiftKey } = resolveSlotPointerAction(event);
+        this.handleChestClick(index, button, shiftKey);
       });
       this.chestGridEl.appendChild(slotEl);
     }
@@ -118,9 +127,11 @@ export class ChestModal {
         this.atlas,
         hotbar ? String(index + 1) : undefined
       );
-      slotEl.addEventListener('mousedown', (event) => {
+      slotEl.addEventListener('pointerdown', (event) => {
         event.preventDefault();
-        this.handleInventoryClick(index, event.button, event.shiftKey);
+        positionCursorStack(this.cursorEl, event);
+        const { button, shiftKey } = resolveSlotPointerAction(event);
+        this.handleInventoryClick(index, button, shiftKey);
       });
       container.appendChild(slotEl);
     }

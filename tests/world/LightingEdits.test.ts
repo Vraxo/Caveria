@@ -37,4 +37,32 @@ describe('lighting edits', () => {
     updateLightingAtEdit(8, 10, 8, BlockId.Torch, BlockId.Air, lookup);
     expect(chunk.getBlockLight(9, 10, 8)).toBe(0);
   });
+
+  it('bleeds skylight and block light cleanly across adjacent chunk borders', () => {
+    const left = new Chunk(-1, 0);
+    const right = new Chunk(0, 0);
+    // Roof over the entire right chunk at y=20 so right has 0 direct skylight underneath.
+    for (let z = 0; z < 16; z++) {
+      for (let x = 0; x < 16; x++) {
+        right.set(x, 20, z, BlockId.Stone);
+      }
+    }
+    // Torch on the border of left chunk at (15, 10, 8).
+    left.set(15, 10, 8, BlockId.Torch);
+
+    const map = new Map<number, Chunk>([
+      [Chunk.numKey(-1, 0), left],
+      [Chunk.numKey(0, 0), right],
+    ]);
+    const lookup = (cx: number, cz: number) => map.get(Chunk.numKey(cx, cz));
+
+    initializeChunkLighting(left, lookup, () => {});
+    initializeChunkLighting(right, lookup, () => {});
+
+    // Skylight from open sky at left(15, 15, 8) should bleed into right(0, 15, 8) as 14.
+    expect(right.getSkyLight(0, 15, 8)).toBe(14);
+    expect(right.getSkyLight(1, 15, 8)).toBe(13);
+    // Block light from torch at left(15, 10, 8) should bleed into right(0, 10, 8).
+    expect(right.getBlockLight(0, 10, 8)).toBe(BLOCKS[BlockId.Torch].lightEmission - 1);
+  });
 });

@@ -64,12 +64,14 @@ export class Player {
     movementSpeedScale = 1,
     canSprint = true
   ): void {
-    const forwardInput =
+    const keyForward =
       (input.isKeyDown('KeyW') || input.isKeyDown('ArrowUp') ? 1 : 0) -
       (input.isKeyDown('KeyS') || input.isKeyDown('ArrowDown') ? 1 : 0);
-    const strafeInput =
+    const keyStrafe =
       (input.isKeyDown('KeyD') || input.isKeyDown('ArrowRight') ? 1 : 0) -
       (input.isKeyDown('KeyA') || input.isKeyDown('ArrowLeft') ? 1 : 0);
+    const forwardInput = keyForward + (input.virtualMoveForward ?? 0);
+    const strafeInput = keyStrafe + (input.virtualMoveX ?? 0);
 
     // Forward direction in XZ plane (Three.js camera looks down -Z at yaw=0)
     const forwardX = -Math.sin(this.yaw);
@@ -80,7 +82,7 @@ export class Player {
     let wishX = forwardX * forwardInput + rightX * strafeInput;
     let wishZ = forwardZ * forwardInput + rightZ * strafeInput;
     const wishLen = Math.hypot(wishX, wishZ);
-    if (wishLen > 0.0001) {
+    if (wishLen > 1) {
       wishX /= wishLen;
       wishZ /= wishLen;
     }

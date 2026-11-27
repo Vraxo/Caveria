@@ -10,6 +10,7 @@ export class WebAudioEngine {
   private ambientGainValue: GainNode | null = null;
   private noiseBufferValue: AudioBuffer | null = null;
   private mutedValue = false;
+  private worldAudioActiveValue = false;
   /** SFX volume in percent, matching the default 0.9 gain. */
   private sfxVolumeValue = 90;
   /** Ambience volume in percent, matching the default 0.55 gain. */
@@ -20,6 +21,7 @@ export class WebAudioEngine {
   public get ambientGain(): GainNode | null { return this.ambientGainValue; }
   public get noiseBuffer(): AudioBuffer | null { return this.noiseBufferValue; }
   public get muted(): boolean { return this.mutedValue; }
+  public get worldAudioActive(): boolean { return this.worldAudioActiveValue; }
 
   public setSfxVolume(percent: number): void {
     this.sfxVolumeValue = clampVolumePercent(percent);
@@ -30,11 +32,20 @@ export class WebAudioEngine {
   public getSfxVolume(): number { return this.sfxVolumeValue; }
   public setAmbienceVolume(percent: number): void {
     this.ambienceVolumeValue = clampVolumePercent(percent);
-    if (this.contextValue && this.ambientGainValue) {
+    if (this.contextValue && this.ambientGainValue && this.worldAudioActiveValue) {
       this.ambientGainValue.gain.value = this.ambienceVolumeValue / 100;
     }
   }
   public getAmbienceVolume(): number { return this.ambienceVolumeValue; }
+
+  /** Gates continuous world/ambient audio so exiting to the main menu silences in-world sound immediately. */
+  public setWorldAudioActive(active: boolean): void {
+    this.worldAudioActiveValue = active;
+    if (this.contextValue && this.ambientGainValue) {
+      const target = active ? this.ambienceVolumeValue / 100 : 0;
+      this.ambientGainValue.gain.setTargetAtTime(target, this.contextValue.currentTime, 0.025);
+    }
+  }
 
   public unlock(): void {
     if (!this.contextValue) this.createGraph();
@@ -87,7 +98,9 @@ export class WebAudioEngine {
     this.sfxGainValue.connect(this.masterGainValue);
 
     this.ambientGainValue = context.createGain();
-    this.ambientGainValue.gain.value = this.ambienceVolumeValue / 100;
+    this.ambientGainValue.gain.value = this.worldAudioActiveValue
+      ? this.ambienceVolumeValue / 100
+      : 0;
     this.ambientGainValue.connect(this.masterGainValue);
 
     const length = context.sampleRate * 2;

@@ -18,10 +18,15 @@ export class AudioManager {
   private readonly ambience = new AmbientSoundscape(this.engine, this.synth);
 
   public get muted(): boolean { return this.engine.muted; }
+  public get worldAudioActive(): boolean { return this.engine.worldAudioActive; }
 
   public unlock(): void {
     this.engine.unlock();
-    this.ambience.start();
+    if (this.engine.worldAudioActive) this.ambience.start();
+  }
+  public setWorldAudioActive(active: boolean): void {
+    this.engine.setWorldAudioActive(active);
+    this.ambience.setActive(active);
   }
   public setMuted(muted: boolean): void { this.engine.setMuted(muted); }
   public toggleMute(): boolean { return this.engine.toggleMute(); }

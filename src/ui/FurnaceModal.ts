@@ -7,6 +7,11 @@ import { HOTBAR_SIZE, Inventory, TOTAL_INVENTORY_SLOTS } from '../items/Inventor
 import { ITEMS, ItemStack } from '../items/Item';
 import { TextureAtlas } from '../rendering/TextureAtlas';
 import { renderItemStackIntoSlot } from './Hotbar';
+import {
+  bindTouchSlotModeButton,
+  positionCursorStack,
+  resolveSlotPointerAction,
+} from './ModalPointerMode';
 
 type MachineSlot = 'input' | 'fuel' | 'output';
 
@@ -36,19 +41,23 @@ export class FurnaceModal {
     onRequestClose: () => void
   ) {
     document.getElementById('furnace-close-btn')!.addEventListener('click', onRequestClose);
-    window.addEventListener('mousemove', (event) => {
+    bindTouchSlotModeButton(
+      document.getElementById('furnace-tap-mode-btn') as HTMLButtonElement | null
+    );
+    window.addEventListener('pointermove', (event) => {
       if (!this.isOpen) return;
-      this.cursorEl.style.left = `${event.clientX}px`;
-      this.cursorEl.style.top = `${event.clientY}px`;
+      positionCursorStack(this.cursorEl, event);
     });
     for (const [element, slot] of [
       [this.inputEl, 'input'],
       [this.fuelEl, 'fuel'],
       [this.outputEl, 'output'],
     ] as Array<[HTMLElement, MachineSlot]>) {
-      element.addEventListener('mousedown', (event) => {
+      element.addEventListener('pointerdown', (event) => {
         event.preventDefault();
-        this.handleMachineClick(slot, event.button, event.shiftKey);
+        positionCursorStack(this.cursorEl, event);
+        const { button, shiftKey } = resolveSlotPointerAction(event);
+        this.handleMachineClick(slot, button, shiftKey);
       });
     }
     this.inventory.onChange(() => {
@@ -122,9 +131,11 @@ export class FurnaceModal {
         this.atlas,
         hotbar ? String(index + 1) : undefined
       );
-      slotEl.addEventListener('mousedown', (event) => {
+      slotEl.addEventListener('pointerdown', (event) => {
         event.preventDefault();
-        this.handleInventoryClick(index, event.button, event.shiftKey);
+        positionCursorStack(this.cursorEl, event);
+        const { button, shiftKey } = resolveSlotPointerAction(event);
+        this.handleInventoryClick(index, button, shiftKey);
       });
       container.appendChild(slotEl);
     }

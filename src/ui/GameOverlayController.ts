@@ -27,6 +27,7 @@ interface GameOverlayDependencies {
   onBeforeWorldSwitch: (saveCurrent: boolean) => void;
   onDeleteWorld: (world: WorldSummary) => void;
   onWorldStarted: () => void;
+  onLoadingWorld?: (worldName: string) => void;
   texturePacks?: readonly TexturePackDescriptor[];
   activeTexturePackId?: string;
   onSelectTexturePack?: (packId: string) => Promise<string>;
@@ -56,6 +57,7 @@ export class GameOverlayController {
   private readonly onBeforeWorldSwitch: (saveCurrent: boolean) => void;
   private readonly onDeleteWorld: (world: WorldSummary) => void;
   private readonly onWorldStarted: () => void;
+  private readonly onLoadingWorld?: (worldName: string) => void;
   private readonly texturePacks: readonly TexturePackDescriptor[];
   private readonly onSelectTexturePack?: (packId: string) => Promise<string>;
   private readonly onQuit: (saveCurrent: boolean) => void;
@@ -106,6 +108,7 @@ export class GameOverlayController {
     this.onBeforeWorldSwitch = deps.onBeforeWorldSwitch;
     this.onDeleteWorld = deps.onDeleteWorld;
     this.onWorldStarted = deps.onWorldStarted;
+    this.onLoadingWorld = deps.onLoadingWorld;
     this.texturePacks = deps.texturePacks ?? BUILTIN_TEXTURE_PACKS;
     this.activeTexturePackId = resolveTexturePack(
       this.texturePacks,
@@ -214,8 +217,13 @@ export class GameOverlayController {
     if (active) this.hideMenus();
   }
 
+  public get isInWorld(): boolean {
+    return this.hasEnteredWorld;
+  }
+
   public returnToTitle(): void {
     this.hasEnteredWorld = false;
+    this.audio.setWorldAudioActive(false);
     this.showMenu('title');
   }
 
@@ -276,8 +284,7 @@ export class GameOverlayController {
     });
 
     document.getElementById('save-now')!.addEventListener('click', () => {
-      this.hasEnteredWorld = false;
-      this.showMenu('title');
+      this.returnToTitle();
     });
     document.getElementById('quit-game-button')!.addEventListener('click', () => {
       this.onQuit(this.hasEnteredWorld || this.currentWorld.savedAt > 0);
@@ -321,11 +328,16 @@ export class GameOverlayController {
       this.requestPlay();
     });
     document.addEventListener('fullscreenchange', () => this.updateFullscreenButton());
-    window.addEventListener('resize', () => {
-      this.camera.aspect = window.innerWidth / window.innerHeight;
+    const syncViewportSize = (): void => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      this.camera.aspect = width / Math.max(1, height);
       this.camera.updateProjectionMatrix();
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+      this.renderer.setSize(width, height);
+    };
+    window.addEventListener('resize', syncViewportSize);
+    window.addEventListener('orientationchange', () => setTimeout(syncViewportSize, 80));
+    window.visualViewport?.addEventListener('resize', syncViewportSize);
   }
 
   private handleMenuKey(event: KeyboardEvent): void {
@@ -442,6 +454,8 @@ export class GameOverlayController {
     seed: string,
     biomeSize: BiomeSize
   ): void {
+    this.audio.setWorldAudioActive(false);
+    this.onLoadingWorld?.(worldName);
     this.onBeforeWorldSwitch(this.hasEnteredWorld || this.currentWorld.savedAt > 0);
     const url = new URL(window.location.href);
     url.search = '';
@@ -469,6 +483,7 @@ export class GameOverlayController {
   private requestPlay(): void {
     this.resumeOnEscapeRelease = false;
     this.audio.unlock();
+    this.audio.setWorldAudioActive(true);
     this.hasEnteredWorld = true;
     this.onWorldStarted();
     if (this.inventoryModal.isOpen) this.inventoryModal.close();
