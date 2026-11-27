@@ -39,6 +39,7 @@ export function createChickenSpecies(
     fleeSpeed: 2.3,
     fleeDistance: 5.2,
     minimumSpawnSpacing: 2.5,
+    resource: 'eggs',
     playAmbientSound: () => audio.playChickenCluck(),
     playHitSound: () => audio.playChickenHit(),
     playDeathSound: () => audio.playChickenDeath(),

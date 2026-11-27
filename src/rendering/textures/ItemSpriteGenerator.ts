@@ -324,6 +324,27 @@ export class ItemSpriteGenerator {
         px(11, 11, cooked ? [108, 58, 36, 255] : [152, 54, 62, 255]);
         break;
       }
+      case ItemId.Shears:
+        for (let i = 0; i < 8; i++) {
+          px(4 + i, 11 - i, [232, 188, 54, 255]);
+          px(11 - i, 11 - i, [190, 138, 30, 255]);
+        }
+        for (const [x, y] of [[3, 12], [4, 13], [11, 12], [10, 13]] as Array<[number, number]>) {
+          px(x, y, [152, 102, 24, 255]);
+          px(x + 1, y, [232, 188, 54, 255]);
+        }
+        break;
+      case ItemId.Egg:
+      case ItemId.CookedEgg: {
+        const cooked = itemId === ItemId.CookedEgg;
+        for (let y = 3; y <= 13; y++) for (let x = 4; x <= 11; x++) {
+          const dx = Math.abs(x - 7.5);
+          const dy = Math.abs(y - 8);
+          if (dx * 1.3 + dy < 6) px(x, y, cooked ? [244, 236, 202, 255] : [224, 214, 176, 255]);
+        }
+        if (cooked) for (let y = 7; y <= 10; y++) for (let x = 6; x <= 9; x++) px(x, y, [238, 176, 46, 255]);
+        break;
+      }
       case ItemId.Feather:
         for (let i = 2; i <= 13; i++) {
           px(14 - i, i, [220, 224, 218, 255]);

@@ -145,7 +145,8 @@ export class BlockInteractionController {
 
     const bowHandled = this.updateBow(dt, creativeMode);
     if (!bowHandled && this.input.consumeMousePress(2)) {
-      this.handleUse(creativeMode, this.mobTarget === null);
+      if (this.mobTarget) this.handleMobUse(creativeMode);
+      else this.handleUse(creativeMode, true);
     }
 
     if (this.mobTarget) {
@@ -313,6 +314,22 @@ export class BlockInteractionController {
     this.bowDrawing = false;
     this.bowDrawTime = 0;
     this.heldItemView.setBowDraw(0);
+  }
+
+  private handleMobUse(creativeMode: boolean): void {
+    if (!this.mobTarget) return;
+    const result = this.mobs.interact(
+      this.mobTarget,
+      this.hotbar.selectedStack,
+      creativeMode
+    );
+    if (!result) return;
+    if (result.consumeHeld) this.inventory.consumeOne(this.hotbar.selectedIndex);
+    if (result.damageHeld && this.inventory.damageTool(this.hotbar.selectedIndex)) {
+      this.audio.playToolBreak();
+    }
+    if (result.swing) this.heldItemView.triggerSwing();
+    this.updateTarget();
   }
 
   private handleUse(creativeMode: boolean, allowWorldUse: boolean): void {

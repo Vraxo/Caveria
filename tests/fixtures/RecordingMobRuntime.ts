@@ -20,12 +20,12 @@ export class RecordingMobRuntime implements MobRuntime {
     data: MobSpawnData<TState, TVisual>
   ): MobEntity<TState, TVisual> {
     const entity: MobEntity<TState, TVisual> = {
-      id: this.nextId++,
+      id: data.id ?? this.nextId++,
       species: species.species,
       position: data.position,
       velocity: data.velocity ?? new THREE.Vector3(),
       onGround: data.onGround ?? false,
-      health: species.maxHealth,
+      health: data.health ?? species.maxHealth,
       age: data.age ?? 0,
       hurtTimer: data.hurtTimer ?? 0,
       state: data.state,
@@ -45,6 +45,18 @@ export class RecordingMobRuntime implements MobRuntime {
 
   public countSpecies(species: MobSpeciesId): number {
     return this.entities.filter((entity) => entity.species === species).length;
+  }
+
+  public entitiesOfSpeciesWithin(
+    species: MobSpeciesId,
+    position: THREE.Vector3,
+    radius: number
+  ): ReadonlyArray<MobEntity> {
+    const radiusSquared = radius * radius;
+    return this.entities.filter(
+      (entity) => entity.species === species
+        && entity.position.distanceToSquared(position) <= radiusSquared
+    );
   }
 
   public hasSpeciesWithin(

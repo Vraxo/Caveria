@@ -70,6 +70,13 @@ export const COOKING_RECIPES: ReadonlyArray<CookingRecipeDefinition> = [
     seconds: 7,
     campfire: { output: ItemId.CookedMutton, count: 1, seconds: 10 },
   },
+  {
+    input: ItemId.Egg,
+    output: ItemId.CookedEgg,
+    count: 1,
+    seconds: 4,
+    campfire: { output: ItemId.CookedEgg, count: 1, seconds: 6 },
+  },
   { input: ItemId.Cactus, output: ItemId.CactusGreen, count: 1, seconds: 6 },
 ];
 

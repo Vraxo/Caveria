@@ -2,6 +2,17 @@ import { ItemCatalog, ItemId } from '../../items/ItemTypes';
 
 export const EQUIPMENT_ITEM_DEFINITIONS: ItemCatalog = {
 
+  [ItemId.Shears]: {
+    id: ItemId.Shears,
+    name: 'Gold Shears',
+    maxStack: 1,
+    placeBlockId: null,
+    toolCategory: 'none',
+    toolTier: 0,
+    miningSpeed: 1,
+    maxDurability: 96,
+  },
+
   [ItemId.WoodenPickaxe]: {
     id: ItemId.WoodenPickaxe,
     name: 'Wooden Pickaxe',
