@@ -232,5 +232,13 @@ export const MATERIAL_ITEM_DEFINITIONS: ItemCatalog = {
     id: ItemId.Wool, name: 'Wool', maxStack: 64, placeBlockId: null,
     toolCategory: 'none', toolTier: 0, miningSpeed: 1,
   },
+  [ItemId.Egg]: {
+    id: ItemId.Egg, name: 'Egg', maxStack: 16, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1, nutrition: 1, saturation: 0.5,
+  },
+  [ItemId.CookedEgg]: {
+    id: ItemId.CookedEgg, name: 'Cooked Egg', maxStack: 64, placeBlockId: null,
+    toolCategory: 'none', toolTier: 0, miningSpeed: 1, nutrition: 5, saturation: 3.5,
+  },
 
 };

@@ -108,6 +108,9 @@ export enum ItemId {
   RawMutton = 189,
   CookedMutton = 190,
   Wool = 191,
+  Shears = 192,
+  Egg = 193,
+  CookedEgg = 194,
 }
 
 export type ArmorSlot = 'helmet' | 'chestplate' | 'leggings' | 'boots';

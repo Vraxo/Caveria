@@ -271,6 +271,7 @@ export class Game {
       chickenSpecies,
       sheepSpecies,
     ]);
+    this.mobs.restore(savedGame?.mobs ?? []);
     this.arrows = new ArrowProjectileManager(
       this.scene,
       this.world,
@@ -700,6 +701,7 @@ export class Game {
       farms: this.farms.snapshots(),
       beds: this.beds.snapshots(),
       respawnBed: this.beds.respawnSnapshot(),
+      mobs: this.mobs.snapshots(),
       worldEdits: this.world.exportEdits(),
     };
   }

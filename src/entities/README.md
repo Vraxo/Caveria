@@ -12,14 +12,17 @@ Caveria models creatures as individual `MobEntity` records owned by one `MobMana
 - proximity, tag, count, and raycast queries;
 - damage gating, health reduction, and death removal.
 
-A registered `MobSpeciesBehavior` owns only species-specific policy and feedback:
+A registered `MobSpeciesBehavior` owns only species-specific policy and feedback, including validation and reconstruction of its persisted state:
 
 - behavior state and decisions;
 - spawn timing and environmental spawn rules;
 - movement intentions and collision reactions;
 - attacks and sounds;
 - visual creation, animation, and disposal;
-- damage reactions, death particles, and loot.
+- damage reactions, death particles, and loot;
+- right-click interaction and species-state save/restore.
+
+Surface animals additionally compose feeding, breeding, baby growth/following, Sheep shearing and wool regrowth, and Chicken egg laying through `SurfaceAnimalSpecies`.
 
 `MobMechanics.ts` contains stateless mechanics shared through composition, including ground movement, body collision, raycasting, and ground-spawn searches. Closely related passive animals share `SurfaceAnimalSpecies`, while their species files remain small declarations of tuning, visuals, sounds, biomes, and loot.
 

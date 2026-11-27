@@ -27,6 +27,20 @@ function createSpecies(species: string, tags: MobTag[] = []) {
       entity.state.updates++;
       updateOrder.push(entity.id);
     }),
+    interact: vi.fn(() => ({ swing: true })),
+    saveState: (entity) => ({ ...entity.state }),
+    restore: vi.fn((snapshot, runtime) => {
+      runtime.spawn(behavior, {
+        id: snapshot.id,
+        position: new THREE.Vector3(...snapshot.position),
+        velocity: new THREE.Vector3(...snapshot.velocity),
+        health: snapshot.health,
+        age: snapshot.age,
+        hurtTimer: snapshot.hurtTimer,
+        state: snapshot.state as TestState,
+        visual: { disposed: false },
+      });
+    }),
     onDamaged: vi.fn(),
     onDeath: vi.fn(),
     dispose: vi.fn((entity: TestEntity) => {
@@ -110,6 +124,41 @@ describe('MobManager', () => {
     expect(hit?.entityId).toBe(nearest.id);
     expect(hit?.species).toBe('target');
     expect(blocked).toBeNull();
+  });
+
+  it('snapshots and restores instances while preserving global IDs', () => {
+    const species = createSpecies('persistent');
+    const original = new MobManager([species.behavior]);
+    const entity = spawn(original, species.behavior);
+    entity.health = 3;
+    entity.state.updates = 7;
+
+    const snapshots = original.snapshots();
+    const restored = new MobManager([species.behavior]);
+    restored.restore(snapshots);
+    const next = spawn(restored, species.behavior, 2);
+
+    expect(restored.count).toBe(2);
+    expect(snapshots[0]).toMatchObject({ id: entity.id, health: 3 });
+    expect(next.id).toBe(entity.id + 1);
+  });
+
+  it('routes right-click interaction through the targeted species', () => {
+    const species = createSpecies('interactive');
+    const manager = new MobManager([species.behavior]);
+    const entity = spawn(manager, species.behavior);
+    const hit = {
+      species: species.behavior.species,
+      entityId: entity.id,
+      id: entity.id,
+      name: species.behavior.name,
+      distance: 1,
+      health: entity.health,
+      maxHealth: species.behavior.maxHealth,
+    };
+
+    expect(manager.interact(hit, null, false)).toEqual({ swing: true });
+    expect(species.behavior.interact).toHaveBeenCalledOnce();
   });
 
   it('centralizes hurt gating, death callbacks, removal, and disposal', () => {

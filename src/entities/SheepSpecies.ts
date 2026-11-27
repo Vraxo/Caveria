@@ -39,6 +39,7 @@ export function createSheepSpecies(
     fleeSpeed: 1.9,
     fleeDistance: 5.8,
     minimumSpawnSpacing: 3.5,
+    resource: 'wool',
     playAmbientSound: () => audio.playSheepBleat(),
     playHitSound: () => audio.playSheepHit(),
     playDeathSound: () => audio.playSheepDeath(),

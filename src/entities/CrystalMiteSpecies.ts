@@ -15,6 +15,7 @@ import {
 import {
   MobEntity,
   MobRuntime,
+  SavedMobSnapshot,
   MobSpeciesBehavior,
   MobTag,
 } from './MobTypes';
@@ -316,6 +317,47 @@ export class CrystalMiteSpecies implements MobSpeciesBehavior<CrystalMiteState, 
         activityTimer: 0,
         facingAngle: Math.random() * Math.PI * 2,
         targetCrystal: null,
+      },
+      visual,
+    });
+  }
+
+  public saveState(mite: CrystalMiteEntity): unknown {
+    return {
+      ...mite.state,
+      targetCrystal: mite.state.targetCrystal?.toArray() ?? null,
+    };
+  }
+
+  public restore(snapshot: SavedMobSnapshot, runtime: MobRuntime): void {
+    const saved = snapshot.state && typeof snapshot.state === 'object'
+      ? snapshot.state as Record<string, unknown>
+      : {};
+    const target = Array.isArray(saved.targetCrystal) && saved.targetCrystal.length === 3
+      ? new THREE.Vector3(
+          Number(saved.targetCrystal[0]) || 0,
+          Number(saved.targetCrystal[1]) || 0,
+          Number(saved.targetCrystal[2]) || 0
+        )
+      : null;
+    const position = new THREE.Vector3(...snapshot.position);
+    const visual = createCrystalMiteVisual();
+    visual.root.position.copy(position);
+    this.scene.add(visual.root);
+    runtime.spawn(this, {
+      id: snapshot.id,
+      position,
+      velocity: new THREE.Vector3(...snapshot.velocity),
+      health: snapshot.health,
+      age: snapshot.age,
+      hurtTimer: snapshot.hurtTimer,
+      state: {
+        activity: saved.activity === 'wandering' || saved.activity === 'inspecting-crystal'
+          || saved.activity === 'fleeing-player' ? saved.activity : 'idle',
+        activityTimer: Number(saved.activityTimer) || 0,
+        facingAngle: Number(saved.facingAngle) || 0,
+        targetCrystal: target,
+        chirpTimer: Number(saved.chirpTimer) || 2,
       },
       visual,
     });

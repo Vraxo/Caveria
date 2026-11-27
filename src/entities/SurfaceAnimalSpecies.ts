@@ -2,13 +2,20 @@ import * as THREE from 'three';
 import { BlockId } from '../content/BlockId';
 import { MobDefinition } from '../content/mobs/MobDefinitions';
 import { rollMobLoot } from '../content/loot/MobLoot';
+import { ItemId, ItemStack, createStack } from '../items/Item';
 import { Player } from '../player/Player';
 import { BreakParticles } from '../rendering/BreakParticles';
 import { DroppedItemManager } from '../rendering/DroppedItems';
 import { SurfaceBiome } from '../world/TerrainGen';
 import { World } from '../world/World';
 import { findGroundMobSpawn, MovementIntent, moveGroundMob } from './MobMechanics';
-import { MobEntity, MobRuntime, MobSpeciesBehavior, MobTag } from './MobTypes';
+import {
+  MobEntity,
+  MobRuntime,
+  MobSpeciesBehavior,
+  MobTag,
+  SavedMobSnapshot,
+} from './MobTypes';
 
 export type SurfaceAnimalActivity = 'idle' | 'wandering' | 'fleeing-player';
 
@@ -17,6 +24,12 @@ export interface SurfaceAnimalState {
   activityTimer: number;
   facingAngle: number;
   ambientSoundTimer: number;
+  growthRemaining: number;
+  feedingCooldown: number;
+  loveTimer: number;
+  breedingCooldown: number;
+  sheared: boolean;
+  resourceTimer: number;
 }
 
 export interface SurfaceAnimalVisualAdapter<TVisual> {
@@ -30,6 +43,8 @@ export interface SurfaceAnimalVisualAdapter<TVisual> {
       hurt: boolean;
       position: THREE.Vector3;
       velocity: THREE.Vector3;
+      baby: boolean;
+      resourceAvailable: boolean;
     }
   ): void;
   dispose(visual: TVisual): void;
@@ -44,6 +59,7 @@ export interface SurfaceAnimalConfig<TVisual> {
   fleeSpeed: number;
   fleeDistance: number;
   minimumSpawnSpacing: number;
+  resource: 'eggs' | 'wool';
   playAmbientSound(): void;
   playHitSound(): void;
   playDeathSound(): void;
@@ -60,6 +76,19 @@ const SPAWN_SCAN_ABOVE_PLAYER = 5;
 const SPAWN_SCAN_BELOW_PLAYER = 6;
 const AMBIENT_SOUND_DISTANCE = 15;
 const HURT_INVULNERABILITY_SECONDS = 0.28;
+const BABY_GROWTH_SECONDS = 300;
+const FEEDING_COOLDOWN_SECONDS = 2;
+const BREEDING_COOLDOWN_SECONDS = 300;
+const LOVE_SECONDS = 30;
+const BREEDING_RANGE = 8;
+const FOLLOW_RANGE = 10;
+const WOOL_REGROW_SECONDS = 180;
+const EGG_MINIMUM_SECONDS = 180;
+const EGG_VARIANCE_SECONDS = 180;
+
+function savedNumber(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
 
 /** Shared surface-animal behavior; species files provide only tuning, visuals, sounds, and loot. */
 export class SurfaceAnimalSpecies<TVisual>
@@ -106,6 +135,11 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
   ): void {
     animal.state.activityTimer -= dt;
     animal.state.ambientSoundTimer -= dt;
+    animal.state.growthRemaining = Math.max(0, animal.state.growthRemaining - dt);
+    animal.state.feedingCooldown = Math.max(0, animal.state.feedingCooldown - dt);
+    animal.state.loveTimer = Math.max(0, animal.state.loveTimer - dt);
+    animal.state.breedingCooldown = Math.max(0, animal.state.breedingCooldown - dt);
+    this.updateResource(animal, dt);
 
     const awayX = animal.position.x - this.player.position.x;
     const awayZ = animal.position.z - this.player.position.z;
@@ -115,10 +149,114 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
       return;
     }
 
-    const intent = this.chooseMovement(animal, awayX, awayZ, playerDistance);
+    const intent = this.chooseMovement(animal, awayX, awayZ, playerDistance, runtime);
     this.applyMovement(animal, intent, dt);
     this.updateVisual(animal);
     this.updateAmbientSound(animal, playerDistance);
+  }
+
+  public interact(
+    animal: SurfaceAnimalEntity<TVisual>,
+    held: ItemStack | null,
+    creativeMode: boolean,
+    runtime: MobRuntime
+  ) {
+    if (
+      this.config.resource === 'wool'
+      && held?.id === ItemId.Shears
+      && animal.state.growthRemaining <= 0
+      && !animal.state.sheared
+    ) {
+      animal.state.sheared = true;
+      animal.state.resourceTimer = WOOL_REGROW_SECONDS;
+      this.drops.spawnDrop(
+        animal.position.x,
+        animal.position.y + 0.4,
+        animal.position.z,
+        createStack(ItemId.Wool, Math.random() < 0.5 ? 1 : 2)
+      );
+      return { damageHeld: !creativeMode, swing: true };
+    }
+
+    if (held?.id !== ItemId.CaveBerries || animal.state.feedingCooldown > 0) return null;
+    if (animal.state.growthRemaining > 0) {
+      animal.state.feedingCooldown = FEEDING_COOLDOWN_SECONDS;
+      animal.state.growthRemaining = Math.max(0, animal.state.growthRemaining - 30);
+      return { consumeHeld: !creativeMode, swing: true };
+    }
+    if (animal.state.breedingCooldown > 0 || animal.state.loveTimer > 0) return null;
+
+    animal.state.feedingCooldown = FEEDING_COOLDOWN_SECONDS;
+    animal.state.loveTimer = LOVE_SECONDS;
+    this.breakParticles.spawnBurst(
+      animal.position.x - 0.5,
+      animal.position.y + 0.4,
+      animal.position.z - 0.5,
+      BlockId.Grass
+    );
+    const partner = runtime.entitiesOfSpeciesWithin(
+      this.species,
+      animal.position,
+      BREEDING_RANGE
+    ).find((candidate) => {
+      if (candidate.id === animal.id) return false;
+      const state = candidate.state as SurfaceAnimalState;
+      return state.growthRemaining <= 0
+        && state.breedingCooldown <= 0
+        && state.loveTimer > 0;
+    }) as SurfaceAnimalEntity<TVisual> | undefined;
+    if (partner && runtime.countSpecies(this.species) < this.config.definition.maxPopulation) {
+      animal.state.loveTimer = 0;
+      partner.state.loveTimer = 0;
+      animal.state.breedingCooldown = BREEDING_COOLDOWN_SECONDS;
+      partner.state.breedingCooldown = BREEDING_COOLDOWN_SECONDS;
+      this.spawnAnimal(
+        animal.position.clone().add(partner.position).multiplyScalar(0.5),
+        runtime,
+        true
+      );
+    }
+    return { consumeHeld: !creativeMode, swing: true };
+  }
+
+  public saveState(animal: SurfaceAnimalEntity<TVisual>): unknown {
+    return { ...animal.state };
+  }
+
+  public restore(snapshot: SavedMobSnapshot, runtime: MobRuntime): void {
+    const saved = snapshot.state && typeof snapshot.state === 'object'
+      ? snapshot.state as Record<string, unknown>
+      : {};
+    const position = new THREE.Vector3(...snapshot.position);
+    const resourceTimer = typeof saved.resourceTimer === 'number' && Number.isFinite(saved.resourceTimer)
+      ? Math.max(0, saved.resourceTimer)
+      : this.initialResourceTimer();
+    const visual = this.config.visual.create();
+    this.config.visual.root(visual).position.copy(position);
+    this.scene.add(this.config.visual.root(visual));
+    const restored = runtime.spawn<SurfaceAnimalState, TVisual>(this, {
+      id: snapshot.id,
+      position,
+      velocity: new THREE.Vector3(...snapshot.velocity),
+      health: snapshot.health,
+      age: snapshot.age,
+      hurtTimer: snapshot.hurtTimer,
+      state: {
+        activity: saved.activity === 'wandering' || saved.activity === 'fleeing-player'
+          ? saved.activity : 'idle',
+        activityTimer: savedNumber(saved.activityTimer, 0),
+        facingAngle: savedNumber(saved.facingAngle, 0),
+        ambientSoundTimer: savedNumber(saved.ambientSoundTimer, 2),
+        growthRemaining: Math.max(0, savedNumber(saved.growthRemaining, 0)),
+        feedingCooldown: Math.max(0, savedNumber(saved.feedingCooldown, 0)),
+        loveTimer: Math.max(0, savedNumber(saved.loveTimer, 0)),
+        breedingCooldown: Math.max(0, savedNumber(saved.breedingCooldown, 0)),
+        sheared: Boolean(saved.sheared),
+        resourceTimer,
+      },
+      visual,
+    });
+    this.updateVisual(restored);
   }
 
   public onDamaged(
@@ -141,6 +279,7 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
       animal.position.z - 0.5,
       this.config.particles
     );
+    if (animal.state.growthRemaining > 0) return;
     for (const stack of rollMobLoot(this.config.definition.lootTable)) {
       this.drops.spawnDrop(
         animal.position.x,
@@ -160,7 +299,8 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
     animal: SurfaceAnimalEntity<TVisual>,
     awayX: number,
     awayZ: number,
-    playerDistance: number
+    playerDistance: number,
+    runtime: MobRuntime
   ): MovementIntent {
     if (playerDistance < this.config.fleeDistance) {
       const inverseDistance = 1 / Math.max(0.001, playerDistance);
@@ -170,6 +310,28 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
         directionZ: awayZ * inverseDistance,
         speed: this.config.fleeSpeed,
       };
+    }
+
+    if (animal.state.growthRemaining > 0) {
+      const adult = runtime.entitiesOfSpeciesWithin(
+        this.species,
+        animal.position,
+        FOLLOW_RANGE
+      ).find((candidate) => candidate.id !== animal.id
+        && (candidate.state as SurfaceAnimalState).growthRemaining <= 0);
+      if (adult) {
+        const towardX = adult.position.x - animal.position.x;
+        const towardZ = adult.position.z - animal.position.z;
+        const distance = Math.hypot(towardX, towardZ);
+        if (distance > 2) {
+          animal.state.activity = 'wandering';
+          return {
+            directionX: towardX / distance,
+            directionZ: towardZ / distance,
+            speed: this.config.wanderSpeed * 1.2,
+          };
+        }
+      }
     }
 
     if (animal.state.activityTimer <= 0) this.chooseActivity(animal);
@@ -218,7 +380,34 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
       hurt: animal.hurtTimer > 0,
       position: animal.position,
       velocity: animal.velocity,
+      baby: animal.state.growthRemaining > 0,
+      resourceAvailable: !animal.state.sheared,
     });
+    this.config.visual.root(animal.visual).scale.setScalar(
+      animal.state.growthRemaining > 0 ? 0.55 : 1
+    );
+  }
+
+  private updateResource(animal: SurfaceAnimalEntity<TVisual>, dt: number): void {
+    if (animal.state.growthRemaining > 0) return;
+    if (this.config.resource === 'eggs') {
+      animal.state.resourceTimer -= dt;
+      if (animal.state.resourceTimer <= 0) {
+        this.drops.spawnDrop(
+          animal.position.x,
+          animal.position.y + 0.25,
+          animal.position.z,
+          createStack(ItemId.Egg)
+        );
+        animal.state.resourceTimer = EGG_MINIMUM_SECONDS
+          + Math.random() * EGG_VARIANCE_SECONDS;
+      }
+      return;
+    }
+    if (animal.state.sheared) {
+      animal.state.resourceTimer = Math.max(0, animal.state.resourceTimer - dt);
+      if (animal.state.resourceTimer <= 0) animal.state.sheared = false;
+    }
   }
 
   private updateAmbientSound(
@@ -251,7 +440,7 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
       this.config.minimumSpawnSpacing
     )) return;
 
-    this.spawn(position, runtime);
+    this.spawnAnimal(position, runtime, false);
   }
 
   private playerIsNearSurface(): boolean {
@@ -271,12 +460,16 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
     return floor === BlockId.Grass || floor === BlockId.SnowGrass;
   }
 
-  private spawn(position: THREE.Vector3, runtime: MobRuntime): void {
+  private spawnAnimal(
+    position: THREE.Vector3,
+    runtime: MobRuntime,
+    baby: boolean
+  ): void {
     const visual = this.config.visual.create();
     this.config.visual.root(visual).position.copy(position);
     this.scene.add(this.config.visual.root(visual));
 
-    runtime.spawn(this, {
+    const animal = runtime.spawn<SurfaceAnimalState, TVisual>(this, {
       position,
       age: Math.random() * 8,
       state: {
@@ -284,8 +477,21 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
         activityTimer: 0,
         facingAngle: Math.random() * Math.PI * 2,
         ambientSoundTimer: 2 + Math.random() * 7,
+        growthRemaining: baby ? BABY_GROWTH_SECONDS : 0,
+        feedingCooldown: 0,
+        loveTimer: 0,
+        breedingCooldown: 0,
+        sheared: false,
+        resourceTimer: this.initialResourceTimer(),
       },
       visual,
     });
+    this.updateVisual(animal);
+  }
+
+  private initialResourceTimer(): number {
+    return this.config.resource === 'eggs'
+      ? EGG_MINIMUM_SECONDS + Math.random() * EGG_VARIANCE_SECONDS
+      : 0;
   }
 }

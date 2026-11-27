@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BlockId } from '../../src/content/BlockId';
 import { MOB_DEFINITIONS } from '../../src/content/mobs/MobDefinitions';
+import { createStack, ItemId } from '../../src/items/Item';
 import { Player } from '../../src/player/Player';
 import { BreakParticles } from '../../src/rendering/BreakParticles';
 import { DroppedItemManager } from '../../src/rendering/DroppedItems';
@@ -26,7 +27,11 @@ const visualAdapter: SurfaceAnimalVisualAdapter<TestVisual> = {
   dispose: vi.fn((visual) => { visual.disposed = true; }),
 };
 
-function createHarness(options: { playerY?: number; biome?: 'Meadows' | 'Desert Dunes' } = {}) {
+function createHarness(options: {
+  playerY?: number;
+  biome?: 'Meadows' | 'Desert Dunes';
+  resource?: 'eggs' | 'wool';
+} = {}) {
   const scene = new THREE.Scene();
   const world = createFakeWorld({
     getBlock: (_x, y) => y === 0 ? BlockId.Grass : BlockId.Air,
@@ -57,6 +62,7 @@ function createHarness(options: { playerY?: number; biome?: 'Meadows' | 'Desert 
       fleeSpeed: 2.3,
       fleeDistance: 5,
       minimumSpawnSpacing: 2.5,
+      resource: options.resource ?? 'eggs',
       playAmbientSound,
       playHitSound,
       playDeathSound,
@@ -89,6 +95,12 @@ function animalEntity(visual: TestVisual): MobEntity<SurfaceAnimalState, TestVis
       activityTimer: 1,
       facingAngle: 0,
       ambientSoundTimer: 0,
+      growthRemaining: 0,
+      feedingCooldown: 0,
+      loveTimer: 0,
+      breedingCooldown: 0,
+      sheared: false,
+      resourceTimer: 100,
     },
     visual,
   };
@@ -151,6 +163,91 @@ describe('SurfaceAnimalSpecies', () => {
     species.update(animal, 0.1, runtime);
 
     expect(runtime.removed).toEqual([animal.id]);
+  });
+
+  it('feeds two adults, creates a smaller baby, and grows it into an adult', () => {
+    const { species } = createHarness();
+    const runtime = new RecordingMobRuntime();
+    const firstTemplate = animalEntity({ root: new THREE.Group(), disposed: false });
+    const secondTemplate = animalEntity({ root: new THREE.Group(), disposed: false });
+    const first = runtime.spawn(species, {
+      position: new THREE.Vector3(0, 1, 0),
+      state: { ...firstTemplate.state },
+      visual: firstTemplate.visual,
+    });
+    const second = runtime.spawn(species, {
+      position: new THREE.Vector3(2, 1, 0),
+      state: { ...secondTemplate.state },
+      visual: secondTemplate.visual,
+    });
+
+    expect(species.interact(first, createStack(ItemId.CaveBerries), false, runtime))
+      .toMatchObject({ consumeHeld: true });
+    expect(species.interact(second, createStack(ItemId.CaveBerries), false, runtime))
+      .toMatchObject({ consumeHeld: true });
+
+    expect(runtime.entities).toHaveLength(3);
+    const baby = runtime.entities[2];
+    const babyState = baby.state as SurfaceAnimalState;
+    const babyVisual = baby.visual as TestVisual;
+    expect(babyState.growthRemaining).toBeGreaterThan(0);
+    expect(babyVisual.root.scale.x).toBe(0.55);
+    expect(first.state.breedingCooldown).toBeGreaterThan(0);
+    expect(second.state.breedingCooldown).toBeGreaterThan(0);
+    expect(species.interact(
+      baby as ReturnType<typeof animalEntity>,
+      createStack(ItemId.CaveBerries),
+      false,
+      runtime
+    )).toMatchObject({ consumeHeld: true });
+    expect(species.interact(
+      baby as ReturnType<typeof animalEntity>,
+      createStack(ItemId.CaveBerries),
+      false,
+      runtime
+    )).toBeNull();
+
+    babyState.growthRemaining = 0.1;
+    species.update(baby as ReturnType<typeof animalEntity>, 0.2, runtime);
+    expect(babyState.growthRemaining).toBe(0);
+    expect(babyVisual.root.scale.x).toBe(1);
+  });
+
+  it('shears adult wool animals and regrows their wool over time', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.9);
+    const { species, spawnDrop } = createHarness({ resource: 'wool' });
+    const runtime = new RecordingMobRuntime();
+    const animal = animalEntity({ root: new THREE.Group(), disposed: false });
+
+    const result = species.interact(animal, createStack(ItemId.Shears), false, runtime);
+
+    expect(result).toMatchObject({ damageHeld: true });
+    expect(animal.state.sheared).toBe(true);
+    expect(spawnDrop).toHaveBeenCalledWith(
+      animal.position.x,
+      animal.position.y + 0.4,
+      animal.position.z,
+      expect.objectContaining({ id: ItemId.Wool })
+    );
+    species.update(animal, 181, runtime);
+    expect(animal.state.sheared).toBe(false);
+  });
+
+  it('lays eggs when an adult Chicken resource timer expires', () => {
+    const { species, spawnDrop } = createHarness();
+    const runtime = new RecordingMobRuntime();
+    const animal = animalEntity({ root: new THREE.Group(), disposed: false });
+    animal.state.resourceTimer = 0;
+
+    species.update(animal, 0.1, runtime);
+
+    expect(spawnDrop).toHaveBeenCalledWith(
+      0,
+      1.25,
+      0,
+      expect.objectContaining({ id: ItemId.Egg })
+    );
+    expect(animal.state.resourceTimer).toBeGreaterThan(0);
   });
 
   it('provides hit feedback, loot, death particles, and visual disposal', () => {

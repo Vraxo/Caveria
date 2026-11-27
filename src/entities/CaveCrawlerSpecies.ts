@@ -23,6 +23,7 @@ import {
 import {
   MobEntity,
   MobRuntime,
+  SavedMobSnapshot,
   MobSpeciesBehavior,
   MobTag,
 } from './MobTypes';
@@ -326,6 +327,36 @@ export class CaveCrawlerSpecies implements MobSpeciesBehavior<CaveCrawlerState, 
         decisionTimer: 0,
         attackTimer: 0,
         growlTimer,
+      },
+      visual,
+    });
+  }
+
+  public saveState(crawler: CaveCrawlerEntity): unknown {
+    return { ...crawler.state };
+  }
+
+  public restore(snapshot: SavedMobSnapshot, runtime: MobRuntime): void {
+    const saved = snapshot.state && typeof snapshot.state === 'object'
+      ? snapshot.state as Record<string, unknown>
+      : {};
+    const position = new THREE.Vector3(...snapshot.position);
+    const visual = createCaveCrawlerVisual();
+    visual.root.position.copy(position);
+    this.scene.add(visual.root);
+    runtime.spawn(this, {
+      id: snapshot.id,
+      position,
+      velocity: new THREE.Vector3(...snapshot.velocity),
+      health: snapshot.health,
+      age: snapshot.age,
+      hurtTimer: snapshot.hurtTimer,
+      state: {
+        activity: saved.activity === 'pursuing-player' ? 'pursuing-player' : 'wandering',
+        facingAngle: Number(saved.facingAngle) || 0,
+        decisionTimer: Number(saved.decisionTimer) || 0,
+        attackTimer: Math.max(0, Number(saved.attackTimer) || 0),
+        growlTimer: Number(saved.growlTimer) || 1,
       },
       visual,
     });

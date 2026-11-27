@@ -12,6 +12,8 @@ import { ArmorSlot, ItemStack, ITEMS } from '../items/Item';
 import { TOTAL_INVENTORY_SLOTS } from '../items/Inventory';
 import { BlockId } from '../content/BlockId';
 import { CHUNK_HEIGHT } from '../world/Chunk';
+import type { SavedMobSnapshot } from '../entities/MobTypes';
+import { MOB_DEFINITIONS } from '../content/mobs/MobDefinitions';
 
 export const SAVE_VERSION = 1;
 export type SerializedVoxelEdit = [x: number, y: number, z: number, block: BlockId];
@@ -65,6 +67,7 @@ export interface CaveriaSaveData {
   farms: FarmPlotSnapshot[];
   beds: BedSnapshot[];
   respawnBed: [number, number, number] | null;
+  mobs: SavedMobSnapshot[];
   worldEdits: SerializedVoxelEdit[];
 }
 
@@ -313,6 +316,39 @@ export class WorldPersistence {
       }
     }
 
+    const mobs: SavedMobSnapshot[] = [];
+    const mobIds = new Set<number>();
+    if (Array.isArray(raw.mobs)) {
+      for (const mob of raw.mobs.slice(0, 256)) {
+        if (!mob || typeof mob !== 'object' || !MOB_DEFINITIONS[mob.species]) continue;
+        const id = Math.max(1, Math.floor(finite(mob.id, 0)));
+        if (mobIds.has(id)) continue;
+        if (!Array.isArray(mob.position) || mob.position.length !== 3) continue;
+        const velocity = Array.isArray(mob.velocity) && mob.velocity.length === 3
+          ? mob.velocity
+          : [0, 0, 0];
+        mobIds.add(id);
+        mobs.push({
+          id,
+          species: mob.species,
+          position: [
+            worldCoord(mob.position[0], 0),
+            Math.max(0, Math.min(CHUNK_HEIGHT + 16, finite(mob.position[1], 1))),
+            worldCoord(mob.position[2], 0),
+          ],
+          velocity: [
+            Math.max(-30, Math.min(30, finite(velocity[0], 0))),
+            Math.max(-30, Math.min(30, finite(velocity[1], 0))),
+            Math.max(-30, Math.min(30, finite(velocity[2], 0))),
+          ],
+          health: Math.max(1, Math.min(MOB_DEFINITIONS[mob.species].maxHealth, finite(mob.health, 1))),
+          age: Math.max(0, Math.min(1_000_000, finite(mob.age, 0))),
+          hurtTimer: Math.max(0, Math.min(2, finite(mob.hurtTimer, 0))),
+          state: mob.state && typeof mob.state === 'object' ? mob.state : {},
+        });
+      }
+    }
+
     const worldEdits: SerializedVoxelEdit[] = [];
     if (Array.isArray(raw.worldEdits)) {
       for (const edit of raw.worldEdits) {
@@ -371,6 +407,7 @@ export class WorldPersistence {
       farms,
       beds,
       respawnBed,
+      mobs,
       worldEdits,
     };
   }

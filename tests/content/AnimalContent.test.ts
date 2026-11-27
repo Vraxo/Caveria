@@ -13,6 +13,9 @@ describe('animal content', () => {
     expect(ItemId.RawMutton).toBe(189);
     expect(ItemId.CookedMutton).toBe(190);
     expect(ItemId.Wool).toBe(191);
+    expect(ItemId.Shears).toBe(192);
+    expect(ItemId.Egg).toBe(193);
+    expect(ItemId.CookedEgg).toBe(194);
     expect(getFoodStats(createStack(ItemId.CookedChicken))).toEqual({
       nutrition: 6,
       saturation: 5,
@@ -55,12 +58,18 @@ describe('animal content', () => {
       .toBe(ItemId.CookedMutton);
     expect(getCookingRecipe(createStack(ItemId.RawMutton), true)?.output)
       .toBe(ItemId.CookedMutton);
+    expect(getCookingRecipe(createStack(ItemId.Egg), false)?.output)
+      .toBe(ItemId.CookedEgg);
   });
 
   it('uses Wool for fiber and Feathers for arrows', () => {
     const fiber = matchCraftingGrid([
       createStack(ItemId.Wool), null,
       null, null,
+    ], 2);
+    const shears = matchCraftingGrid([
+      null, createStack(ItemId.GoldIngot),
+      createStack(ItemId.GoldIngot), null,
     ], 2);
     const arrows = matchCraftingGrid([
       createStack(ItemId.AmethystShard), null, null,
@@ -69,6 +78,7 @@ describe('animal content', () => {
     ], 3);
 
     expect(fiber).toMatchObject({ id: ItemId.WovenFiber, count: 2 });
+    expect(shears).toMatchObject({ id: ItemId.Shears, count: 1 });
     expect(arrows).toMatchObject({ id: ItemId.Arrow, count: 4 });
   });
 });

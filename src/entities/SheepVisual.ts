@@ -3,6 +3,7 @@ import * as THREE from 'three';
 export interface SheepVisual {
   root: THREE.Group;
   body: THREE.Group;
+  wool: THREE.Mesh;
   woolMaterial: THREE.MeshBasicMaterial;
   legs: THREE.Mesh[];
 }
@@ -12,6 +13,7 @@ interface SheepAnimationState {
   hurt: boolean;
   position: THREE.Vector3;
   velocity: THREE.Vector3;
+  resourceAvailable: boolean;
 }
 
 const WOOL_GEOMETRY = new THREE.BoxGeometry(0.85, 0.65, 1.05);
@@ -64,7 +66,7 @@ export function createSheepVisual(): SheepVisual {
     }
   }
 
-  return { root, body, woolMaterial, legs };
+  return { root, body, wool, woolMaterial, legs };
 }
 
 export function updateSheepVisual(
@@ -79,6 +81,7 @@ export function updateSheepVisual(
   for (let index = 0; index < visual.legs.length; index++) {
     visual.legs[index].rotation.x = (index % 2 === 0 ? gait : -gait) * 0.38;
   }
+  visual.wool.visible = state.resourceAvailable;
   visual.woolMaterial.color.setHex(state.hurt ? 0xff9b9b : 0xe4e1d3);
   visual.root.position.copy(state.position);
 }

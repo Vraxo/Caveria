@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ItemStack } from '../items/ItemTypes';
 
 export type MobEntityId = number;
 export type MobSpeciesId = string;
@@ -36,10 +37,29 @@ export interface MobEntity<TState = unknown, TVisual = unknown> {
   visual: TVisual;
 }
 
+export interface SavedMobSnapshot {
+  id: MobEntityId;
+  species: MobSpeciesId;
+  position: [number, number, number];
+  velocity: [number, number, number];
+  health: number;
+  age: number;
+  hurtTimer: number;
+  state: unknown;
+}
+
+export interface MobInteractionResult {
+  consumeHeld?: boolean;
+  damageHeld?: boolean;
+  swing?: boolean;
+}
+
 export interface MobSpawnData<TState, TVisual> {
+  id?: MobEntityId;
   position: THREE.Vector3;
   velocity?: THREE.Vector3;
   onGround?: boolean;
+  health?: number;
   age?: number;
   hurtTimer?: number;
   state: TState;
@@ -54,6 +74,11 @@ export interface MobRuntime {
   ): MobEntity<TState, TVisual>;
   remove(entityId: MobEntityId): boolean;
   countSpecies(species: MobSpeciesId): number;
+  entitiesOfSpeciesWithin(
+    species: MobSpeciesId,
+    position: THREE.Vector3,
+    radius: number
+  ): ReadonlyArray<MobEntity>;
   hasSpeciesWithin(
     species: MobSpeciesId,
     position: THREE.Vector3,
@@ -81,6 +106,14 @@ export interface MobSpeciesBehavior<TState = unknown, TVisual = unknown> {
 
   updateSpawning?(dt: number, runtime: MobRuntime): void;
   update(entity: MobEntity<TState, TVisual>, dt: number, runtime: MobRuntime): void;
+  interact?(
+    entity: MobEntity<TState, TVisual>,
+    held: ItemStack | null,
+    creativeMode: boolean,
+    runtime: MobRuntime
+  ): MobInteractionResult | null;
+  saveState(entity: MobEntity<TState, TVisual>): unknown;
+  restore(snapshot: SavedMobSnapshot, runtime: MobRuntime): void;
   onDamaged(
     entity: MobEntity<TState, TVisual>,
     direction: THREE.Vector3,

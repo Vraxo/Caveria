@@ -1,25 +1,30 @@
 import * as THREE from 'three';
+import { ItemStack } from '../items/ItemTypes';
 import { raycastMobs } from './MobMechanics';
 import {
   MobEntity,
   MobEntityId,
   MobHit,
+  MobInteractionResult,
   MobRuntime,
   MobSpawnData,
   MobSpeciesBehavior,
   MobSpeciesId,
   MobTag,
+  SavedMobSnapshot,
 } from './MobTypes';
 
 export type {
   MobEntity,
   MobEntityId,
   MobHit,
+  MobInteractionResult,
   MobRuntime,
   MobSpawnData,
   MobSpeciesBehavior,
   MobSpeciesId,
   MobTag,
+  SavedMobSnapshot,
 } from './MobTypes';
 
 type AnySpecies = MobSpeciesBehavior<any, any>;
@@ -75,6 +80,18 @@ export class MobManager implements MobRuntime {
     });
   }
 
+  public entitiesOfSpeciesWithin(
+    species: MobSpeciesId,
+    position: THREE.Vector3,
+    radius: number
+  ): ReadonlyArray<MobEntity> {
+    const radiusSquared = radius * radius;
+    return this.entities.filter(
+      (entity) => entity.species === species
+        && entity.position.distanceToSquared(position) <= radiusSquared
+    );
+  }
+
   public hasSpeciesWithin(
     species: MobSpeciesId,
     position: THREE.Vector3,
@@ -109,15 +126,18 @@ export class MobManager implements MobRuntime {
       throw new Error(`Cannot spawn unregistered mob species: ${behavior.species}`);
     }
 
+    const id = data.id ?? this.nextEntityId;
+    if (this.entitiesById.has(id)) throw new Error(`Duplicate mob entity id: ${id}`);
+    this.nextEntityId = Math.max(this.nextEntityId, id + 1);
     const entity: MobEntity<TState, TVisual> = {
-      id: this.nextEntityId++,
+      id,
       species: behavior.species,
       position: data.position,
       velocity: data.velocity ?? new THREE.Vector3(),
       onGround: data.onGround ?? false,
-      health: behavior.maxHealth,
-      age: data.age ?? 0,
-      hurtTimer: data.hurtTimer ?? 0,
+      health: Math.max(1, Math.min(behavior.maxHealth, data.health ?? behavior.maxHealth)),
+      age: Math.max(0, data.age ?? 0),
+      hurtTimer: Math.max(0, data.hurtTimer ?? 0),
       state: data.state,
       visual: data.visual,
     };
@@ -176,6 +196,41 @@ export class MobManager implements MobRuntime {
       if (hit && (!closest || hit.distance < closest.distance)) closest = hit;
     }
     return closest;
+  }
+
+  public interact(
+    hit: MobHit,
+    held: ItemStack | null,
+    creativeMode: boolean
+  ): MobInteractionResult | null {
+    const entity = this.entitiesById.get(hit.entityId);
+    if (!entity || entity.species !== hit.species) return null;
+    const behavior = this.requireSpecies(entity.species);
+    return behavior.interact?.(entity, held, creativeMode, this) ?? null;
+  }
+
+  public snapshots(): SavedMobSnapshot[] {
+    return this.entities.map((entity) => {
+      const behavior = this.requireSpecies(entity.species);
+      return {
+        id: entity.id,
+        species: entity.species,
+        position: entity.position.toArray(),
+        velocity: entity.velocity.toArray(),
+        health: entity.health,
+        age: entity.age,
+        hurtTimer: entity.hurtTimer,
+        state: behavior.saveState(entity),
+      };
+    });
+  }
+
+  public restore(snapshots: ReadonlyArray<SavedMobSnapshot>): void {
+    for (const snapshot of snapshots) {
+      const behavior = this.species.get(snapshot.species);
+      if (!behavior || this.entitiesById.has(snapshot.id)) continue;
+      behavior.restore(snapshot, this);
+    }
   }
 
   public damage(hit: MobHit, amount: number, direction: THREE.Vector3): boolean {

@@ -151,6 +151,15 @@ export const SURVIVAL_RECIPES: ReadonlyArray<CraftingRecipe> = [
     outputCount: 4,
   },
   {
+    name: 'Gold Shears',
+    pattern: [
+      [_, ItemId.GoldIngot],
+      [ItemId.GoldIngot, _],
+    ],
+    outputId: ItemId.Shears,
+    outputCount: 1,
+  },
+  {
     name: 'Repair Bow',
     pattern: [[ItemId.Bow], [F]],
     outputId: ItemId.Bow,
