@@ -110,7 +110,8 @@ export interface MobSpeciesBehavior<TState = unknown, TVisual = unknown> {
     entity: MobEntity<TState, TVisual>,
     held: ItemStack | null,
     creativeMode: boolean,
-    runtime: MobRuntime
+    runtime: MobRuntime,
+    sneaking?: boolean
   ): MobInteractionResult | null;
   saveState(entity: MobEntity<TState, TVisual>): unknown;
   restore(snapshot: SavedMobSnapshot, runtime: MobRuntime): void;

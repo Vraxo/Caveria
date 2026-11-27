@@ -321,7 +321,8 @@ export class BlockInteractionController {
     const result = this.mobs.interact(
       this.mobTarget,
       this.hotbar.selectedStack,
-      creativeMode
+      creativeMode,
+      this.input.isKeyDown('ShiftLeft') || this.input.isKeyDown('ShiftRight')
     );
     if (!result) return;
     if (result.consumeHeld) this.inventory.consumeOne(this.hotbar.selectedIndex);

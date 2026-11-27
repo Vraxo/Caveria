@@ -32,14 +32,17 @@ function createHarness(biome: 'Desert Dunes' | 'Meadows' = 'Desert Dunes') {
     damage,
   } as unknown as PlayerVitals;
   const poisonPlayer = vi.fn();
+  const openCamelStorage = vi.fn();
+  const spawnDrop = vi.fn();
   const behaviors = createDesertWildlife({
     scene: new THREE.Scene(),
     world,
     player,
     vitals,
-    drops: { spawnDrop: vi.fn() } as unknown as DroppedItemManager,
+    drops: { spawnDrop } as unknown as DroppedItemManager,
     particles: { spawnBurst: vi.fn() } as unknown as BreakParticles,
     camelRiding,
+    openCamelStorage,
     audio: {
       playCamelCall: vi.fn(),
       playScorpionChitter: vi.fn(),
@@ -51,7 +54,9 @@ function createHarness(biome: 'Desert Dunes' | 'Meadows' = 'Desert Dunes') {
     } as never,
     poisonPlayer,
   });
-  return { behaviors, player, damage, poisonPlayer, camelRiding };
+  return {
+    behaviors, player, damage, poisonPlayer, camelRiding, openCamelStorage, spawnDrop,
+  };
 }
 
 afterEach(() => vi.restoreAllMocks());
@@ -135,11 +140,45 @@ describe('desert wildlife', () => {
     expect(camelRiding.isRiding).toBe(false);
   });
 
+  it('opens persistent Camel storage while sneaking and drops its contents on death', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const {
+      behaviors, player, openCamelStorage, spawnDrop,
+    } = createHarness();
+    const runtime = new RecordingMobRuntime();
+    for (const behavior of behaviors) behavior.updateSpawning?.(6, runtime);
+    const camelBehavior = behaviors.find((behavior) => behavior.species === 'camel')!;
+    const camel = runtime.entities.find((entity) => entity.species === 'camel')!;
+
+    expect(camel.state.storage).toHaveLength(18);
+    expect(camelBehavior.interact?.(camel, null, false, runtime, true))
+      .toMatchObject({ swing: true });
+    expect(openCamelStorage).toHaveBeenCalledWith(camel);
+    expect(camel.state.persistent).toBe(true);
+
+    camel.state.storage[0] = createStack(ItemId.Cactus, 3);
+    player.position.set(200, 1, 200);
+    camelBehavior.update(camel, 0.1, runtime);
+    expect(runtime.entities).toContain(camel);
+
+    camelBehavior.onDeath(camel, runtime);
+    expect(spawnDrop).toHaveBeenCalledWith(
+      camel.position.x,
+      camel.position.y + 0.8,
+      camel.position.z,
+      createStack(ItemId.Cactus, 3)
+    );
+    expect(camel.state.storage.every((slot: unknown) => slot === null)).toBe(true);
+  });
+
   it('round-trips every species through the shared persistence contract', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     const { behaviors } = createHarness();
     const runtime = new RecordingMobRuntime();
     for (const behavior of behaviors) behavior.updateSpawning?.(6, runtime);
+    const camel = runtime.entities.find((entity) => entity.species === 'camel')!;
+    camel.state.storage[0] = createStack(ItemId.Cactus, 2);
+    camel.state.persistent = true;
     const restored = new RecordingMobRuntime();
 
     for (const behavior of behaviors) {
@@ -159,6 +198,9 @@ describe('desert wildlife', () => {
     expect(restored.entities.map((entity) => entity.species)).toEqual([
       'camel', 'scorpion', 'snake', 'lizard', 'vulture',
     ]);
+    const restoredCamel = restored.entities.find((entity) => entity.species === 'camel')!;
+    expect(restoredCamel.state.storage[0]).toEqual(createStack(ItemId.Cactus, 2));
+    expect(restoredCamel.state.persistent).toBe(true);
   });
 
   it('gives Scorpion and Snake attacks damage and venom', () => {

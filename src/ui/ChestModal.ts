@@ -1,10 +1,14 @@
-import { CHEST_SLOT_COUNT, ChestManager, ChestStateSnapshot } from '../gameplay/ChestManager';
+import { ChestManager, ChestStateSnapshot } from '../gameplay/ChestManager';
 import { HOTBAR_SIZE, Inventory, TOTAL_INVENTORY_SLOTS } from '../items/Inventory';
 import { ITEMS, ItemStack } from '../items/Item';
 import { TextureAtlas } from '../rendering/TextureAtlas';
 import { renderItemStackIntoSlot } from './Hotbar';
 
-/** 27-slot chest storage UI with cursor handling and bidirectional quick transfer. */
+export interface StorageState {
+  slots: Array<ItemStack | null>;
+}
+
+/** Container storage UI with cursor handling and bidirectional quick transfer. */
 export class ChestModal {
   public isOpen = false;
 
@@ -13,7 +17,9 @@ export class ChestModal {
   private readonly backpackEl = document.getElementById('chest-backpack-grid')!;
   private readonly hotbarEl = document.getElementById('chest-hotbar-grid')!;
   private readonly cursorEl = document.getElementById('cursor-item')!;
-  private state: ChestStateSnapshot | null = null;
+  private readonly titleEl = document.getElementById('chest-modal-title')!;
+  private readonly footerEl = document.getElementById('chest-modal-tip')!;
+  private state: StorageState | null = null;
   private cursorStack: ItemStack | null = null;
 
   constructor(
@@ -37,14 +43,24 @@ export class ChestModal {
   public open(x: number, y: number, z: number): boolean {
     const state = this.chests.getOrCreate(x, y, z);
     if (!state) return false;
+    this.openStorage(state, 'Chest', 'Shift-click to move stacks between the chest and inventory');
+    return true;
+  }
+
+  public openStorage(
+    state: StorageState,
+    title: string,
+    tip = 'Shift-click to move stacks between storage and inventory'
+  ): void {
     this.state = state;
+    this.titleEl.textContent = title;
+    this.footerEl.textContent = tip;
     this.isOpen = true;
     this.modalEl.classList.remove('hidden');
     requestAnimationFrame(() => {
       if (this.isOpen) this.modalEl.classList.add('opened');
     });
     this.renderAll();
-    return true;
   }
 
   public close(): void {
@@ -62,14 +78,16 @@ export class ChestModal {
   }
 
   public isOpenAt(x: number, y: number, z: number): boolean {
-    return this.isOpen && this.state?.x === Math.floor(x) &&
-      this.state.y === Math.floor(y) && this.state.z === Math.floor(z);
+    if (!this.isOpen || !this.isChestState(this.state)) return false;
+    return this.state.x === Math.floor(x)
+      && this.state.y === Math.floor(y)
+      && this.state.z === Math.floor(z);
   }
 
   private renderAll(): void {
     if (!this.state) return;
     this.chestGridEl.innerHTML = '';
-    for (let index = 0; index < CHEST_SLOT_COUNT; index++) {
+    for (let index = 0; index < this.state.slots.length; index++) {
       const slotEl = document.createElement('div');
       slotEl.className = 'inv-slot';
       renderItemStackIntoSlot(slotEl, this.state.slots[index], this.atlas);
@@ -180,6 +198,10 @@ export class ChestModal {
     this.renderAll();
   }
 
+  private isChestState(state: StorageState | null): state is ChestStateSnapshot {
+    return state !== null && 'x' in state && 'y' in state && 'z' in state;
+  }
+
   private transferInventoryToChest(index: number): void {
     if (!this.state) return;
     const source = this.inventory.getSlot(index);
@@ -194,7 +216,7 @@ export class ChestModal {
         source.count -= moved;
       }
     }
-    for (let slot = 0; slot < CHEST_SLOT_COUNT && source.count > 0; slot++) {
+    for (let slot = 0; slot < this.state.slots.length && source.count > 0; slot++) {
       if (this.state.slots[slot]) continue;
       const moved = Math.min(maxStack, source.count);
       this.state.slots[slot] = { ...source, count: moved };

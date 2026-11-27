@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
-import { CamelRidingController } from '../DesertWildlife/CamelRidingController';
+import {
+  CamelRidingController,
+  type CamelEntity,
+} from '../DesertWildlife/CamelRidingController';
 import { createDesertWildlife } from '../DesertWildlife/createDesertWildlife';
 import { ArrowProjectileManager } from '../gameplay/ArrowProjectileManager';
 import { BedManager } from '../gameplay/BedManager';
@@ -298,6 +301,7 @@ export class Game {
       particles: this.particles,
       audio: this.audio,
       camelRiding: this.camelRiding,
+      openCamelStorage: (camel) => this.openCamelStorage(camel),
       poisonPlayer: () => this.statusEffects.poison(18),
     });
     this.mobs = new MobManager([
@@ -637,6 +641,18 @@ export class Game {
     this.audio.playInventoryClose();
     this.furnaceModal.close();
     this.overlay.resumeGameplay();
+  }
+
+  private openCamelStorage(camel: CamelEntity): void {
+    if (!camel.state.storage) return;
+    this.interactions.clearTarget();
+    this.audio.playInventoryOpen();
+    this.chestModal.openStorage(
+      { slots: camel.state.storage },
+      'Camel Storage',
+      'Shift-click to move stacks between the Camel and inventory'
+    );
+    this.overlay.openGameplayModal();
   }
 
   private openChestScreen(x: number, y: number, z: number): void {
