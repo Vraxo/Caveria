@@ -1,6 +1,6 @@
-import { BlockId } from '../../content/BlockId';
-import type { CavernBiome, SurfaceBiome } from '../../content/biomes/BiomeTypes';
-import type { Chunk } from '../Chunk';
+import { BlockId } from '../content/BlockId';
+import type { Chunk } from '../world/Chunk';
+import type { CavernBiome, SurfaceBiome } from './BiomeTypes';
 
 export interface CavernDecorationContext {
   chunk: Chunk;

@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { BlockId } from '../../src/content/BlockId';
-import { CAVERN_BIOMES, SURFACE_BIOMES } from '../../src/content/biomes/BiomeTypes';
+import { CAVERN_BIOMES, SURFACE_BIOMES } from '../../src/Biomes/BiomeTypes';
 import { Chunk } from '../../src/world/Chunk';
 import {
   BiomeDecoratorRegistry,
   type CavernDecorationContext,
   type SurfaceDecorationContext,
-} from '../../src/world/biomes/BiomeDecoratorRegistry';
-import { createDefaultBiomeDecoratorRegistry } from '../../src/world/biomes/DefaultBiomeDecorators';
+} from '../../src/Biomes/BiomeDecoratorRegistry';
+import { createDefaultBiomeDecoratorRegistry } from '../../src/Biomes/DefaultBiomeDecorators';
 
 function cavernContext(chunk: Chunk): CavernDecorationContext {
   return {

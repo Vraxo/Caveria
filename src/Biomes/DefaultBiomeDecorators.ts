@@ -1,4 +1,4 @@
-import { BlockId } from '../../content/BlockId';
+import { BlockId } from '../content/BlockId';
 import {
   BiomeDecoratorRegistry,
   type CavernDecorationContext,

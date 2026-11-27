@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BlockId } from '../../src/content/BlockId';
-import { BIOME_DEFINITIONS } from '../../src/content/biomes/BiomeDefinitions';
-import { CAVERN_BIOMES, SURFACE_BIOMES } from '../../src/content/biomes/BiomeTypes';
+import { BIOME_DEFINITIONS } from '../../src/Biomes/BiomeDefinitions';
+import { CAVERN_BIOMES, SURFACE_BIOMES } from '../../src/Biomes/BiomeTypes';
 import { ItemId } from '../../src/items/ItemTypes';
 
 describe('BiomeDefinitionRegistry', () => {
