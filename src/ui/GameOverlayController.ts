@@ -74,6 +74,7 @@ export class GameOverlayController {
   private deathScreenActive = false;
   private worlds: WorldSummary[] = [];
   private selectedWorldId: string | null = null;
+  private resumeOnEscapeRelease = false;
   private readonly fovValues = [60, 75, 90];
   private fovIndex = 1;
 
@@ -224,6 +225,11 @@ export class GameOverlayController {
     });
 
     window.addEventListener('keydown', (event) => this.handleMenuKey(event));
+    window.addEventListener('keyup', (event) => {
+      if (event.code !== 'Escape' || !this.resumeOnEscapeRelease) return;
+      this.resumeOnEscapeRelease = false;
+      this.requestPlay();
+    });
     document.addEventListener('fullscreenchange', () => this.updateFullscreenButton());
     window.addEventListener('resize', () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -245,7 +251,11 @@ export class GameOverlayController {
     else if (this.activeMenu === 'create-world') this.showMenu('worlds');
     else if (this.activeMenu === 'options') this.showMenu(this.rootMenu);
     else if (this.activeMenu === 'controls') this.showMenu(this.controlsReturnMenu);
-    else if (this.activeMenu === 'pause') this.requestPlay();
+    else if (this.activeMenu === 'pause' && !event.repeat) {
+      // Reacquiring pointer lock while Escape is still held immediately releases it again
+      // in some browsers. Resume only after the key that opened/closed the menu is released.
+      this.resumeOnEscapeRelease = true;
+    }
   }
 
   private refreshWorldList(): void {
@@ -359,6 +369,7 @@ export class GameOverlayController {
   }
 
   private requestPlay(): void {
+    this.resumeOnEscapeRelease = false;
     this.audio.unlock();
     this.hasEnteredWorld = true;
     this.onWorldStarted();

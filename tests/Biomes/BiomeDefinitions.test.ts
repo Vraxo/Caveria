@@ -18,7 +18,7 @@ describe('BiomeDefinitionRegistry', () => {
       surfaceY: 60, temperatureNoise: 0.5, humidityNoise: 0,
     }).id).toBe('Desert Dunes');
     expect(BIOME_DEFINITIONS.selectSurface({
-      surfaceY: 70, temperatureNoise: 0.5, humidityNoise: 1,
+      surfaceY: 70, temperatureNoise: -0.5, humidityNoise: 1,
     }).id).toBe('Snowy Taiga');
     expect(BIOME_DEFINITIONS.selectSurface({
       surfaceY: 60, temperatureNoise: 0, humidityNoise: 0.2,
@@ -26,6 +26,9 @@ describe('BiomeDefinitionRegistry', () => {
     expect(BIOME_DEFINITIONS.selectSurface({
       surfaceY: 60, temperatureNoise: 0, humidityNoise: 0,
     }).id).toBe('Meadows');
+    expect(BIOME_DEFINITIONS.selectSurface({
+      surfaceY: 80, temperatureNoise: 0.4, humidityNoise: 0,
+    }).id).toBe('Desert Dunes');
   });
 
   it('declares terrain, environment, tags, and fishing policy as biome data', () => {

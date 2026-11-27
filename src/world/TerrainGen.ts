@@ -13,6 +13,10 @@ import { createDefaultBiomeDecoratorRegistry } from '../Biomes/DefaultBiomeDecor
 
 export type { CavernBiome, SurfaceBiome } from '../Biomes/BiomeTypes';
 
+const SURFACE_TEMPERATURE_SCALE = 0.00085;
+const SURFACE_HUMIDITY_SCALE = 0.00095;
+const CAVERN_BIOME_SCALE = 0.0025;
+
 export class TerrainGen {
   public readonly seed: number;
   private readonly terrainNoise: SeededNoise;
@@ -46,8 +50,16 @@ export class TerrainGen {
     const resolvedSurfaceY = surfaceY ?? this.getSurfaceHeight(wx, wz);
     return this.biomeDefinitions.selectSurface({
       surfaceY: resolvedSurfaceY,
-      temperatureNoise: this.tempNoise.fbm2D(wx * 0.0038, wz * 0.0038, 2),
-      humidityNoise: this.humidityNoise.fbm2D(wx * 0.0042 + 120, wz * 0.0042 - 90, 2),
+      temperatureNoise: this.tempNoise.fbm2D(
+        wx * SURFACE_TEMPERATURE_SCALE,
+        wz * SURFACE_TEMPERATURE_SCALE,
+        1
+      ),
+      humidityNoise: this.humidityNoise.fbm2D(
+        wx * SURFACE_HUMIDITY_SCALE + 120,
+        wz * SURFACE_HUMIDITY_SCALE - 90,
+        1
+      ),
     });
   }
 
@@ -56,7 +68,11 @@ export class TerrainGen {
   }
 
   public getCavernBiomeDefinition(wx: number, wz: number): CavernBiomeDefinition {
-    const noise = this.caveBiomeNoise.fbm2D(wx * 0.0075, wz * 0.0075, 2);
+    const noise = this.caveBiomeNoise.fbm2D(
+      wx * CAVERN_BIOME_SCALE,
+      wz * CAVERN_BIOME_SCALE,
+      2
+    );
     return this.biomeDefinitions.selectCavern(noise);
   }
 
