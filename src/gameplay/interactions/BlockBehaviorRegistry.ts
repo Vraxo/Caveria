@@ -1,4 +1,5 @@
 import { BlockBreakBehaviorId, BlockSupportBehavior, BlockUseBehaviorId } from '../../content/BlockTypes';
+import type { BlockLootCause } from '../../content/loot/BlockLoot';
 import { World } from '../../world/World';
 import { VoxelHit } from '../../player/Raycaster';
 
@@ -6,7 +7,7 @@ export type BlockUseBehavior = (hit: VoxelHit) => void;
 export interface BlockBreakContext {
   hit: VoxelHit;
   creativeMode: boolean;
-  cause: 'mined' | 'support-loss';
+  cause: BlockLootCause;
 }
 export type BlockBreakBehavior = (context: BlockBreakContext) => void;
 export type BlockSupportRule = (world: World, x: number, y: number, z: number) => boolean;

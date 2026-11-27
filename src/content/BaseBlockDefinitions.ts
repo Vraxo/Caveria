@@ -1,8 +1,11 @@
+import { ItemId } from '../items/ItemTypes';
 import { BLOCK_BREAK, BLOCK_USE } from './BlockCapabilities';
 import { BlockId } from './BlockId';
 import { allFaces, columnFaces, defineBlock } from './BlockDefinitionHelpers';
 import { BlockCatalog } from './BlockTypes';
 import { TileIndex } from './TileIndex';
+import { fixedBlockLoot, NO_BLOCK_LOOT } from './loot/BlockLoot';
+import { LEAF_BLOCK_LOOT } from './loot/BlockLootTables';
 
 export const BASE_BLOCKS: BlockCatalog = {
   [BlockId.Air]: defineBlock(BlockId.Air, {
@@ -21,12 +24,14 @@ export const BASE_BLOCKS: BlockCatalog = {
     hardness: 0.75,
     faces: columnFaces(TileIndex.GrassSide, TileIndex.GrassTop, TileIndex.Dirt),
     preferredTool: 'shovel',
+    lootTable: fixedBlockLoot(ItemId.Dirt),
   }),
   [BlockId.Dirt]: defineBlock(BlockId.Dirt, {
     name: 'Dirt', hardness: 0.65, faces: allFaces(TileIndex.Dirt), preferredTool: 'shovel',
   }),
   [BlockId.Stone]: defineBlock(BlockId.Stone, {
     name: 'Stone', hardness: 1.8, faces: allFaces(TileIndex.Stone), preferredTool: 'pickaxe', minToolTier: 1,
+    lootTable: fixedBlockLoot(ItemId.Cobblestone),
   }),
   [BlockId.Cobblestone]: defineBlock(BlockId.Cobblestone, {
     name: 'Cobblestone', hardness: 2, faces: allFaces(TileIndex.Cobblestone), preferredTool: 'pickaxe', minToolTier: 1,
@@ -39,18 +44,21 @@ export const BASE_BLOCKS: BlockCatalog = {
   }),
   [BlockId.OakLeaves]: defineBlock(BlockId.OakLeaves, {
     name: 'Oak Leaves', hardness: 0.25, faces: allFaces(TileIndex.OakLeaves), transparent: true, lightOpacity: 1,
+    lootTable: LEAF_BLOCK_LOOT,
   }),
   [BlockId.OakPlanks]: defineBlock(BlockId.OakPlanks, {
     name: 'Oak Planks', hardness: 1.5, faces: allFaces(TileIndex.OakPlanks), preferredTool: 'axe',
   }),
   [BlockId.CoalOre]: defineBlock(BlockId.CoalOre, {
     name: 'Coal Ore', hardness: 2.4, faces: allFaces(TileIndex.CoalOre), preferredTool: 'pickaxe', minToolTier: 1,
+    lootTable: fixedBlockLoot(ItemId.Coal),
   }),
   [BlockId.GoldOre]: defineBlock(BlockId.GoldOre, {
     name: 'Gold Ore', hardness: 3, faces: allFaces(TileIndex.GoldOre), preferredTool: 'pickaxe', minToolTier: 2,
   }),
   [BlockId.Glass]: defineBlock(BlockId.Glass, {
     name: 'Glass', hardness: 0.4, faces: allFaces(TileIndex.Glass), transparent: true, lightOpacity: 0,
+    lootTable: NO_BLOCK_LOOT,
   }),
   [BlockId.Water]: defineBlock(BlockId.Water, {
     name: 'Water',
@@ -86,6 +94,7 @@ export const BASE_BLOCKS: BlockCatalog = {
     preferredTool: 'pickaxe',
     minToolTier: 1,
     lightEmission: 15,
+    lootTable: fixedBlockLoot(ItemId.CrystalShard, 2),
   }),
   [BlockId.CraftingTable]: defineBlock(BlockId.CraftingTable, {
     name: 'Crafting Table',
@@ -113,6 +122,7 @@ export const BASE_BLOCKS: BlockCatalog = {
     useBehavior: BLOCK_USE.furnace,
     breakBehaviors: [BLOCK_BREAK.furnace],
     heatSource: 20,
+    lootTable: fixedBlockLoot(ItemId.Furnace),
   }),
   [BlockId.BedFoot]: defineBlock(BlockId.BedFoot, {
     name: 'Bed',
@@ -125,6 +135,7 @@ export const BASE_BLOCKS: BlockCatalog = {
     useBehavior: BLOCK_USE.bed,
     breakBehaviors: [BLOCK_BREAK.bed],
     supportBehavior: 'floor',
+    lootTable: NO_BLOCK_LOOT,
   }),
   [BlockId.BedHead]: defineBlock(BlockId.BedHead, {
     name: 'Bed',
@@ -137,6 +148,7 @@ export const BASE_BLOCKS: BlockCatalog = {
     useBehavior: BLOCK_USE.bed,
     breakBehaviors: [BLOCK_BREAK.bed],
     supportBehavior: 'floor',
+    lootTable: NO_BLOCK_LOOT,
   }),
   [BlockId.Chest]: defineBlock(BlockId.Chest, {
     name: 'Chest',
@@ -161,37 +173,44 @@ export const BASE_BLOCKS: BlockCatalog = {
     faces: columnFaces(TileIndex.Dirt, TileIndex.FarmlandDry, TileIndex.Dirt),
     preferredTool: 'shovel',
     breakBehaviors: [BLOCK_BREAK.farm],
+    lootTable: fixedBlockLoot(ItemId.Dirt),
   }),
   [BlockId.FarmlandWet]: defineBlock(BlockId.FarmlandWet, {
     name: 'Hydrated Farmland', hardness: 0.65,
     faces: columnFaces(TileIndex.Dirt, TileIndex.FarmlandWet, TileIndex.Dirt),
     preferredTool: 'shovel',
     breakBehaviors: [BLOCK_BREAK.farm],
+    lootTable: fixedBlockLoot(ItemId.Dirt),
   }),
   [BlockId.BerrySprout]: defineBlock(BlockId.BerrySprout, {
     name: 'Berry Sprout', hardness: 0.08, faces: allFaces(TileIndex.BerrySprout),
     solid: false, transparent: true, lightOpacity: 0, shape: 'cross',
     breakBehaviors: [BLOCK_BREAK.farm],
+    lootTable: NO_BLOCK_LOOT,
   }),
   [BlockId.BerryBush]: defineBlock(BlockId.BerryBush, {
     name: 'Growing Berry Bush', hardness: 0.12, faces: allFaces(TileIndex.BerryBush),
     solid: false, transparent: true, lightOpacity: 0, shape: 'cross',
     breakBehaviors: [BLOCK_BREAK.farm],
+    lootTable: NO_BLOCK_LOOT,
   }),
   [BlockId.BerryBushMature]: defineBlock(BlockId.BerryBushMature, {
     name: 'Mature Berry Bush', hardness: 0.15, faces: allFaces(TileIndex.BerryBushMature),
     solid: false, transparent: true, lightOpacity: 0, shape: 'cross',
     breakBehaviors: [BLOCK_BREAK.farm],
+    lootTable: NO_BLOCK_LOOT,
   }),
   [BlockId.ShroomSprout]: defineBlock(BlockId.ShroomSprout, {
     name: 'Cave Shroom Sprout', hardness: 0.06, faces: allFaces(TileIndex.ShroomSprout),
     solid: false, transparent: true, lightOpacity: 0, shape: 'cross',
     breakBehaviors: [BLOCK_BREAK.farm],
+    lootTable: NO_BLOCK_LOOT,
   }),
   [BlockId.ShroomGrowing]: defineBlock(BlockId.ShroomGrowing, {
     name: 'Growing Cave Shroom', hardness: 0.08, faces: allFaces(TileIndex.ShroomGrowing),
     solid: false, transparent: true, lightOpacity: 0, shape: 'cross',
     breakBehaviors: [BLOCK_BREAK.farm],
+    lootTable: NO_BLOCK_LOOT,
   }),
   [BlockId.Campfire]: defineBlock(BlockId.Campfire, {
     name: 'Campfire', hardness: 0.7, faces: allFaces(TileIndex.Campfire),
@@ -202,5 +221,6 @@ export const BASE_BLOCKS: BlockCatalog = {
     name: 'Lit Campfire', hardness: 0.7, faces: allFaces(TileIndex.LitCampfire),
     preferredTool: 'axe', solid: false, transparent: true, lightOpacity: 0, shape: 'cross', lightEmission: 14,
     supportBehavior: 'floor', useBehavior: BLOCK_USE.furnace, breakBehaviors: [BLOCK_BREAK.furnace], heatSource: 30,
+    lootTable: fixedBlockLoot(ItemId.Campfire),
   }),
 };

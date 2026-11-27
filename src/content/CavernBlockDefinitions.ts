@@ -1,8 +1,11 @@
+import { ItemId } from '../items/ItemTypes';
 import { BLOCK_BREAK } from './BlockCapabilities';
 import { BlockId } from './BlockId';
 import { allFaces, defineBlock } from './BlockDefinitionHelpers';
 import { BlockCatalog } from './BlockTypes';
 import { TileIndex } from './TileIndex';
+import { fixedBlockLoot } from './loot/BlockLoot';
+import { CAVE_VINE_BLOCK_LOOT } from './loot/BlockLootTables';
 
 export const CAVERN_BLOCKS: BlockCatalog = {
   [BlockId.DeepSlate]: defineBlock(BlockId.DeepSlate, {
@@ -25,6 +28,7 @@ export const CAVERN_BLOCKS: BlockCatalog = {
     preferredTool: 'pickaxe',
     minToolTier: 1,
     lightEmission: 13,
+    lootTable: fixedBlockLoot(ItemId.AmethystShard, 2),
   }),
   [BlockId.CaveShroom]: defineBlock(BlockId.CaveShroom, {
     name: 'Glowshroom',
@@ -59,6 +63,7 @@ export const CAVERN_BLOCKS: BlockCatalog = {
     lightOpacity: 0,
     shape: 'cross',
     supportBehavior: 'ceiling-chain',
-    unsupportedDrop: BlockId.CaveVine,
+    lootTable: CAVE_VINE_BLOCK_LOOT,
+    supportLossLootTable: fixedBlockLoot(ItemId.CaveVine),
   }),
 };

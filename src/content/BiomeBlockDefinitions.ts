@@ -1,7 +1,10 @@
+import { ItemId } from '../items/ItemTypes';
 import { BlockId } from './BlockId';
 import { allFaces, columnFaces, defineBlock } from './BlockDefinitionHelpers';
 import { BlockCatalog } from './BlockTypes';
 import { TileIndex } from './TileIndex';
+import { fixedBlockLoot } from './loot/BlockLoot';
+import { LEAF_BLOCK_LOOT } from './loot/BlockLootTables';
 
 export const BIOME_BLOCKS: BlockCatalog = {
   [BlockId.Sandstone]: defineBlock(BlockId.Sandstone, {
@@ -23,6 +26,7 @@ export const BIOME_BLOCKS: BlockCatalog = {
     hardness: 0.75,
     faces: columnFaces(TileIndex.SnowGrassSide, TileIndex.SnowTop, TileIndex.Dirt),
     preferredTool: 'shovel',
+    lootTable: fixedBlockLoot(ItemId.Dirt),
   }),
   [BlockId.SnowBlock]: defineBlock(BlockId.SnowBlock, {
     name: 'Snow Block',
@@ -43,5 +47,6 @@ export const BIOME_BLOCKS: BlockCatalog = {
     faces: allFaces(TileIndex.SpruceLeaves),
     transparent: true,
     lightOpacity: 1,
+    lootTable: LEAF_BLOCK_LOOT,
   }),
 };

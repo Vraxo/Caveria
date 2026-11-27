@@ -1,6 +1,7 @@
 import { ToolCategory } from '../gameplay/MiningTypes';
 import { BlockId } from './BlockId';
 import { TileIndex } from './TileIndex';
+import type { BlockLootTable } from './loot/BlockLoot';
 
 export type BlockRenderShape = 'cube' | 'torch' | 'cross' | 'bed' | 'chest';
 export type BlockUseBehaviorId = string;
@@ -34,10 +35,12 @@ export interface BlockDefinition {
   useBehavior?: BlockUseBehaviorId;
   /** Composable cleanup/effect behaviors resolved before this block is removed. */
   breakBehaviors?: ReadonlyArray<BlockBreakBehaviorId>;
+  /** Declarative pools rolled after a successful Survival harvest. */
+  lootTable: BlockLootTable;
+  /** Optional loot override used when support loss removes this block. */
+  supportLossLootTable?: BlockLootTable;
   /** Placement and support-cascade rule. */
   supportBehavior?: BlockSupportBehavior;
-  /** Fixed item-equivalent block drop when support collapses. */
-  unsupportedDrop?: BlockId;
   /** Can be replaced by ordinary block placement. */
   replaceable?: boolean;
   /** Ambient warmth contributed to nearby players. */

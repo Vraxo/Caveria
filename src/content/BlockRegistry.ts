@@ -4,6 +4,7 @@ import { BlockId } from './BlockId';
 import { BlockCatalog, BlockDefinition } from './BlockTypes';
 import { CAVERN_BLOCKS } from './CavernBlockDefinitions';
 import { TileIndex } from './TileIndex';
+import { validateBlockLootTable } from './loot/BlockLoot';
 
 function buildBlockRegistry(...catalogs: BlockCatalog[]): Record<BlockId, BlockDefinition> {
   const registry: Partial<Record<BlockId, BlockDefinition>> = {};
@@ -42,6 +43,10 @@ function validateBlockDefinition(definition: BlockDefinition): void {
   }
   if (definition.shape !== 'cube' && !definition.transparent) {
     throw new Error(`${definition.name} uses ${definition.shape} geometry but is not transparent`);
+  }
+  validateBlockLootTable(definition.lootTable, definition.name);
+  if (definition.supportLossLootTable) {
+    validateBlockLootTable(definition.supportLossLootTable, `${definition.name} support-loss`);
   }
 
   const validTiles = new Set(

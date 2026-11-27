@@ -12,7 +12,7 @@ import {
 import { Input } from '../core/Input';
 import { MobHit, MobManager } from '../entities/MobManager';
 import { Inventory } from '../items/Inventory';
-import { ITEMS, ItemId, ItemStack, createStack, getAttackDamage, getBlockDrop, getMiningStats } from '../items/Item';
+import { ITEMS, ItemId, ItemStack, createStack, getAttackDamage, getBlockDrops, getMiningStats } from '../items/Item';
 import { Player } from '../player/Player';
 import { PlayerVitals } from '../player/PlayerVitals';
 import { VoxelHit, raycastVoxel, raycastWater } from '../player/Raycaster';
@@ -448,8 +448,9 @@ export class BlockInteractionController {
     if (!creativeMode) this.vitals.addExhaustion(0.025);
 
     if (spawnDropItem) {
-      const drop = getBlockDrop(blockId);
-      if (drop) this.drops.spawnDrop(blockX + 0.5, blockY + 0.45, blockZ + 0.5, drop);
+      for (const drop of getBlockDrops(blockId, 'mined')) {
+        this.drops.spawnDrop(blockX + 0.5, blockY + 0.45, blockZ + 0.5, drop);
+      }
     }
 
     this.removeUnsupportedAt(blockX, blockY + 1, blockZ, creativeMode);
@@ -479,10 +480,9 @@ export class BlockInteractionController {
     this.world.setBlock(x, y, z, BlockId.Air);
     this.particles.spawnBurst(x, y, z, blockId);
     if (!creativeMode) {
-      const drop = definition.unsupportedDrop !== undefined
-        ? createStack(definition.unsupportedDrop as unknown as ItemId)
-        : getBlockDrop(blockId);
-      if (drop) this.drops.spawnDrop(x + 0.5, y + 0.35, z + 0.5, drop);
+      for (const drop of getBlockDrops(blockId, 'support-loss')) {
+        this.drops.spawnDrop(x + 0.5, y + 0.35, z + 0.5, drop);
+      }
     }
     this.removeUnsupportedAt(x, y + 1, z, creativeMode);
     this.removeUnsupportedAt(x, y - 1, z, creativeMode);
