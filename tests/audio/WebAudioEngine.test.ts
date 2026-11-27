@@ -19,4 +19,19 @@ describe('WebAudioEngine volumes', () => {
     engine.setAmbienceVolume(200);
     expect(engine.getAmbienceVolume()).toBe(100);
   });
+
+  it('keeps world audio inactive until enabled and silences ambience when returning to menu', () => {
+    const engine = new WebAudioEngine();
+    expect(engine.worldAudioActive).toBe(false);
+
+    engine.setWorldAudioActive(true);
+    expect(engine.worldAudioActive).toBe(true);
+
+    engine.setWorldAudioActive(false);
+    expect(engine.worldAudioActive).toBe(false);
+    // Adjusting ambience slider in title options keeps stored value without re-enabling world audio.
+    engine.setAmbienceVolume(75);
+    expect(engine.getAmbienceVolume()).toBe(75);
+    expect(engine.worldAudioActive).toBe(false);
+  });
 });

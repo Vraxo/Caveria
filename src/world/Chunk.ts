@@ -5,6 +5,9 @@ export const CHUNK_SIZE = 16;
 export const CHUNK_HEIGHT = 128;
 export const SEA_LEVEL = 44;
 
+const CHUNK_KEY_OFFSET = 0x800000;
+const CHUNK_KEY_STRIDE = 0x1000000;
+
 export class Chunk {
   public readonly cx: number;
   public readonly cz: number;
@@ -18,6 +21,8 @@ export class Chunk {
 
   public dirty = true;
   public lightDirty = true;
+  /** Highest Y layer known to contain a non-air voxel (`-1` if unknown/empty). */
+  public maxNonAirY = -1;
   public opaqueMesh: THREE.Mesh | null = null;
   public waterMesh: THREE.Mesh | null = null;
 
@@ -33,8 +38,31 @@ export class Chunk {
     return `${cx},${cz}`;
   }
 
+  /** Allocation-free exact integer key for Map<number, Chunk> lookups (±8.3M chunks). */
+  public static numKey(cx: number, cz: number): number {
+    return (cx + CHUNK_KEY_OFFSET) * CHUNK_KEY_STRIDE + (cz + CHUNK_KEY_OFFSET);
+  }
+
   public index(lx: number, y: number, lz: number): number {
     return (y * CHUNK_SIZE + lz) * CHUNK_SIZE + lx;
+  }
+
+  /** Scans top-down to find the highest non-air Y layer so lighting/meshing skip empty sky. */
+  public recomputeMaxNonAirY(): number {
+    const data = this.data;
+    const layerSize = CHUNK_SIZE * CHUNK_SIZE;
+    for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
+      const start = y * layerSize;
+      const end = start + layerSize;
+      for (let i = start; i < end; i++) {
+        if (data[i] !== 0) {
+          this.maxNonAirY = y;
+          return y;
+        }
+      }
+    }
+    this.maxNonAirY = -1;
+    return -1;
   }
 
   public get(lx: number, y: number, lz: number): BlockId {
@@ -49,6 +77,9 @@ export class Chunk {
       return;
     }
     this.data[(y * CHUNK_SIZE + lz) * CHUNK_SIZE + lx] = id;
+    if (id !== BlockId.Air && y > this.maxNonAirY) {
+      this.maxNonAirY = y;
+    }
     this.dirty = true;
   }
 

@@ -11,12 +11,14 @@ export class Hotbar {
   private readonly labelEl: HTMLElement;
   private readonly ammoEl: HTMLElement;
   private readonly slotEls: HTMLElement[] = [];
+  private readonly onSlotTap?: () => void;
 
   public selectedIndex = 0;
 
-  constructor(inventory: Inventory, atlas: TextureAtlas) {
+  constructor(inventory: Inventory, atlas: TextureAtlas, onSlotTap?: () => void) {
     this.inventory = inventory;
     this.atlas = atlas;
+    this.onSlotTap = onSlotTap;
     this.containerEl = document.getElementById('hotbar')!;
     this.labelEl = document.getElementById('selected-block-label')!;
     this.ammoEl = document.getElementById('ammo-counter')!;
@@ -102,6 +104,14 @@ export class Hotbar {
     for (let i = 0; i < HOTBAR_SIZE; i++) {
       const slot = document.createElement('div');
       slot.className = 'hotbar-slot';
+      slot.addEventListener('pointerdown', (event) => {
+        event.stopPropagation();
+        event.preventDefault();
+        if (this.selectedIndex !== i) {
+          this.selectIndex(i);
+          this.onSlotTap?.();
+        }
+      });
       this.containerEl.appendChild(slot);
       this.slotEls.push(slot);
     }

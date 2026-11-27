@@ -60,6 +60,8 @@ import { FurnaceModal } from '../ui/FurnaceModal';
 import { GameOverlayController } from '../ui/GameOverlayController';
 import { Hotbar } from '../ui/Hotbar';
 import { InventoryModal } from '../ui/InventoryModal';
+import { LoadingScreen } from '../ui/LoadingScreen';
+import { TouchControls } from '../ui/TouchControls';
 import { HOTBAR_BLOCKS } from '../gameplay/CreativePalette';
 import { CHUNK_SIZE } from '../world/Chunk';
 import { hashString } from '../world/Noise';
@@ -112,7 +114,9 @@ export class Game {
   private readonly chestModal: ChestModal;
   private readonly debugHud: DebugHud;
   private readonly overlay: GameOverlayController;
+  private readonly touchControls: TouchControls;
   private readonly seedLabel: string;
+  private readonly initialSpawnPos: THREE.Vector3;
   private readonly texturePacks: readonly TexturePackDescriptor[];
   private activeTexturePackId: string;
 
@@ -123,7 +127,9 @@ export class Game {
     canvas: HTMLCanvasElement,
     loadedTiles?: ReadonlyMap<TileIndex, HTMLCanvasElement>,
     texturePacks: readonly TexturePackDescriptor[] = BUILTIN_TEXTURE_PACKS,
-    activeTexturePackId: string = DEFAULT_TEXTURE_PACK_ID
+    activeTexturePackId: string = DEFAULT_TEXTURE_PACK_ID,
+    deferInitialGeneration = false,
+    loadingScreen?: LoadingScreen
   ) {
     this.texturePacks = texturePacks;
     this.activeTexturePackId = resolveTexturePack(texturePacks, activeTexturePackId).id;
@@ -183,7 +189,10 @@ export class Game {
     const spawnPos = savedGame
       ? new THREE.Vector3(savedGame.player.x, savedGame.player.y, savedGame.player.z)
       : generatedSpawn;
-    this.world.generateInitialArea(spawnPos.x, spawnPos.z, 3);
+    this.initialSpawnPos = spawnPos.clone();
+    if (!deferInitialGeneration) {
+      this.world.generateInitialArea(spawnPos.x, spawnPos.z, 3);
+    }
 
     this.player = new Player(this.camera, spawnPos);
     if (savedGame) {
@@ -367,7 +376,7 @@ export class Game {
 
     this.inventory = new Inventory();
     if (savedGame) this.inventory.restore(savedGame.inventory);
-    this.hotbar = new Hotbar(this.inventory, this.atlas);
+    this.hotbar = new Hotbar(this.inventory, this.atlas, () => this.audio.playHotbarSelect());
     this.fishing = new FishingManager(this.scene, this.world, this.player, this.audio);
     if (savedGame) {
       this.hotbar.selectIndex(savedGame.selectedHotbar);
@@ -484,6 +493,7 @@ export class Game {
         }
       },
       onWorldStarted: () => this.persistence.enableSaving(),
+      onLoadingWorld: (name) => loadingScreen?.show(`Loading ${name}...`, 0.08),
       texturePacks: this.texturePacks,
       activeTexturePackId: this.activeTexturePackId,
       onSelectTexturePack: (packId) => this.setTexturePack(packId),
@@ -494,9 +504,31 @@ export class Game {
       },
     });
     this.registerFeatureParticipants();
+    this.touchControls = new TouchControls({
+      canvas,
+      input: this.input,
+      onPause: () => this.input.exitPointerLock(),
+      onInventory: () => this.input.triggerVirtualKeyPress('KeyE'),
+      onDrop: () => this.input.triggerVirtualKeyPress('KeyQ'),
+      onToggleFly: () => this.input.triggerVirtualKeyPress('KeyF'),
+    });
     this.persistence.bind(() => this.createSaveSnapshot());
     this.overlay.updateStatus(this.creativeMode, this.player.flyMode);
     if (savedGame) this.persistence.showRestored(this.world.editCount);
+  }
+
+  /** Asynchronously builds the initial spawn chunks and renders the first frame for the loading screen. */
+  public async initializeWorld(
+    onProgress?: (fraction: number, statusText: string) => void
+  ): Promise<void> {
+    await this.world.generateInitialAreaAsync(
+      this.initialSpawnPos.x,
+      this.initialSpawnPos.z,
+      3,
+      onProgress
+    );
+    this.atmosphere.update();
+    this.renderer.render(this.scene, this.camera);
   }
 
   /** Switches the active texture pack live without reloading the world. */
@@ -725,8 +757,6 @@ export class Game {
   }
 
   private update(dt: number): void {
-    this.features.update('frame-start', dt);
-
     if (this.input.consumeKeyPress('KeyM')) {
       this.overlay.toggleAudio();
     }
@@ -734,6 +764,28 @@ export class Game {
     if (this.input.consumeKeyPress('F3')) {
       this.debugHud.toggle();
     }
+
+    // While on the main menu (not actively inside a world), pause world simulation
+    // and in-world audio so ambient beds, thunder, furnaces, and autosave stay silent.
+    if (!this.overlay.isInWorld) {
+      this.touchControls.setVisible(false);
+      this.atmosphere.update();
+      this.world.updateStreaming(this.player.position.x, this.player.position.z);
+      return;
+    }
+
+    const modalOpen =
+      this.inventoryModal.isOpen || this.furnaceModal.isOpen || this.chestModal.isOpen;
+    this.touchControls.setVisible(
+      this.input.isTouchGameplay && !modalOpen && !this.vitals.dead
+    );
+    this.touchControls.syncPlayerState(
+      this.player.flyMode,
+      this.player.crouching,
+      this.camelRiding.isRiding
+    );
+
+    this.features.update('frame-start', dt);
 
     // Toggle workstation/inventory screens with [E] or close with [Escape].
     if (this.inventoryModal.isOpen || this.furnaceModal.isOpen || this.chestModal.isOpen) {

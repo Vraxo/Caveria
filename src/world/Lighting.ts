@@ -2,7 +2,7 @@ import { BlockId } from '../content/BlockId';
 import { BLOCKS } from '../content/BlockRegistry';
 import { CHUNK_HEIGHT, CHUNK_SIZE, Chunk } from './Chunk';
 
-const DIRS: ReadonlyArray<[number, number, number]> = [
+const DIRS: ReadonlyArray<readonly [number, number, number]> = [
   [1, 0, 0],
   [-1, 0, 0],
   [0, 1, 0],
@@ -11,20 +11,33 @@ const DIRS: ReadonlyArray<[number, number, number]> = [
   [0, 0, -1],
 ];
 
-// Reusable flat typed ring/queue buffers to avoid GC churn during chunk lighting
+// Flat LUTs avoid repeated object-property lookups inside tight voxel lighting loops.
+const BLOCK_OPACITY = new Uint8Array(256);
+const BLOCK_EMISSION = new Uint8Array(256);
+for (const [key, def] of Object.entries(BLOCKS)) {
+  const id = Number(key);
+  if (Number.isInteger(id) && id >= 0 && id < 256) {
+    BLOCK_OPACITY[id] = def.lightOpacity;
+    BLOCK_EMISSION[id] = def.lightEmission;
+  }
+}
+
+// Reusable flat typed queue buffers to avoid GC churn during chunk lighting.
 const MAX_QUEUE = 128 * 1024;
 const qx = new Int32Array(MAX_QUEUE);
 const qy = new Int16Array(MAX_QUEUE);
 const qz = new Int32Array(MAX_QUEUE);
 
+const LAYER_SIZE = CHUNK_SIZE * CHUNK_SIZE;
+
 export type ChunkLookup = (cx: number, cz: number) => Chunk | undefined;
 
 function worldToChunk(n: number): number {
-  return Math.floor(n / CHUNK_SIZE);
+  return n >> 4;
 }
 
 function worldToLocal(n: number): number {
-  return ((n % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE;
+  return n & 15;
 }
 
 /**
@@ -35,135 +48,212 @@ export function initializeChunkLighting(
   getChunk: ChunkLookup,
   markMeshDirty: (cx: number, cz: number) => void
 ): void {
-  const baseX = chunk.cx * CHUNK_SIZE;
-  const baseZ = chunk.cz * CHUNK_SIZE;
+  const cx = chunk.cx;
+  const cz = chunk.cz;
+  const baseX = cx * CHUNK_SIZE;
+  const baseZ = cz * CHUNK_SIZE;
+  const data = chunk.data;
+  const light = chunk.light;
 
-  let skyHead = 0;
-  let skyTail = 0;
+  const negX = getChunk(cx - 1, cz);
+  const posX = getChunk(cx + 1, cz);
+  const negZ = getChunk(cx, cz - 1);
+  const posZ = getChunk(cx, cz + 1);
 
-  // Step 1: Cast vertical sunlight columns from top of chunk downward
+  // Step 1: Cast vertical sunlight columns downward and compute chunk maxNonAirY in the same pass.
+  let chunkMaxY = -1;
   for (let lz = 0; lz < CHUNK_SIZE; lz++) {
+    const rowOff = lz * CHUNK_SIZE;
     for (let lx = 0; lx < CHUNK_SIZE; lx++) {
       let currentSky = 15;
-      for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
-        const blockId = chunk.get(lx, y, lz);
-        const opacity = BLOCKS[blockId].lightOpacity;
+      let idx = (CHUNK_HEIGHT - 1) * LAYER_SIZE + rowOff + lx;
+      for (let y = CHUNK_HEIGHT - 1; y >= 0; y--, idx -= LAYER_SIZE) {
+        const blockId = data[idx];
+        if (blockId !== 0) {
+          if (y > chunkMaxY) chunkMaxY = y;
+          const opacity = BLOCK_OPACITY[blockId];
+          if (opacity >= 15) {
+            currentSky = 0;
+          } else if (opacity > 0) {
+            currentSky = currentSky > opacity ? currentSky - opacity : 0;
+          }
+        }
+        light[idx] = currentSky << 4;
+      }
+    }
+  }
+  chunk.maxNonAirY = chunkMaxY;
 
-        if (opacity >= 15) {
-          currentSky = 0;
-        } else if (opacity > 0) {
-          currentSky = Math.max(0, currentSky - opacity);
+  // Above the highest non-air voxel across this chunk and its 4 neighbors, every voxel is open sky (15).
+  let maxRelevantY = chunkMaxY;
+  if (negX && negX.maxNonAirY > maxRelevantY) maxRelevantY = negX.maxNonAirY;
+  if (posX && posX.maxNonAirY > maxRelevantY) maxRelevantY = posX.maxNonAirY;
+  if (negZ && negZ.maxNonAirY > maxRelevantY) maxRelevantY = negZ.maxNonAirY;
+  if (posZ && posZ.maxNonAirY > maxRelevantY) maxRelevantY = posZ.maxNonAirY;
+  const scanTopY = Math.min(CHUNK_HEIGHT - 1, maxRelevantY + 1);
+
+  // Step 2: Enqueue only skylight seeds that actually border a darker transparent voxel.
+  let skyTail = 0;
+  for (let y = 0; y <= scanTopY; y++) {
+    const yBase = y * LAYER_SIZE;
+    for (let lz = 0; lz < CHUNK_SIZE; lz++) {
+      const rowBase = yBase + lz * CHUNK_SIZE;
+      for (let lx = 0; lx < CHUNK_SIZE; lx++) {
+        const idx = rowBase + lx;
+        const sl = light[idx] >> 4;
+        if (sl <= 1) continue;
+        const threshold = sl - 1;
+
+        let needsSeed = false;
+
+        // +X neighbor
+        if (lx < 15) {
+          if (BLOCK_OPACITY[data[idx + 1]] < 15 && (light[idx + 1] >> 4) < threshold) needsSeed = true;
+        } else if (posX) {
+          const nIdx = rowBase;
+          if (BLOCK_OPACITY[posX.data[nIdx]] < 15 && (posX.light[nIdx] >> 4) < threshold) needsSeed = true;
         }
 
-        chunk.setSkyLight(lx, y, lz, currentSky);
+        // -X neighbor
+        if (!needsSeed) {
+          if (lx > 0) {
+            if (BLOCK_OPACITY[data[idx - 1]] < 15 && (light[idx - 1] >> 4) < threshold) needsSeed = true;
+          } else if (negX) {
+            const nIdx = rowBase + 15;
+            if (BLOCK_OPACITY[negX.data[nIdx]] < 15 && (negX.light[nIdx] >> 4) < threshold) needsSeed = true;
+          }
+        }
+
+        // +Z neighbor
+        if (!needsSeed) {
+          if (lz < 15) {
+            if (BLOCK_OPACITY[data[idx + 16]] < 15 && (light[idx + 16] >> 4) < threshold) needsSeed = true;
+          } else if (posZ) {
+            const nIdx = yBase + lx;
+            if (BLOCK_OPACITY[posZ.data[nIdx]] < 15 && (posZ.light[nIdx] >> 4) < threshold) needsSeed = true;
+          }
+        }
+
+        // -Z neighbor
+        if (!needsSeed) {
+          if (lz > 0) {
+            if (BLOCK_OPACITY[data[idx - 16]] < 15 && (light[idx - 16] >> 4) < threshold) needsSeed = true;
+          } else if (negZ) {
+            const nIdx = yBase + 15 * 16 + lx;
+            if (BLOCK_OPACITY[negZ.data[nIdx]] < 15 && (negZ.light[nIdx] >> 4) < threshold) needsSeed = true;
+          }
+        }
+
+        if (needsSeed && skyTail < MAX_QUEUE) {
+          qx[skyTail] = baseX + lx;
+          qy[skyTail] = y;
+          qz[skyTail] = baseZ + lz;
+          skyTail++;
+        }
       }
     }
   }
 
-  // Enqueue skylight seeds inside this chunk + immediate border columns of loaded neighbors
-  const enqueueSky = (wx: number, wy: number, wz: number) => {
-    if (skyTail < MAX_QUEUE) {
-      qx[skyTail] = wx;
-      qy[skyTail] = wy;
-      qz[skyTail] = wz;
-      skyTail++;
+  // Pull skylight inward from loaded cardinal borders ONLY where neighbor is brighter than chunk border.
+  const pullSkyBorder = (
+    nChunk: Chunk | undefined,
+    nBaseX: number,
+    nBaseZ: number,
+    nFixed: number,
+    cFixed: number,
+    varyZ: boolean
+  ): void => {
+    if (!nChunk) return;
+    const nLight = nChunk.light;
+    for (let y = 0; y <= scanTopY; y++) {
+      const yBase = y * LAYER_SIZE;
+      for (let i = 0; i < CHUNK_SIZE; i++) {
+        const nlx = varyZ ? nFixed : i;
+        const nlz = varyZ ? i : nFixed;
+        const nSl = nLight[yBase + nlz * CHUNK_SIZE + nlx] >> 4;
+        if (nSl <= 1) continue;
+        const clx = varyZ ? cFixed : i;
+        const clz = varyZ ? i : cFixed;
+        const cIdx = yBase + clz * CHUNK_SIZE + clx;
+        if (BLOCK_OPACITY[data[cIdx]] < 15 && (light[cIdx] >> 4) < nSl - 1 && skyTail < MAX_QUEUE) {
+          qx[skyTail] = nBaseX + nlx;
+          qy[skyTail] = y;
+          qz[skyTail] = nBaseZ + nlz;
+          skyTail++;
+        }
+      }
     }
   };
 
-  for (let y = 0; y < CHUNK_HEIGHT; y++) {
+  pullSkyBorder(negX, (cx - 1) * CHUNK_SIZE, baseZ, 15, 0, true);
+  pullSkyBorder(posX, (cx + 1) * CHUNK_SIZE, baseZ, 0, 15, true);
+  pullSkyBorder(negZ, baseX, (cz - 1) * CHUNK_SIZE, 15, 0, false);
+  pullSkyBorder(posZ, baseX, (cz + 1) * CHUNK_SIZE, 0, 15, false);
+
+  if (skyTail > 0) {
+    propagateSkyQueue(0, skyTail, getChunk, markMeshDirty);
+  }
+
+  // Step 3: Seed emissive blocks inside this chunk (only up to chunkMaxY) + neighbor borders.
+  let blkTail = 0;
+  for (let y = 0; y <= chunkMaxY; y++) {
+    const yBase = y * LAYER_SIZE;
     for (let lz = 0; lz < CHUNK_SIZE; lz++) {
+      const rowBase = yBase + lz * CHUNK_SIZE;
       for (let lx = 0; lx < CHUNK_SIZE; lx++) {
-        const sl = chunk.getSkyLight(lx, y, lz);
-        if (sl > 1) {
-          // Only enqueue if adjacent to a darker transparent voxel to keep queue compact
-          if (
-            chunk.getSkyLight(lx + 1, y, lz) < sl - 1 ||
-            chunk.getSkyLight(lx - 1, y, lz) < sl - 1 ||
-            chunk.getSkyLight(lx, y, lz + 1) < sl - 1 ||
-            chunk.getSkyLight(lx, y, lz - 1) < sl - 1 ||
-            lx === 0 ||
-            lx === CHUNK_SIZE - 1 ||
-            lz === 0 ||
-            lz === CHUNK_SIZE - 1
-          ) {
-            enqueueSky(baseX + lx, y, baseZ + lz);
+        const idx = rowBase + lx;
+        const emission = BLOCK_EMISSION[data[idx]];
+        if (emission > 0) {
+          light[idx] = (light[idx] & 0xf0) | emission;
+          if (blkTail < MAX_QUEUE) {
+            qx[blkTail] = baseX + lx;
+            qy[blkTail] = y;
+            qz[blkTail] = baseZ + lz;
+            blkTail++;
           }
         }
       }
     }
   }
 
-  // Also pull light inward from the 4 adjacent chunk borders if already loaded
-  const pullBorder = (ncx: number, ncz: number, lxFixed: number, lzFixed: number, varyZ: boolean) => {
-    const nChunk = getChunk(ncx, ncz);
+  const pullBlockBorder = (
+    nChunk: Chunk | undefined,
+    nBaseX: number,
+    nBaseZ: number,
+    nFixed: number,
+    cFixed: number,
+    varyZ: boolean
+  ): void => {
     if (!nChunk) return;
-    const nBaseX = ncx * CHUNK_SIZE;
-    const nBaseZ = ncz * CHUNK_SIZE;
-    for (let y = 0; y < CHUNK_HEIGHT; y++) {
+    const nLight = nChunk.light;
+    for (let y = 0; y <= scanTopY; y++) {
+      const yBase = y * LAYER_SIZE;
       for (let i = 0; i < CHUNK_SIZE; i++) {
-        const lx = varyZ ? lxFixed : i;
-        const lz = varyZ ? i : lzFixed;
-        if (nChunk.getSkyLight(lx, y, lz) > 1) {
-          enqueueSky(nBaseX + lx, y, nBaseZ + lz);
+        const nlx = varyZ ? nFixed : i;
+        const nlz = varyZ ? i : nFixed;
+        const nBlk = nLight[yBase + nlz * CHUNK_SIZE + nlx] & 0xf;
+        if (nBlk <= 1) continue;
+        const clx = varyZ ? cFixed : i;
+        const clz = varyZ ? i : cFixed;
+        const cIdx = yBase + clz * CHUNK_SIZE + clx;
+        if (BLOCK_OPACITY[data[cIdx]] < 15 && (light[cIdx] & 0xf) < nBlk - 1 && blkTail < MAX_QUEUE) {
+          qx[blkTail] = nBaseX + nlx;
+          qy[blkTail] = y;
+          qz[blkTail] = nBaseZ + nlz;
+          blkTail++;
         }
       }
     }
   };
 
-  pullBorder(chunk.cx - 1, chunk.cz, CHUNK_SIZE - 1, 0, true);
-  pullBorder(chunk.cx + 1, chunk.cz, 0, 0, true);
-  pullBorder(chunk.cx, chunk.cz - 1, 0, CHUNK_SIZE - 1, false);
-  pullBorder(chunk.cx, chunk.cz + 1, 0, 0, false);
+  pullBlockBorder(negX, (cx - 1) * CHUNK_SIZE, baseZ, 15, 0, true);
+  pullBlockBorder(posX, (cx + 1) * CHUNK_SIZE, baseZ, 0, 15, true);
+  pullBlockBorder(negZ, baseX, (cz - 1) * CHUNK_SIZE, 15, 0, false);
+  pullBlockBorder(posZ, baseX, (cz + 1) * CHUNK_SIZE, 0, 15, false);
 
-  propagateSkyQueue(skyHead, skyTail, getChunk, markMeshDirty);
-
-  // Step 2: Seed emissive blocks (crystals/torches) in this chunk + neighbor borders
-  let blkHead = 0;
-  let blkTail = 0;
-  const enqueueBlk = (wx: number, wy: number, wz: number) => {
-    if (blkTail < MAX_QUEUE) {
-      qx[blkTail] = wx;
-      qy[blkTail] = wy;
-      qz[blkTail] = wz;
-      blkTail++;
-    }
-  };
-
-  for (let y = 0; y < CHUNK_HEIGHT; y++) {
-    for (let lz = 0; lz < CHUNK_SIZE; lz++) {
-      for (let lx = 0; lx < CHUNK_SIZE; lx++) {
-        const emission = BLOCKS[chunk.get(lx, y, lz)].lightEmission;
-        if (emission > 0) {
-          chunk.setBlockLight(lx, y, lz, emission);
-          enqueueBlk(baseX + lx, y, baseZ + lz);
-        }
-      }
-    }
+  if (blkTail > 0) {
+    propagateBlockQueue(0, blkTail, getChunk, markMeshDirty);
   }
-
-  // Pull existing block light across loaded chunk borders
-  const pullBlockBorder = (ncx: number, ncz: number, lxFixed: number, lzFixed: number, varyZ: boolean) => {
-    const nChunk = getChunk(ncx, ncz);
-    if (!nChunk) return;
-    const nBaseX = ncx * CHUNK_SIZE;
-    const nBaseZ = ncz * CHUNK_SIZE;
-    for (let y = 0; y < CHUNK_HEIGHT; y++) {
-      for (let i = 0; i < CHUNK_SIZE; i++) {
-        const lx = varyZ ? lxFixed : i;
-        const lz = varyZ ? i : lzFixed;
-        if (nChunk.getBlockLight(lx, y, lz) > 1) {
-          enqueueBlk(nBaseX + lx, y, nBaseZ + lz);
-        }
-      }
-    }
-  };
-
-  pullBlockBorder(chunk.cx - 1, chunk.cz, CHUNK_SIZE - 1, 0, true);
-  pullBlockBorder(chunk.cx + 1, chunk.cz, 0, 0, true);
-  pullBlockBorder(chunk.cx, chunk.cz - 1, 0, CHUNK_SIZE - 1, false);
-  pullBlockBorder(chunk.cx, chunk.cz + 1, 0, 0, false);
-
-  propagateBlockQueue(blkHead, blkTail, getChunk, markMeshDirty);
   chunk.lightDirty = false;
 }
 
@@ -188,7 +278,7 @@ function addLightingAtEdit(
   let skyTail = 0;
   let directSky = 15;
   for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
-    const opacity = BLOCKS[chunk.get(editLx, y, editLz)].lightOpacity;
+    const opacity = BLOCK_OPACITY[chunk.data[(y * CHUNK_SIZE + editLz) * CHUNK_SIZE + editLx]];
     if (opacity >= 15) directSky = 0;
     else if (opacity > 0) directSky = Math.max(0, directSky - opacity);
     if (directSky <= chunk.getSkyLight(editLx, y, editLz)) continue;
@@ -217,7 +307,7 @@ function addLightingAtEdit(
   propagateSkyQueue(0, skyTail, getChunk, markDirty);
 
   let blockTail = 0;
-  const emission = BLOCKS[nextBlock].lightEmission;
+  const emission = BLOCK_EMISSION[nextBlock];
   if (emission > chunk.getBlockLight(editLx, wy, editLz)) {
     chunk.setBlockLight(editLx, wy, editLz, emission);
     qx[blockTail] = wx;
@@ -260,11 +350,9 @@ export function updateLightingAtEdit(
   nextBlock: BlockId,
   getChunk: ChunkLookup
 ): Set<string> {
-  const previous = BLOCKS[previousBlock];
-  const next = BLOCKS[nextBlock];
   if (
-    next.lightOpacity <= previous.lightOpacity
-    && next.lightEmission >= previous.lightEmission
+    BLOCK_OPACITY[nextBlock] <= BLOCK_OPACITY[previousBlock]
+    && BLOCK_EMISSION[nextBlock] >= BLOCK_EMISSION[previousBlock]
   ) {
     return addLightingAtEdit(wx, wy, wz, nextBlock, getChunk);
   }
@@ -283,9 +371,6 @@ export function updateLightingAtEdit(
     dirtyChunks.add(Chunk.key(cx, cz));
   };
 
-  // 1. Reset only the bounded 3D region that a level-15 light change can reach.
-  // Scan full columns to derive direct skylight, but avoid queueing every lit voxel in
-  // the world's full height (the old path queued ~140k entries for each block edit).
   let skyTail = 0;
   for (let z = minZ; z <= maxZ; z++) {
     const cz = worldToChunk(z);
@@ -297,7 +382,7 @@ export function updateLightingAtEdit(
       const lx = worldToLocal(x);
       let currentSky = 15;
       for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
-        const opacity = BLOCKS[c.get(lx, y, lz)].lightOpacity;
+        const opacity = BLOCK_OPACITY[c.data[(y * CHUNK_SIZE + lz) * CHUNK_SIZE + lx]];
         if (opacity >= 15) currentSky = 0;
         else if (opacity > 0) currentSky = Math.max(0, currentSky - opacity);
         if (y < minY || y > maxY) continue;
@@ -314,8 +399,6 @@ export function updateLightingAtEdit(
     }
   }
 
-  // Queue only direct-sky cells bordering a darker horizontal neighbor. Fully open
-  // sky columns already contain their final value and do not need flood-fill work.
   for (let z = minZ; z <= maxZ; z++) {
     for (let x = minX; x <= maxX; x++) {
       const cx = worldToChunk(x);
@@ -335,7 +418,7 @@ export function updateLightingAtEdit(
           if (!neighbor) continue;
           const nlx = worldToLocal(nx);
           const nlz = worldToLocal(nz);
-          if (BLOCKS[neighbor.get(nlx, y, nlz)].lightOpacity >= 15) continue;
+          if (BLOCK_OPACITY[neighbor.data[(y * CHUNK_SIZE + nlz) * CHUNK_SIZE + nlx]] >= 15) continue;
           if (neighbor.getSkyLight(nlx, y, nlz) < level - 1) {
             bordersDarkness = true;
             break;
@@ -350,7 +433,6 @@ export function updateLightingAtEdit(
     }
   }
 
-  // 2. Re-seed lateral skylight from the unchanged one-voxel shell around the box.
   for (let z = minZ - 1; z <= maxZ + 1; z++) {
     const cz = worldToChunk(z);
     const lz = worldToLocal(z);
@@ -375,7 +457,6 @@ export function updateLightingAtEdit(
   }
   propagateSkyQueue(0, skyTail, getChunk, markDirty);
 
-  // 3. Re-seed block light from emitters inside box + existing light on the 1-voxel shell outside box
   let blkTail = 0;
   for (let z = minZ - 1; z <= maxZ + 1; z++) {
     const cz = worldToChunk(z);
@@ -400,7 +481,7 @@ export function updateLightingAtEdit(
             blkTail++;
           }
         } else {
-          const em = BLOCKS[c.get(lx, y, lz)].lightEmission;
+          const em = BLOCK_EMISSION[c.data[(y * CHUNK_SIZE + lz) * CHUNK_SIZE + lx]];
           if (em > 0) {
             c.setBlockLight(lx, y, lz, em);
             if (blkTail < MAX_QUEUE) {
@@ -416,8 +497,6 @@ export function updateLightingAtEdit(
   }
   propagateBlockQueue(0, blkTail, getChunk, markDirty);
 
-  // Face visibility crosses a chunk boundary only when the edited voxel itself lies on it.
-  // Light propagation already marks every chunk whose light bytes actually changed.
   const editCx = worldToChunk(wx);
   const editCz = worldToChunk(wz);
   const editLx = worldToLocal(wx);
@@ -436,43 +515,56 @@ function propagateSkyQueue(
   getChunk: ChunkLookup,
   markDirty: (cx: number, cz: number) => void
 ): void {
+  let cachedCx = 0x7fffffff;
+  let cachedCz = 0x7fffffff;
+  let cachedChunk: Chunk | undefined;
+
   while (head < tail) {
     const x = qx[head];
     const y = qy[head];
     const z = qz[head];
     head++;
 
-    const cx = worldToChunk(x);
-    const cz = worldToChunk(z);
-    const chunk = getChunk(cx, cz);
+    const cx = x >> 4;
+    const cz = z >> 4;
+    let chunk: Chunk | undefined;
+    if (cx === cachedCx && cz === cachedCz) {
+      chunk = cachedChunk;
+    } else {
+      chunk = getChunk(cx, cz);
+      cachedCx = cx;
+      cachedCz = cz;
+      cachedChunk = chunk;
+    }
     if (!chunk) continue;
 
-    const lx = worldToLocal(x);
-    const lz = worldToLocal(z);
-    const cur = chunk.getSkyLight(lx, y, lz);
+    const lx = x & 15;
+    const lz = z & 15;
+    const cur = chunk.light[(y * CHUNK_SIZE + lz) * CHUNK_SIZE + lx] >> 4;
     if (cur <= 1) continue;
 
     for (let d = 0; d < 6; d++) {
-      const nx = x + DIRS[d][0];
-      const ny = y + DIRS[d][1];
-      const nz = z + DIRS[d][2];
+      const dir = DIRS[d];
+      const nx = x + dir[0];
+      const ny = y + dir[1];
+      const nz = z + dir[2];
       if (ny < 0 || ny >= CHUNK_HEIGHT) continue;
 
-      const ncx = worldToChunk(nx);
-      const ncz = worldToChunk(nz);
+      const ncx = nx >> 4;
+      const ncz = nz >> 4;
       const nChunk = ncx === cx && ncz === cz ? chunk : getChunk(ncx, ncz);
       if (!nChunk) continue;
 
-      const nlx = worldToLocal(nx);
-      const nlz = worldToLocal(nz);
-      const nBlock = nChunk.get(nlx, ny, nlz);
-      const opacity = BLOCKS[nBlock].lightOpacity;
+      const nlx = nx & 15;
+      const nlz = nz & 15;
+      const nIdx = (ny * CHUNK_SIZE + nlz) * CHUNK_SIZE + nlx;
+      const opacity = BLOCK_OPACITY[nChunk.data[nIdx]];
       if (opacity >= 15) continue;
 
-      const stepCost = Math.max(1, opacity);
-      const nextLevel = cur - stepCost;
-      if (nextLevel > nChunk.getSkyLight(nlx, ny, nlz)) {
-        nChunk.setSkyLight(nlx, ny, nlz, nextLevel);
+      const nextLevel = cur - (opacity > 1 ? opacity : 1);
+      const curPacked = nChunk.light[nIdx];
+      if (nextLevel > (curPacked >> 4)) {
+        nChunk.light[nIdx] = ((nextLevel & 0xf) << 4) | (curPacked & 0xf);
         markDirty(ncx, ncz);
         if (tail < MAX_QUEUE) {
           qx[tail] = nx;
@@ -491,43 +583,56 @@ function propagateBlockQueue(
   getChunk: ChunkLookup,
   markDirty: (cx: number, cz: number) => void
 ): void {
+  let cachedCx = 0x7fffffff;
+  let cachedCz = 0x7fffffff;
+  let cachedChunk: Chunk | undefined;
+
   while (head < tail) {
     const x = qx[head];
     const y = qy[head];
     const z = qz[head];
     head++;
 
-    const cx = worldToChunk(x);
-    const cz = worldToChunk(z);
-    const chunk = getChunk(cx, cz);
+    const cx = x >> 4;
+    const cz = z >> 4;
+    let chunk: Chunk | undefined;
+    if (cx === cachedCx && cz === cachedCz) {
+      chunk = cachedChunk;
+    } else {
+      chunk = getChunk(cx, cz);
+      cachedCx = cx;
+      cachedCz = cz;
+      cachedChunk = chunk;
+    }
     if (!chunk) continue;
 
-    const lx = worldToLocal(x);
-    const lz = worldToLocal(z);
-    const cur = chunk.getBlockLight(lx, y, lz);
+    const lx = x & 15;
+    const lz = z & 15;
+    const cur = chunk.light[(y * CHUNK_SIZE + lz) * CHUNK_SIZE + lx] & 0xf;
     if (cur <= 1) continue;
 
     for (let d = 0; d < 6; d++) {
-      const nx = x + DIRS[d][0];
-      const ny = y + DIRS[d][1];
-      const nz = z + DIRS[d][2];
+      const dir = DIRS[d];
+      const nx = x + dir[0];
+      const ny = y + dir[1];
+      const nz = z + dir[2];
       if (ny < 0 || ny >= CHUNK_HEIGHT) continue;
 
-      const ncx = worldToChunk(nx);
-      const ncz = worldToChunk(nz);
+      const ncx = nx >> 4;
+      const ncz = nz >> 4;
       const nChunk = ncx === cx && ncz === cz ? chunk : getChunk(ncx, ncz);
       if (!nChunk) continue;
 
-      const nlx = worldToLocal(nx);
-      const nlz = worldToLocal(nz);
-      const nBlock = nChunk.get(nlx, ny, nlz);
-      const opacity = BLOCKS[nBlock].lightOpacity;
+      const nlx = nx & 15;
+      const nlz = nz & 15;
+      const nIdx = (ny * CHUNK_SIZE + nlz) * CHUNK_SIZE + nlx;
+      const opacity = BLOCK_OPACITY[nChunk.data[nIdx]];
       if (opacity >= 15) continue;
 
-      const stepCost = Math.max(1, opacity);
-      const nextLevel = cur - stepCost;
-      if (nextLevel > nChunk.getBlockLight(nlx, ny, nlz)) {
-        nChunk.setBlockLight(nlx, ny, nlz, nextLevel);
+      const nextLevel = cur - (opacity > 1 ? opacity : 1);
+      const curPacked = nChunk.light[nIdx];
+      if (nextLevel > (curPacked & 0xf)) {
+        nChunk.light[nIdx] = (curPacked & 0xf0) | (nextLevel & 0xf);
         markDirty(ncx, ncz);
         if (tail < MAX_QUEUE) {
           qx[tail] = nx;

@@ -89,10 +89,12 @@ export class CamelRidingController {
 
     const forwardInput =
       (input.isKeyDown('KeyW') || input.isKeyDown('ArrowUp') ? 1 : 0)
-      - (input.isKeyDown('KeyS') || input.isKeyDown('ArrowDown') ? 1 : 0);
+      - (input.isKeyDown('KeyS') || input.isKeyDown('ArrowDown') ? 1 : 0)
+      + (input.virtualMoveForward ?? 0);
     const strafeInput =
       (input.isKeyDown('KeyD') || input.isKeyDown('ArrowRight') ? 1 : 0)
-      - (input.isKeyDown('KeyA') || input.isKeyDown('ArrowLeft') ? 1 : 0);
+      - (input.isKeyDown('KeyA') || input.isKeyDown('ArrowLeft') ? 1 : 0)
+      + (input.virtualMoveX ?? 0);
     const forwardX = -Math.sin(this.player.yaw);
     const forwardZ = -Math.cos(this.player.yaw);
     const rightX = Math.cos(this.player.yaw);

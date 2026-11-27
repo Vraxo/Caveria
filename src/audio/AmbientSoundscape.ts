@@ -22,8 +22,22 @@ export class AmbientSoundscape {
   private dripTimer = 1.2;
   private cricketTimer = 0.8;
   private bubbleTimer = 0.4;
+  private active = false;
 
   constructor(private readonly engine: WebAudioEngine, private readonly synth: SynthPrimitives) {}
+
+  public setActive(active: boolean): void {
+    this.active = active;
+    const context = this.engine.context;
+    if (!active && context) {
+      const time = context.currentTime;
+      this.windGain?.gain.setTargetAtTime(0, time, 0.025);
+      this.rainGain?.gain.setTargetAtTime(0, time, 0.025);
+    }
+    if (active) {
+      this.start();
+    }
+  }
 
   public start(): void {
     const context = this.engine.context;
@@ -40,7 +54,7 @@ export class AmbientSoundscape {
     this.windFilter.frequency.value = 420;
     this.windFilter.Q.value = 0.6;
     this.windGain = context.createGain();
-    this.windGain.gain.value = 0.05;
+    this.windGain.gain.value = this.active ? 0.05 : 0;
     source.connect(this.windFilter);
     this.windFilter.connect(this.windGain);
     this.windGain.connect(destination);
@@ -64,6 +78,7 @@ export class AmbientSoundscape {
   }
 
   public update(dt: number, state: AmbientState): void {
+    if (!this.active) return;
     const context = this.engine.context;
     if (!context || !this.windGain || !this.windFilter) return;
     const time = context.currentTime;
@@ -111,6 +126,7 @@ export class AmbientSoundscape {
   }
 
   public playThunder(intensity: number): void {
+    if (!this.active) return;
     const gain = Math.max(0.05, Math.min(1, intensity));
     this.synth.noiseBurst({
       duration: 2.8,

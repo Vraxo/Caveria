@@ -4,6 +4,11 @@ import { ArmorSlot, ITEMS, ItemStack } from '../items/Item';
 import { ARMOR_SLOTS, MAX_ARMOR_POINTS, ArmorManager } from '../player/ArmorManager';
 import { TextureAtlas } from '../rendering/TextureAtlas';
 import { renderItemStackIntoSlot } from './Hotbar';
+import {
+  bindTouchSlotModeButton,
+  positionCursorStack,
+  resolveSlotPointerAction,
+} from './ModalPointerMode';
 
 export class InventoryModal {
   public isOpen = false;
@@ -101,10 +106,9 @@ export class InventoryModal {
   }
 
   private setupEvents(): void {
-    window.addEventListener('mousemove', (e) => {
+    window.addEventListener('pointermove', (e) => {
       if (!this.isOpen) return;
-      this.cursorEl.style.left = `${e.clientX}px`;
-      this.cursorEl.style.top = `${e.clientY}px`;
+      positionCursorStack(this.cursorEl, e);
     });
 
     const closeBtn = document.getElementById('inv-close-btn');
@@ -112,29 +116,37 @@ export class InventoryModal {
       this.onRequestClose?.();
     });
 
-    this.craftOutputEl.addEventListener('mousedown', (e) => {
+    bindTouchSlotModeButton(
+      document.getElementById('inv-tap-mode-btn') as HTMLButtonElement | null
+    );
+
+    this.craftOutputEl.addEventListener('pointerdown', (e) => {
       e.preventDefault();
-      this.handleCraftOutputClick(e.shiftKey);
+      positionCursorStack(this.cursorEl, e);
+      const { shiftKey } = resolveSlotPointerAction(e);
+      this.handleCraftOutputClick(shiftKey);
     });
   }
 
   private renderAll(): void {
     // 1. Crafting input grid
-    this.craftGridEl.style.gridTemplateColumns = `repeat(${this.gridSize}, 48px)`;
+    this.craftGridEl.style.gridTemplateColumns = `repeat(${this.gridSize}, var(--slot-size, 48px))`;
     this.craftGridEl.innerHTML = '';
     for (let i = 0; i < this.craftSlots.length; i++) {
       const slotEl = document.createElement('div');
       slotEl.className = 'inv-slot';
       renderItemStackIntoSlot(slotEl, this.craftSlots[i], this.atlas);
-      slotEl.addEventListener('mousedown', (e) => {
+      slotEl.addEventListener('pointerdown', (e) => {
         e.preventDefault();
+        positionCursorStack(this.cursorEl, e);
+        const { button, shiftKey } = resolveSlotPointerAction(e);
         this.handleSlotClick(
           () => this.craftSlots[i],
           (val) => {
             this.craftSlots[i] = val;
           },
-          e.button,
-          e.shiftKey,
+          button,
+          shiftKey,
           'craft'
         );
       });
@@ -155,13 +167,15 @@ export class InventoryModal {
       const slotEl = document.createElement('div');
       slotEl.className = 'inv-slot';
       renderItemStackIntoSlot(slotEl, this.inventory.getSlot(i), this.atlas);
-      slotEl.addEventListener('mousedown', (e) => {
+      slotEl.addEventListener('pointerdown', (e) => {
         e.preventDefault();
+        positionCursorStack(this.cursorEl, e);
+        const { button, shiftKey } = resolveSlotPointerAction(e);
         this.handleSlotClick(
           () => this.inventory.getSlot(i),
           (val) => this.inventory.setSlot(i, val),
-          e.button,
-          e.shiftKey,
+          button,
+          shiftKey,
           'backpack',
           i
         );
@@ -175,13 +189,15 @@ export class InventoryModal {
       const slotEl = document.createElement('div');
       slotEl.className = 'inv-slot';
       renderItemStackIntoSlot(slotEl, this.inventory.getSlot(i), this.atlas, String(i + 1));
-      slotEl.addEventListener('mousedown', (e) => {
+      slotEl.addEventListener('pointerdown', (e) => {
         e.preventDefault();
+        positionCursorStack(this.cursorEl, e);
+        const { button, shiftKey } = resolveSlotPointerAction(e);
         this.handleSlotClick(
           () => this.inventory.getSlot(i),
           (val) => this.inventory.setSlot(i, val),
-          e.button,
-          e.shiftKey,
+          button,
+          shiftKey,
           'hotbar',
           i
         );
@@ -214,9 +230,11 @@ export class InventoryModal {
       slotEl.classList.toggle('armor-slot-equipped', equipped !== null);
       renderItemStackIntoSlot(slotEl, equipped, this.atlas);
       if (!equipped) slotEl.title = `Equip ${slot}`;
-      slotEl.addEventListener('mousedown', (event) => {
+      slotEl.addEventListener('pointerdown', (event) => {
         event.preventDefault();
-        this.handleArmorSlot(slot, event.button, event.shiftKey);
+        positionCursorStack(this.cursorEl, event);
+        const { button, shiftKey } = resolveSlotPointerAction(event);
+        this.handleArmorSlot(slot, button, shiftKey);
       });
       const label = document.createElement('span');
       label.className = 'armor-slot-label';
