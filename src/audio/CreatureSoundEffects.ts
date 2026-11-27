@@ -71,4 +71,33 @@ export class CreatureSoundEffects {
   public playRabbitDeath(): void {
     this.synth.tone({ type: 'triangle', freq: 620, freqEnd: 140, duration: 0.28, gain: 0.03, attack: 0.006 });
   }
+
+  public playCamelCall(): void {
+    this.synth.tone({ type: 'sawtooth', freq: 155, freqEnd: 105, duration: 0.48, gain: 0.03, attack: 0.04 });
+    this.synth.tone({ type: 'triangle', freq: 230, freqEnd: 150, duration: 0.34, gain: 0.018, attack: 0.03, delay: 0.1 });
+  }
+
+  public playScorpionChitter(): void {
+    this.synth.noiseBurst({ duration: 0.12, filterType: 'highpass', freq: 1800, freqEnd: 900, gain: 0.025, attack: 0.003 });
+  }
+
+  public playSnakeHiss(): void {
+    this.synth.noiseBurst({ duration: 0.34, filterType: 'bandpass', freq: 2400, freqEnd: 1200, q: 0.8, gain: 0.035, attack: 0.04 });
+  }
+
+  public playLizardChirp(): void {
+    this.synth.tone({ type: 'triangle', freq: 820, freqEnd: 1120, duration: 0.07, gain: 0.014, attack: 0.008 });
+  }
+
+  public playVultureCry(): void {
+    this.synth.tone({ type: 'sawtooth', freq: 680, freqEnd: 310, duration: 0.42, gain: 0.023, attack: 0.025 });
+  }
+
+  public playDesertWildlifeHit(): void {
+    this.synth.noiseBurst({ duration: 0.11, filterType: 'bandpass', freq: 760, freqEnd: 260, gain: 0.045, attack: 0.004 });
+  }
+
+  public playDesertWildlifeDeath(): void {
+    this.synth.tone({ type: 'triangle', freq: 390, freqEnd: 85, duration: 0.35, gain: 0.032, attack: 0.006 });
+  }
 }

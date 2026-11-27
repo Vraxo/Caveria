@@ -32,22 +32,25 @@ describe('animal content', () => {
     });
   });
 
-  it('registers Chickens, Sheep, and Rabbits as passive surface animals', () => {
-    expect(MOB_DEFINITIONS.chicken.tags).toEqual(
-      expect.arrayContaining(['passive', 'animal', 'surface'])
-    );
-    expect(MOB_DEFINITIONS.sheep.tags).toEqual(
-      expect.arrayContaining(['passive', 'animal', 'surface'])
-    );
-    expect(MOB_DEFINITIONS.rabbit.tags).toEqual(
-      expect.arrayContaining(['passive', 'animal', 'surface'])
-    );
+  it('registers passive surface animals and poisonous desert threats', () => {
+    for (const species of ['chicken', 'sheep', 'rabbit', 'camel', 'lizard', 'vulture']) {
+      expect(MOB_DEFINITIONS[species].tags).toEqual(
+        expect.arrayContaining(['passive', 'animal', 'surface'])
+      );
+    }
+    for (const species of ['scorpion', 'snake']) {
+      expect(MOB_DEFINITIONS[species].tags).toEqual(
+        expect.arrayContaining(['hostile', 'animal', 'surface', 'poisonous'])
+      );
+    }
   });
 
   it('provides deterministic meat and resource drops', () => {
     const chicken = rollMobLoot('chicken', () => 0.9);
     const sheep = rollMobLoot('sheep', () => 0.9);
     const rabbit = rollMobLoot('rabbit', () => 0.9);
+    const scorpion = rollMobLoot('scorpion', () => 0);
+    const vulture = rollMobLoot('vulture', () => 0.9);
 
     expect(chicken.map((stack) => stack.id)).toEqual([
       ItemId.RawChicken,
@@ -58,6 +61,8 @@ describe('animal content', () => {
       ItemId.Wool,
     ]);
     expect(rabbit).toEqual([createStack(ItemId.RawRabbit)]);
+    expect(scorpion).toEqual([createStack(ItemId.CaveChitin)]);
+    expect(vulture).toEqual([createStack(ItemId.Feather)]);
   });
 
   it('cooks meat in Furnaces and Campfires', () => {
