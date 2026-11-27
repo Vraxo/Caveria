@@ -302,6 +302,7 @@ export class Game {
       audio: this.audio,
       camelRiding: this.camelRiding,
       openCamelStorage: (camel) => this.openCamelStorage(camel),
+      isNight: () => this.dayNight.isNight,
       poisonPlayer: () => this.statusEffects.poison(18),
     });
     this.mobs = new MobManager([

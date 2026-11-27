@@ -14,7 +14,11 @@ import { DroppedItemManager } from '../../src/rendering/DroppedItems';
 import { createFakeWorld } from '../fixtures/FakeWorld';
 import { RecordingMobRuntime } from '../fixtures/RecordingMobRuntime';
 
-function createHarness(biome: 'Desert Dunes' | 'Meadows' = 'Desert Dunes') {
+function createHarness(
+  biome: 'Desert Dunes' | 'Meadows' = 'Desert Dunes',
+  night = true,
+  carrion: THREE.Vector3 | null = null
+) {
   const world = createFakeWorld({
     surfaceBiome: biome,
     surfaceHeight: 0,
@@ -39,10 +43,14 @@ function createHarness(biome: 'Desert Dunes' | 'Meadows' = 'Desert Dunes') {
     world,
     player,
     vitals,
-    drops: { spawnDrop } as unknown as DroppedItemManager,
+    drops: {
+      spawnDrop,
+      findNearestPosition: vi.fn(() => carrion?.clone() ?? null),
+    } as unknown as DroppedItemManager,
     particles: { spawnBurst: vi.fn() } as unknown as BreakParticles,
     camelRiding,
     openCamelStorage,
+    isNight: () => night,
     audio: {
       playCamelCall: vi.fn(),
       playScorpionChitter: vi.fn(),
@@ -55,7 +63,14 @@ function createHarness(biome: 'Desert Dunes' | 'Meadows' = 'Desert Dunes') {
     poisonPlayer,
   });
   return {
-    behaviors, player, damage, poisonPlayer, camelRiding, openCamelStorage, spawnDrop,
+    behaviors,
+    player,
+    damage,
+    poisonPlayer,
+    camelRiding,
+    openCamelStorage,
+    spawnDrop,
+    setNight: (value: boolean) => { night = value; },
   };
 }
 
@@ -90,6 +105,54 @@ describe('desert wildlife', () => {
     const meadowRuntime = new RecordingMobRuntime();
     for (const behavior of meadow) behavior.updateSpawning?.(6, meadowRuntime);
     expect(meadowRuntime.entities).toHaveLength(0);
+  });
+
+  it('makes Scorpions nocturnal, Snakes ambush predators, and Lizards daytime baskers', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const { behaviors, player, setNight } = createHarness();
+    const runtime = new RecordingMobRuntime();
+    for (const behavior of behaviors) behavior.updateSpawning?.(6, runtime);
+    const scorpionBehavior = behaviors.find((behavior) => behavior.species === 'scorpion')!;
+    const snakeBehavior = behaviors.find((behavior) => behavior.species === 'snake')!;
+    const lizardBehavior = behaviors.find((behavior) => behavior.species === 'lizard')!;
+    const scorpion = runtime.entities.find((entity) => entity.species === 'scorpion')!;
+    const snake = runtime.entities.find((entity) => entity.species === 'snake')!;
+    const lizard = runtime.entities.find((entity) => entity.species === 'lizard')!;
+
+    setNight(false);
+    scorpionBehavior.update(scorpion, 0.1, runtime);
+    expect(scorpion.visual.root.position.y).toBeLessThan(scorpion.position.y);
+
+    const lizardStart = lizard.position.clone();
+    lizardBehavior.update(lizard, 0.1, runtime);
+    expect(lizard.position).toEqual(lizardStart);
+
+    player.position.set(-20, 1, -20);
+    snakeBehavior.update(snake, 0.1, runtime);
+    expect(Math.hypot(snake.velocity.x, snake.velocity.z)).toBe(0);
+    player.position.copy(snake.position).add(new THREE.Vector3(2, 0, 0));
+    snakeBehavior.update(snake, 0.1, runtime);
+    expect(Math.hypot(snake.velocity.x, snake.velocity.z)).toBeGreaterThan(0);
+
+    const daytime = createHarness('Desert Dunes', false).behaviors;
+    const daytimeRuntime = new RecordingMobRuntime();
+    for (const behavior of daytime) behavior.updateSpawning?.(6, daytimeRuntime);
+    expect(daytimeRuntime.entities.some((entity) => entity.species === 'scorpion')).toBe(false);
+  });
+
+  it('has Vultures descend toward dropped carrion', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const carrion = new THREE.Vector3(20, 1, 0.5);
+    const { behaviors } = createHarness('Desert Dunes', true, carrion);
+    const runtime = new RecordingMobRuntime();
+    for (const behavior of behaviors) behavior.updateSpawning?.(6, runtime);
+    const behavior = behaviors.find((candidate) => candidate.species === 'vulture')!;
+    const vulture = runtime.entities.find((entity) => entity.species === 'vulture')!;
+
+    behavior.update(vulture, 0.2, runtime);
+
+    expect(vulture.velocity.x).toBeGreaterThan(0);
+    expect(vulture.velocity.y).toBeLessThan(0);
   });
 
   it('lets Camels and Lizards consume Cactus through shared husbandry', () => {

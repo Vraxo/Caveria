@@ -43,6 +43,7 @@ interface DesertPassiveDependencies {
   audio: AudioManager;
   camelRiding: CamelRidingController;
   openCamelStorage(camel: SurfaceAnimalEntity<WildlifeVisual>): void;
+  isNight(): boolean;
 }
 
 export function createCamelSpecies({
@@ -87,7 +88,7 @@ export function createCamelSpecies({
 }
 
 export function createLizardSpecies({
-  scene, world, player, drops, particles, audio,
+  scene, world, player, drops, particles, audio, isNight,
 }: DesertPassiveDependencies): SurfaceAnimalSpecies<WildlifeVisual> {
   return new SurfaceAnimalSpecies(scene, world, player, drops, particles, {
     definition: MOB_DEFINITIONS[LIZARD_ID],
@@ -104,5 +105,11 @@ export function createLizardSpecies({
     playAmbientSound: () => audio.playLizardChirp(),
     playHitSound: () => audio.playDesertWildlifeHit(),
     playDeathSound: () => audio.playDesertWildlifeDeath(),
+    // Desert Lizards bask through the hot day unless a nearby player startles them.
+    isExternallyControlled: (lizard) => !isNight()
+      && Math.hypot(
+        lizard.position.x - player.position.x,
+        lizard.position.z - player.position.z
+      ) >= 5.5,
   });
 }
