@@ -155,6 +155,23 @@ describe('desert wildlife', () => {
     expect(vulture.velocity.y).toBeLessThan(0);
   });
 
+  it('lets Vultures slide out of blocked space instead of hovering on the spot', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const { behaviors } = createHarness('Desert Dunes');
+    const runtime = new RecordingMobRuntime();
+    for (const behavior of behaviors) behavior.updateSpawning?.(6, runtime);
+    const behavior = behaviors.find((candidate) => candidate.species === 'vulture')!;
+    const vulture = runtime.entities.find((entity) => entity.species === 'vulture')!;
+
+    // Park the vulture so its next step lands on the fake world's solid floor (y === 0).
+    vulture.position.set(2, -0.2, 2);
+    vulture.velocity.set(2.2, 0, 0);
+
+    behavior.update(vulture, 0.2, runtime);
+
+    expect(vulture.position.x).toBeLessThan(2);
+  });
+
   it('lets Camels and Lizards consume Cactus through shared husbandry', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     const { behaviors } = createHarness();

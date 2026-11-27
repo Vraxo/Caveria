@@ -128,6 +128,18 @@ export class VultureSpecies implements MobSpeciesBehavior<VultureState, Wildlife
     if (isBlockSolid(this.world.getBlock(next.x, next.y, next.z))) {
       vulture.state.facingAngle += Math.PI;
       vulture.velocity.multiplyScalar(-0.35);
+      // Escape the blocked voxel by sliding along the reversed path instead of hovering.
+      const escape = vulture.velocity.clone();
+      for (let attempt = 0; attempt < 10 && isBlockSolid(
+        this.world.getBlock(
+          vulture.position.x + escape.x,
+          vulture.position.y + escape.y,
+          vulture.position.z + escape.z
+        )
+      ); attempt++) {
+        escape.multiplyScalar(0.5);
+      }
+      vulture.position.add(escape);
     } else {
       vulture.position.copy(next);
     }

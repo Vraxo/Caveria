@@ -43,6 +43,7 @@ import { CampfireEffects } from '../rendering/CampfireEffects';
 import { DayNightCycle } from '../rendering/DayNightCycle';
 import { DroppedItemManager } from '../rendering/DroppedItems';
 import { HeldItemView } from '../rendering/HeldItemView';
+import { TileIndex } from '../content/TileIndex';
 import { TextureAtlas } from '../rendering/TextureAtlas';
 import { WeatherSystem } from '../rendering/WeatherSystem';
 import { ChestModal } from '../ui/ChestModal';
@@ -65,7 +66,7 @@ export class Game {
   private readonly scene: THREE.Scene;
   private readonly camera: THREE.PerspectiveCamera;
   private readonly input: Input;
-  private readonly atlas: TextureAtlas;
+  public readonly atlas: TextureAtlas;
   private readonly world: World;
   private readonly dayNight: DayNightCycle;
   private readonly player: Player;
@@ -108,7 +109,10 @@ export class Game {
   private lastTime = performance.now();
   private creativeMode = false;
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(
+    canvas: HTMLCanvasElement,
+    loadedTiles?: ReadonlyMap<TileIndex, HTMLCanvasElement>
+  ) {
     this.renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: false,
@@ -151,7 +155,7 @@ export class Game {
     const savedGame = this.persistence.load();
 
     this.input = new Input(canvas);
-    this.atlas = new TextureAtlas();
+    this.atlas = new TextureAtlas(loadedTiles);
     this.world = new World(
       this.scene,
       this.atlas,

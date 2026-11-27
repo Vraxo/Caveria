@@ -164,7 +164,7 @@ export class TerrainGen {
             // Winding spaghetti tunnels connecting surface to depths
             const n1 = this.caveNoiseA.noise3D(wx * 0.031, y * 0.042, wz * 0.031);
             const n2 = this.caveNoiseB.noise3D(wx * 0.031 + 57.3, y * 0.042 - 19.1, wz * 0.031 + 83.7);
-            const spaghetti = n1 * n1 + n2 * n2 < 0.025;
+            const spaghetti = n1 * n1 + n2 * n2 < 0.02;
 
             // Broad subterranean cathedral halls centered around y=14..32
             let cathedral = false;
@@ -173,7 +173,7 @@ export class TerrainGen {
               const hallNoise = this.caveNoiseA.noise3D(wx * 0.015 - 31, y * 0.026, wz * 0.015 + 17);
               // Leave occasional natural rock pillars inside massive halls
               const pillarNoise = this.caveNoiseB.noise2D(wx * 0.055, wz * 0.055);
-              if (hallNoise + verticalMask * 0.34 > 0.72 && pillarNoise < 0.62) {
+              if (hallNoise + verticalMask * 0.4 > 0.66 && pillarNoise < 0.4) {
                 cathedral = true;
               }
             }
