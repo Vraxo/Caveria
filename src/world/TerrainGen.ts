@@ -1,9 +1,11 @@
 import { BlockId } from '../content/BlockId';
+import type { CavernBiome, SurfaceBiome } from '../content/biomes/BiomeTypes';
 import { CHUNK_HEIGHT, CHUNK_SIZE, Chunk, SEA_LEVEL } from './Chunk';
 import { SeededNoise } from './Noise';
+import { BiomeDecoratorRegistry } from './biomes/BiomeDecoratorRegistry';
+import { createDefaultBiomeDecoratorRegistry } from './biomes/DefaultBiomeDecorators';
 
-export type SurfaceBiome = 'Desert Dunes' | 'Snowy Taiga' | 'Alpine Peaks' | 'Oak Forest' | 'Meadows';
-export type CavernBiome = 'Lush Bioluminescent Cavern' | 'Crystal Geode Hall' | 'Dripstone Depths';
+export type { CavernBiome, SurfaceBiome } from '../content/biomes/BiomeTypes';
 
 export class TerrainGen {
   public readonly seed: number;
@@ -15,7 +17,10 @@ export class TerrainGen {
   private readonly caveBiomeNoise: SeededNoise;
   private readonly oreNoise: SeededNoise;
 
-  constructor(seed: number) {
+  constructor(
+    seed: number,
+    private readonly decorators: BiomeDecoratorRegistry = createDefaultBiomeDecoratorRegistry()
+  ) {
     this.seed = seed;
     this.terrainNoise = new SeededNoise(seed);
     this.tempNoise = new SeededNoise(seed ^ 0x51f2a93d);
@@ -195,79 +200,35 @@ export class TerrainGen {
       }
     }
 
+    const coordinateRandom = (x: number, z: number, salt: number) =>
+      this.terrainNoise.coordRandom2D(x, z, salt);
+    const crystalNoiseAt = (x: number, y: number, z: number) =>
+      this.oreNoise.noise3D(x * 0.21 - 40, y * 0.21 + 90, z * 0.21 + 30);
+
     // Pass 2: Signature "Caveria" Underground Biome Decoration (y = 3..42)
     for (let lz = 1; lz < CHUNK_SIZE - 1; lz++) {
       const wz = baseZ + lz;
       for (let lx = 1; lx < CHUNK_SIZE - 1; lx++) {
         const wx = baseX + lx;
-        const cavBiome = cavBiomes[lz * CHUNK_SIZE + lx];
-        const surfaceY = heights[lz * CHUNK_SIZE + lx];
-        const maxDecorY = Math.min(42, surfaceY - 5);
+        const columnIndex = lz * CHUNK_SIZE + lx;
+        const cavernBiome = cavBiomes[columnIndex];
+        const maxDecorY = Math.min(42, heights[columnIndex] - 5);
 
         for (let y = 3; y <= maxDecorY; y++) {
-          const cur = chunk.get(lx, y, lz);
-
-          if (cur === BlockId.Air) {
-            const below = chunk.get(lx, y - 1, lz);
-            const above = chunk.get(lx, y + 1, lz);
-            const r = this.terrainNoise.coordRandom2D(wx + y * 13, wz - y * 7, 41);
-
-            // Floor decorations (resting on stone/deepslate/moss)
-            const validFloor =
-              below === BlockId.Stone || below === BlockId.DeepSlate || below === BlockId.MossStone;
-            // Ceiling decorations (hanging under stone/deepslate)
-            const validCeiling = above === BlockId.Stone || above === BlockId.DeepSlate;
-
-            if (cavBiome === 'Lush Bioluminescent Cavern') {
-              if (validFloor) {
-                // Convert cave floor to Lush Moss!
-                chunk.set(lx, y - 1, lz, BlockId.MossStone);
-                if (r < 0.09) {
-                  chunk.set(lx, y, lz, BlockId.CaveShroom);
-                }
-              } else if (validCeiling && r > 0.89) {
-                // Hang 1..3 block glowing cave vine tendrils
-                const vineLen = 1 + Math.floor(this.terrainNoise.coordRandom2D(wx, wz, y + 99) * 3);
-                for (let v = 0; v < vineLen; v++) {
-                  if (chunk.get(lx, y - v, lz) === BlockId.Air) {
-                    chunk.set(lx, y - v, lz, BlockId.CaveVine);
-                  } else {
-                    break;
-                  }
-                }
-              }
-            } else if (cavBiome === 'Dripstone Depths') {
-              if (validFloor && r < 0.12) {
-                chunk.set(lx, y, lz, BlockId.DripstoneSpike);
-              } else if (validCeiling && r > 0.9) {
-                chunk.set(lx, y, lz, BlockId.DripstoneSpike);
-              }
-            } else if (cavBiome === 'Crystal Geode Hall') {
-              if (validFloor && r < 0.03) {
-                chunk.set(lx, y, lz, BlockId.AmethystCrystal);
-              }
-            }
-          } else if (cur === BlockId.Stone || cur === BlockId.DeepSlate) {
-            // Embed glowing Azure & Amethyst crystals along exposed cavern walls/ceilings
-            const touchesAir =
-              chunk.get(lx + 1, y, lz) === BlockId.Air ||
-              chunk.get(lx - 1, y, lz) === BlockId.Air ||
-              chunk.get(lx, y + 1, lz) === BlockId.Air ||
-              chunk.get(lx, y - 1, lz) === BlockId.Air ||
-              chunk.get(lx, y, lz + 1) === BlockId.Air ||
-              chunk.get(lx, y, lz - 1) === BlockId.Air;
-            if (!touchesAir) continue;
-
-            const cNoise = this.oreNoise.noise3D(wx * 0.21 - 40, y * 0.21 + 90, wz * 0.21 + 30);
-            if (cavBiome === 'Crystal Geode Hall') {
-              if (cNoise > 0.64) {
-                const useAmethyst = this.terrainNoise.coordRandom2D(wx + y, wz - y, 77) > 0.45;
-                chunk.set(lx, y, lz, useAmethyst ? BlockId.AmethystCrystal : BlockId.GlowCrystal);
-              }
-            } else if (cNoise > 0.81) {
-              chunk.set(lx, y, lz, BlockId.GlowCrystal);
-            }
-          }
+          this.decorators.decorateCavern(cavernBiome, {
+            chunk,
+            lx,
+            y,
+            lz,
+            wx,
+            wz,
+            current: chunk.get(lx, y, lz),
+            below: chunk.get(lx, y - 1, lz),
+            above: chunk.get(lx, y + 1, lz),
+            random: this.terrainNoise.coordRandom2D(wx + y * 13, wz - y * 7, 41),
+            coordinateRandom,
+            crystalNoiseAt,
+          });
         }
       }
     }
@@ -277,112 +238,25 @@ export class TerrainGen {
       const wz = baseZ + lz;
       for (let lx = 2; lx < CHUNK_SIZE - 2; lx++) {
         const wx = baseX + lx;
-        const colIdx = lz * CHUNK_SIZE + lx;
-        const surfaceY = heights[colIdx];
-        const biome = biomes[colIdx];
-
+        const columnIndex = lz * CHUNK_SIZE + lx;
+        const surfaceY = heights[columnIndex];
         if (surfaceY <= SEA_LEVEL + 2 || surfaceY >= CHUNK_HEIGHT - 14) continue;
-        const topBlock = chunk.get(lx, surfaceY, lz);
-        const r = this.terrainNoise.coordRandom2D(wx, wz, 7);
 
-        if (biome === 'Desert Dunes' && topBlock === BlockId.Sand) {
-          if (r < 0.011 && !this.hasAdjacentSolid(chunk, lx, surfaceY + 1, lz)) {
-            const cactusH = 2 + Math.floor(this.terrainNoise.coordRandom2D(wx, wz, 23) * 2); // 2..3
-            for (let i = 1; i <= cactusH; i++) {
-              chunk.set(lx, surfaceY + i, lz, BlockId.Cactus);
-            }
-          }
-        } else if (biome === 'Snowy Taiga' && topBlock === BlockId.SnowGrass) {
-          if (r < 0.02 && !this.hasNearbyTrunk(chunk, lx, surfaceY + 1, lz)) {
-            const pineH = 6 + Math.floor(this.terrainNoise.coordRandom2D(wx, wz, 31) * 3); // 6..8
-            this.placeSpruceTree(chunk, lx, surfaceY + 1, lz, pineH);
-          }
-        } else if ((biome === 'Oak Forest' || biome === 'Meadows') && topBlock === BlockId.Grass) {
-          const chance = biome === 'Oak Forest' ? 0.025 : 0.004;
-          if (r < chance && !this.hasNearbyTrunk(chunk, lx, surfaceY + 1, lz)) {
-            const trunkH = 4 + Math.floor(this.terrainNoise.coordRandom2D(wx, wz, 19) * 3);
-            this.placeOakTree(chunk, lx, surfaceY + 1, lz, trunkH);
-          }
-        }
+        this.decorators.decorateSurface(biomes[columnIndex], {
+          chunk,
+          lx,
+          lz,
+          wx,
+          wz,
+          surfaceY,
+          topBlock: chunk.get(lx, surfaceY, lz),
+          random: this.terrainNoise.coordRandom2D(wx, wz, 7),
+          coordinateRandom,
+        });
       }
     }
 
     chunk.dirty = true;
   }
 
-  private hasAdjacentSolid(chunk: Chunk, lx: number, y: number, lz: number): boolean {
-    return (
-      chunk.get(lx + 1, y, lz) !== BlockId.Air ||
-      chunk.get(lx - 1, y, lz) !== BlockId.Air ||
-      chunk.get(lx, y, lz + 1) !== BlockId.Air ||
-      chunk.get(lx, y, lz - 1) !== BlockId.Air
-    );
-  }
-
-  private hasNearbyTrunk(chunk: Chunk, lx: number, y: number, lz: number): boolean {
-    for (let dz = -3; dz <= 3; dz++) {
-      for (let dx = -3; dx <= 3; dx++) {
-        const b = chunk.get(lx + dx, y, lz + dz);
-        if (b === BlockId.OakLog || b === BlockId.SpruceLog) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  private placeOakTree(chunk: Chunk, lx: number, baseY: number, lz: number, trunkHeight: number): void {
-    chunk.set(lx, baseY - 1, lz, BlockId.Dirt);
-
-    const canopyStart = baseY + trunkHeight - 2;
-    const canopyEnd = baseY + trunkHeight + 1;
-
-    for (let y = canopyStart; y <= canopyEnd; y++) {
-      const dy = y - (baseY + trunkHeight);
-      const radius = dy >= 0 ? 1 : 2;
-
-      for (let dz = -radius; dz <= radius; dz++) {
-        for (let dx = -radius; dx <= radius; dx++) {
-          if (
-            Math.abs(dx) === radius &&
-            Math.abs(dz) === radius &&
-            (dy === 1 || (dx + dz + y) % 2 === 0)
-          ) {
-            continue;
-          }
-          if (chunk.get(lx + dx, y, lz + dz) === BlockId.Air) {
-            chunk.set(lx + dx, y, lz + dz, BlockId.OakLeaves);
-          }
-        }
-      }
-    }
-
-    for (let i = 0; i < trunkHeight; i++) {
-      chunk.set(lx, baseY + i, lz, BlockId.OakLog);
-    }
-  }
-
-  private placeSpruceTree(chunk: Chunk, lx: number, baseY: number, lz: number, trunkHeight: number): void {
-    chunk.set(lx, baseY - 1, lz, BlockId.Dirt);
-
-    // Tiered conical alpine spruce needles
-    for (let i = 2; i <= trunkHeight + 1; i++) {
-      const y = baseY + i;
-      const fromTop = trunkHeight + 1 - i;
-      const radius = fromTop === 0 ? 0 : fromTop % 2 === 1 ? 1 : 2;
-
-      for (let dz = -radius; dz <= radius; dz++) {
-        for (let dx = -radius; dx <= radius; dx++) {
-          if (radius === 2 && Math.abs(dx) === 2 && Math.abs(dz) === 2) continue;
-          if (chunk.get(lx + dx, y, lz + dz) === BlockId.Air) {
-            chunk.set(lx + dx, y, lz + dz, BlockId.SpruceLeaves);
-          }
-        }
-      }
-    }
-
-    for (let i = 0; i < trunkHeight; i++) {
-      chunk.set(lx, baseY + i, lz, BlockId.SpruceLog);
-    }
-  }
 }
