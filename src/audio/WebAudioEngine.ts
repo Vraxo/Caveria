@@ -1,3 +1,7 @@
+function clampVolumePercent(percent: number): number {
+  return Math.min(100, Math.max(0, Math.round(percent)));
+}
+
 /** Owns AudioContext lifecycle, mixer buses, compressor, noise source, and mute state. */
 export class WebAudioEngine {
   private contextValue: AudioContext | null = null;
@@ -6,12 +10,31 @@ export class WebAudioEngine {
   private ambientGainValue: GainNode | null = null;
   private noiseBufferValue: AudioBuffer | null = null;
   private mutedValue = false;
+  /** SFX volume in percent, matching the default 0.9 gain. */
+  private sfxVolumeValue = 90;
+  /** Ambience volume in percent, matching the default 0.55 gain. */
+  private ambienceVolumeValue = 55;
 
   public get context(): AudioContext | null { return this.contextValue; }
   public get sfxGain(): GainNode | null { return this.sfxGainValue; }
   public get ambientGain(): GainNode | null { return this.ambientGainValue; }
   public get noiseBuffer(): AudioBuffer | null { return this.noiseBufferValue; }
   public get muted(): boolean { return this.mutedValue; }
+
+  public setSfxVolume(percent: number): void {
+    this.sfxVolumeValue = clampVolumePercent(percent);
+    if (this.contextValue && this.sfxGainValue) {
+      this.sfxGainValue.gain.value = this.sfxVolumeValue / 100;
+    }
+  }
+  public getSfxVolume(): number { return this.sfxVolumeValue; }
+  public setAmbienceVolume(percent: number): void {
+    this.ambienceVolumeValue = clampVolumePercent(percent);
+    if (this.contextValue && this.ambientGainValue) {
+      this.ambientGainValue.gain.value = this.ambienceVolumeValue / 100;
+    }
+  }
+  public getAmbienceVolume(): number { return this.ambienceVolumeValue; }
 
   public unlock(): void {
     if (!this.contextValue) this.createGraph();
@@ -60,11 +83,11 @@ export class WebAudioEngine {
     this.masterGainValue.connect(compressor);
 
     this.sfxGainValue = context.createGain();
-    this.sfxGainValue.gain.value = 0.9;
+    this.sfxGainValue.gain.value = this.sfxVolumeValue / 100;
     this.sfxGainValue.connect(this.masterGainValue);
 
     this.ambientGainValue = context.createGain();
-    this.ambientGainValue.gain.value = 0.55;
+    this.ambientGainValue.gain.value = this.ambienceVolumeValue / 100;
     this.ambientGainValue.connect(this.masterGainValue);
 
     const length = context.sampleRate * 2;

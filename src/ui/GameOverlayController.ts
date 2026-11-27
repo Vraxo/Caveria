@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { Input } from '../core/Input';
-import { parseBiomeSize, type BiomeSize } from '../Biomes/BiomeSize';
+import { type BiomeSize } from '../Biomes/BiomeSize';
 import { WorldPersistence, WorldSummary } from '../persistence/WorldPersistence';
+import { SliderControl } from './SliderControl';
 import { InventoryModal } from './InventoryModal';
 
 type RootMenu = 'title' | 'pause';
@@ -51,7 +52,7 @@ export class GameOverlayController {
   private readonly statusPillEl = document.getElementById('status-pill')!;
   private readonly audioToggleEl = document.getElementById('audio-toggle') as HTMLButtonElement;
   private readonly menuAudioEl = document.getElementById('menu-audio-button') as HTMLButtonElement;
-  private readonly fovEl = document.getElementById('fov-button') as HTMLButtonElement;
+  private fovSlider!: SliderControl;
   private readonly fullscreenEl = document.getElementById('fullscreen-button') as HTMLButtonElement;
   private readonly worldListEl = document.getElementById('world-list')!;
   private readonly worldEmptyEl = document.getElementById('world-empty')!;
@@ -59,7 +60,7 @@ export class GameOverlayController {
   private readonly worldDeleteEl = document.getElementById('world-delete-button') as HTMLButtonElement;
   private readonly worldNameEl = document.getElementById('world-name-input') as HTMLInputElement;
   private readonly worldSeedEl = document.getElementById('world-seed-input') as HTMLInputElement;
-  private readonly worldBiomeSizeEl = document.getElementById('world-biome-size-input') as HTMLSelectElement;
+  private worldBiomeSizeSlider!: SliderControl;
   private readonly menuEls: Record<MenuView, HTMLElement> = {
     title: document.getElementById('title-menu')!,
     worlds: document.getElementById('world-menu')!,
@@ -77,8 +78,7 @@ export class GameOverlayController {
   private worlds: WorldSummary[] = [];
   private selectedWorldId: string | null = null;
   private resumeOnEscapeRelease = false;
-  private readonly fovValues = [60, 75, 90];
-  private fovIndex = 1;
+
 
   constructor(deps: GameOverlayDependencies) {
     this.renderer = deps.renderer;
@@ -98,7 +98,73 @@ export class GameOverlayController {
     this.setupEvents();
     this.updateAudioToggle();
     this.updateFullscreenButton();
+    this.mountSliders();
     this.showMenu('title');
+  }
+
+  /** Mounts the biome size, FOV, and volume sliders on the settings screens. */
+  private mountSliders(): void {
+    this.worldBiomeSizeSlider = SliderControl.mount(
+      document.getElementById('world-biome-size-root')!,
+      {
+        min: 1,
+        max: 3,
+        step: 0.1,
+        value: 2,
+        label: 'Biome Size',
+        endLabels: { min: 'Compact', max: 'Large' },
+        snapTo: [1, 2, 3],
+        snapTolerance: 0.3,
+        onValueChange: () => {
+          this.worldBiomeSizeSlider.setLabel(
+            this.biomeSizeLabel(this.worldBiomeSizeSlider.value)
+          );
+        },
+      }
+    );
+    this.worldBiomeSizeSlider.setLabel(this.biomeSizeLabel(2));
+
+    this.fovSlider = SliderControl.mount(document.getElementById('fov-slider-root')!, {
+      min: 50,
+      max: 110,
+      step: 5,
+      value: 75,
+      label: 'FOV: 75',
+      onValueChange: (fov) => this.applyFov(fov),
+    });
+
+    SliderControl.mount(document.getElementById('sfx-volume-root')!, {
+      min: 0,
+      max: 100,
+      step: 5,
+      value: this.audio.getSfxVolume(),
+      label: `Sound Effects: ${Math.round(this.audio.getSfxVolume())}%`,
+      onValueChange: (percent) => this.audio.setSfxVolume(percent),
+    });
+    SliderControl.mount(document.getElementById('ambient-volume-root')!, {
+      min: 0,
+      max: 100,
+      step: 5,
+      value: this.audio.getAmbienceVolume(),
+      label: `Ambience: ${Math.round(this.audio.getAmbienceVolume())}%`,
+      onValueChange: (percent) => this.audio.setAmbienceVolume(percent),
+    });
+  }
+
+  private get biomeSize(): BiomeSize {
+    const value = this.worldBiomeSizeSlider.value;
+    return value < 1.5 ? 'compact' : value < 2.5 ? 'standard' : 'large';
+  }
+
+  private biomeSizeLabel(value: number): string {
+    return value < 1.5 ? 'Compact' : value < 2.5 ? 'Standard' : 'Large';
+  }
+
+  private applyFov(fov: number): void {
+    const rounded = Math.round(fov);
+    this.camera.fov = rounded;
+    this.camera.updateProjectionMatrix();
+    this.fovSlider.setLabel(`FOV: ${rounded}`);
   }
 
   public openInventory(gridSize: 2 | 3): void {
@@ -155,7 +221,7 @@ export class GameOverlayController {
     document.getElementById('world-create-button')!.addEventListener('click', () => {
       this.worldNameEl.value = this.nextWorldName();
       this.worldSeedEl.value = '';
-      this.worldBiomeSizeEl.value = 'standard';
+      this.worldBiomeSizeSlider.setValue(2);
       this.showMenu('create-world');
       this.worldNameEl.focus();
       this.worldNameEl.select();
@@ -201,7 +267,6 @@ export class GameOverlayController {
       this.toggleAudio();
     });
     this.menuAudioEl.addEventListener('click', () => this.toggleAudio());
-    this.fovEl.addEventListener('click', () => this.cycleFov());
     this.fullscreenEl.addEventListener('click', () => void this.toggleFullscreen());
 
     this.overlayEl.addEventListener('pointerdown', (event) => {
@@ -334,7 +399,7 @@ export class GameOverlayController {
     const worldName = this.worldNameEl.value.trim().slice(0, 48) || 'New World';
     const seed = this.worldSeedEl.value.trim().slice(0, 64) || this.randomSeed();
     const worldId = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const biomeSize = parseBiomeSize(this.worldBiomeSizeEl.value);
+    const biomeSize = this.biomeSize;
     this.openWorld(worldId, worldName, seed, biomeSize);
   }
 
@@ -414,13 +479,6 @@ export class GameOverlayController {
     this.audioToggleEl.textContent = enabled ? '🔊 Sound On [M]' : '🔇 Sound Off [M]';
     this.audioToggleEl.classList.toggle('muted', !enabled);
     this.menuAudioEl.textContent = `Sound: ${enabled ? 'On' : 'Off'}`;
-  }
-
-  private cycleFov(): void {
-    this.fovIndex = (this.fovIndex + 1) % this.fovValues.length;
-    this.camera.fov = this.fovValues[this.fovIndex];
-    this.camera.updateProjectionMatrix();
-    this.fovEl.textContent = `FOV: ${this.camera.fov}`;
   }
 
   private async toggleFullscreen(): Promise<void> {

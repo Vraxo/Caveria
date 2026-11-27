@@ -1006,6 +1006,65 @@
       .world-field select:focus { outline-color: #fff; }
       .world-create-hint { margin: -4px 0 18px; line-height: 1.5; }
 
+      .voxel-slider {
+        display: grid;
+        gap: 4px;
+        margin-bottom: 12px;
+        color: #fff;
+        font-size: 12px;
+      }
+      .voxel-slider__label {
+        font-weight: 700;
+        text-shadow: 1px 1px #000;
+      }
+      .voxel-slider__track {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .voxel-slider__end {
+        min-width: 46px;
+        color: #c9d3e0;
+        font: 700 11px/1 ui-monospace, monospace;
+        text-align: center;
+        text-shadow: 1px 1px #000;
+      }
+      .voxel-slider__end[data-end="min"] { text-align: flex-start; }
+      .voxel-slider__end[data-end="max"] { text-align: flex-end; }
+      .voxel-slider__input {
+        flex: 1;
+        height: 14px;
+        border: 2px solid #6b7280;
+        border-radius: 0;
+        background: #0d1018;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+      .voxel-slider__input::-webkit-slider-runnable-track { height: 14px; background: #0d1018; }
+      .voxel-slider__input::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        margin-top: -3px;
+        border: 2px solid #fff;
+        background: #f0c35c;
+        cursor: ew-resize;
+      }
+      .voxel-slider__input::-moz-range-track { height: 14px; background: #0d1018; }
+      .voxel-slider__input::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #fff;
+        background: #f0c35c;
+        cursor: ew-resize;
+      }
+      .voxel-slider__value {
+        color: #ffd88a;
+        font: 700 13px ui-monospace, monospace;
+        text-shadow: 1px 1px #000;
+      }
+
       .options-list {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -1224,11 +1283,7 @@
         </label>
         <label class="world-field">
           <span>Biome Size</span>
-          <select id="world-biome-size-input">
-            <option value="compact">Compact — more frequent transitions</option>
-            <option value="standard" selected>Standard — broad regions</option>
-            <option value="large">Large — expansive regions</option>
-          </select>
+          <div id="world-biome-size-root"></div>
         </label>
         <div class="menu-hint world-create-hint">Biome size is fixed for this world. It affects surface and cavern regions, but not terrain shape, caves, or ores.</div>
         <div class="menu-row">
@@ -1254,7 +1309,9 @@
         <div class="menu-heading">Options</div>
         <div class="options-list">
           <button id="menu-audio-button" class="voxel-button" type="button">Sound: On</button>
-          <button id="fov-button" class="voxel-button" type="button">FOV: 75</button>
+          <div id="sfx-volume-root"></div>
+          <div id="ambient-volume-root"></div>
+          <div id="fov-slider-root"></div>
           <button id="fullscreen-button" class="voxel-button" type="button">Fullscreen: Off</button>
           <button id="options-controls-button" class="voxel-button" type="button">Controls...</button>
           <button id="options-done-button" class="voxel-button wide" type="button">Done</button>
