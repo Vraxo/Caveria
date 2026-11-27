@@ -152,25 +152,27 @@ export class World {
 
     const lx = World.worldToLocalCoord(x);
     const lz = World.worldToLocalCoord(z);
-    if (chunk.get(lx, y, lz) === id) return true;
+    const previousBlock = chunk.get(lx, y, lz);
+    if (previousBlock === id) return true;
     chunk.set(lx, y, lz, id);
     this.recordEdit(cx, cz, lx, y, lz, id);
 
     // Recompute local skylight & block light around the edited voxel
-    const affectedKeys = updateLightingAtEdit(x, y, z, (qcx, qcz) => this.getChunk(qcx, qcz));
+    const affectedKeys = updateLightingAtEdit(
+      x,
+      y,
+      z,
+      previousBlock,
+      id,
+      (qcx, qcz) => this.getChunk(qcx, qcz)
+    );
     affectedKeys.add(Chunk.key(cx, cz));
 
-    // Immediately rebuild the primary edited chunk + direct neighbors so block placement feels instant,
-    // and mark any farther light-affected chunks dirty for next-frame streaming.
+    // Queue remeshing for the frame-end streaming budget. Rebuilding several complete
+    // chunk meshes in the input handler caused a visible pause on every block edit.
     for (const key of affectedKeys) {
-      const c = this.chunks.get(key);
-      if (!c) continue;
-      const dist = Math.abs(c.cx - cx) + Math.abs(c.cz - cz);
-      if (dist <= 1) {
-        this.rebuildChunkMesh(c);
-      } else {
-        c.dirty = true;
-      }
+      const affected = this.chunks.get(key);
+      if (affected) affected.dirty = true;
     }
 
     return true;

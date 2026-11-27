@@ -1,3 +1,4 @@
+import { BlockId } from '../content/BlockId';
 import { BLOCKS } from '../content/BlockRegistry';
 import { CHUNK_HEIGHT, CHUNK_SIZE, Chunk } from './Chunk';
 
@@ -166,17 +167,108 @@ export function initializeChunkLighting(
   chunk.lightDirty = false;
 }
 
+/** Fast incremental path for edits that can only add light transmission/emission. */
+function addLightingAtEdit(
+  wx: number,
+  wy: number,
+  wz: number,
+  nextBlock: BlockId,
+  getChunk: ChunkLookup
+): Set<string> {
+  const dirtyChunks = new Set<string>();
+  const markDirty = (cx: number, cz: number) => dirtyChunks.add(Chunk.key(cx, cz));
+  const editCx = worldToChunk(wx);
+  const editCz = worldToChunk(wz);
+  const chunk = getChunk(editCx, editCz);
+  if (!chunk) return dirtyChunks;
+  const editLx = worldToLocal(wx);
+  const editLz = worldToLocal(wz);
+  markDirty(editCx, editCz);
+
+  let skyTail = 0;
+  let directSky = 15;
+  for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
+    const opacity = BLOCKS[chunk.get(editLx, y, editLz)].lightOpacity;
+    if (opacity >= 15) directSky = 0;
+    else if (opacity > 0) directSky = Math.max(0, directSky - opacity);
+    if (directSky <= chunk.getSkyLight(editLx, y, editLz)) continue;
+    chunk.setSkyLight(editLx, y, editLz, directSky);
+    if (directSky > 1 && skyTail < MAX_QUEUE) {
+      qx[skyTail] = wx;
+      qy[skyTail] = y;
+      qz[skyTail] = wz;
+      skyTail++;
+    }
+  }
+
+  for (const [dx, dy, dz] of DIRS) {
+    const x = wx + dx;
+    const y = wy + dy;
+    const z = wz + dz;
+    if (y < 0 || y >= CHUNK_HEIGHT || skyTail >= MAX_QUEUE) continue;
+    const neighbor = getChunk(worldToChunk(x), worldToChunk(z));
+    if (!neighbor) continue;
+    if (neighbor.getSkyLight(worldToLocal(x), y, worldToLocal(z)) <= 1) continue;
+    qx[skyTail] = x;
+    qy[skyTail] = y;
+    qz[skyTail] = z;
+    skyTail++;
+  }
+  propagateSkyQueue(0, skyTail, getChunk, markDirty);
+
+  let blockTail = 0;
+  const emission = BLOCKS[nextBlock].lightEmission;
+  if (emission > chunk.getBlockLight(editLx, wy, editLz)) {
+    chunk.setBlockLight(editLx, wy, editLz, emission);
+    qx[blockTail] = wx;
+    qy[blockTail] = wy;
+    qz[blockTail] = wz;
+    blockTail++;
+  }
+  for (const [dx, dy, dz] of DIRS) {
+    const x = wx + dx;
+    const y = wy + dy;
+    const z = wz + dz;
+    if (y < 0 || y >= CHUNK_HEIGHT || blockTail >= MAX_QUEUE) continue;
+    const neighbor = getChunk(worldToChunk(x), worldToChunk(z));
+    if (!neighbor) continue;
+    if (neighbor.getBlockLight(worldToLocal(x), y, worldToLocal(z)) <= 1) continue;
+    qx[blockTail] = x;
+    qy[blockTail] = y;
+    qz[blockTail] = z;
+    blockTail++;
+  }
+  propagateBlockQueue(0, blockTail, getChunk, markDirty);
+
+  if (editLx === 0) dirtyChunks.add(Chunk.key(editCx - 1, editCz));
+  if (editLx === CHUNK_SIZE - 1) dirtyChunks.add(Chunk.key(editCx + 1, editCz));
+  if (editLz === 0) dirtyChunks.add(Chunk.key(editCx, editCz - 1));
+  if (editLz === CHUNK_SIZE - 1) dirtyChunks.add(Chunk.key(editCx, editCz + 1));
+  return dirtyChunks;
+}
+
 /**
- * Recomputes local skylight & block light around a modified block at (wx, wy, wz)
- * using a fast bounded region relight (radius 15 voxels) so placing/breaking torches
- * or opening cave roofs updates smoothly in < 1 ms.
+ * Updates skylight and block light around a modified voxel. Light-increasing edits use
+ * the incremental path above; light-removing/occluding edits use a bounded radius-15
+ * rebuild so stale illumination cannot survive.
  */
 export function updateLightingAtEdit(
   wx: number,
   wy: number,
   wz: number,
+  previousBlock: BlockId,
+  nextBlock: BlockId,
   getChunk: ChunkLookup
 ): Set<string> {
+  const previous = BLOCKS[previousBlock];
+  const next = BLOCKS[nextBlock];
+  if (
+    next.lightOpacity <= previous.lightOpacity
+    && next.lightEmission >= previous.lightEmission
+  ) {
+    return addLightingAtEdit(wx, wy, wz, nextBlock, getChunk);
+  }
+
   const dirtyChunks = new Set<string>();
   const R = 15;
 
@@ -191,40 +283,74 @@ export function updateLightingAtEdit(
     dirtyChunks.add(Chunk.key(cx, cz));
   };
 
-  // 1. Recalculate vertical skylight columns in XZ box [wx-R..wx+R, wz-R..wz+R]
+  // 1. Reset only the bounded 3D region that a level-15 light change can reach.
+  // Scan full columns to derive direct skylight, but avoid queueing every lit voxel in
+  // the world's full height (the old path queued ~140k entries for each block edit).
+  let skyTail = 0;
   for (let z = minZ; z <= maxZ; z++) {
-    const cx = worldToChunk(z); // wait: careful with x/z!
-    void cx;
     const cz = worldToChunk(z);
     const lz = worldToLocal(z);
     for (let x = minX; x <= maxX; x++) {
-      const chunkX = worldToChunk(x);
-      const c = getChunk(chunkX, cz);
+      const cx = worldToChunk(x);
+      const c = getChunk(cx, cz);
       if (!c) continue;
       const lx = worldToLocal(x);
-      markDirty(chunkX, cz);
-
       let currentSky = 15;
       for (let y = CHUNK_HEIGHT - 1; y >= 0; y--) {
-        const blockId = c.get(lx, y, lz);
-        const op = BLOCKS[blockId].lightOpacity;
-        if (op >= 15) {
-          currentSky = 0;
-        } else if (op > 0) {
-          currentSky = Math.max(0, currentSky - op);
-        }
-        c.setSkyLight(lx, y, lz, currentSky);
+        const opacity = BLOCKS[c.get(lx, y, lz)].lightOpacity;
+        if (opacity >= 15) currentSky = 0;
+        else if (opacity > 0) currentSky = Math.max(0, currentSky - opacity);
+        if (y < minY || y > maxY) continue;
 
-        // Also clear block light inside the 3D bounding box so broken torches clean up
-        if (y >= minY && y <= maxY) {
+        if (c.getSkyLight(lx, y, lz) !== currentSky) {
+          c.setSkyLight(lx, y, lz, currentSky);
+          markDirty(cx, cz);
+        }
+        if (c.getBlockLight(lx, y, lz) !== 0) {
           c.setBlockLight(lx, y, lz, 0);
+          markDirty(cx, cz);
         }
       }
     }
   }
 
-  // 2. Re-seed skylight from vertical columns + outer shell at radius R+1
-  let skyTail = 0;
+  // Queue only direct-sky cells bordering a darker horizontal neighbor. Fully open
+  // sky columns already contain their final value and do not need flood-fill work.
+  for (let z = minZ; z <= maxZ; z++) {
+    for (let x = minX; x <= maxX; x++) {
+      const cx = worldToChunk(x);
+      const cz = worldToChunk(z);
+      const c = getChunk(cx, cz);
+      if (!c) continue;
+      const lx = worldToLocal(x);
+      const lz = worldToLocal(z);
+      for (let y = minY; y <= maxY; y++) {
+        const level = c.getSkyLight(lx, y, lz);
+        if (level <= 1) continue;
+        let bordersDarkness = false;
+        for (const [dx, dz] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) {
+          const nx = x + dx;
+          const nz = z + dz;
+          const neighbor = getChunk(worldToChunk(nx), worldToChunk(nz));
+          if (!neighbor) continue;
+          const nlx = worldToLocal(nx);
+          const nlz = worldToLocal(nz);
+          if (BLOCKS[neighbor.get(nlx, y, nlz)].lightOpacity >= 15) continue;
+          if (neighbor.getSkyLight(nlx, y, nlz) < level - 1) {
+            bordersDarkness = true;
+            break;
+          }
+        }
+        if (!bordersDarkness || skyTail >= MAX_QUEUE) continue;
+        qx[skyTail] = x;
+        qy[skyTail] = y;
+        qz[skyTail] = z;
+        skyTail++;
+      }
+    }
+  }
+
+  // 2. Re-seed lateral skylight from the unchanged one-voxel shell around the box.
   for (let z = minZ - 1; z <= maxZ + 1; z++) {
     const cz = worldToChunk(z);
     const lz = worldToLocal(z);
@@ -233,13 +359,17 @@ export function updateLightingAtEdit(
       const c = getChunk(cx, cz);
       if (!c) continue;
       const lx = worldToLocal(x);
-      for (let y = 0; y < CHUNK_HEIGHT; y++) {
-        if (c.getSkyLight(lx, y, lz) > 1 && skyTail < MAX_QUEUE) {
-          qx[skyTail] = x;
-          qy[skyTail] = y;
-          qz[skyTail] = z;
-          skyTail++;
-        }
+      const onXZShell = x === minX - 1 || x === maxX + 1
+        || z === minZ - 1 || z === maxZ + 1;
+      const yStart = Math.max(0, minY - 1);
+      const yEnd = Math.min(CHUNK_HEIGHT - 1, maxY + 1);
+      for (let y = yStart; y <= yEnd; y++) {
+        const onShell = onXZShell || y === minY - 1 || y === maxY + 1;
+        if (!onShell || c.getSkyLight(lx, y, lz) <= 1 || skyTail >= MAX_QUEUE) continue;
+        qx[skyTail] = x;
+        qy[skyTail] = y;
+        qz[skyTail] = z;
+        skyTail++;
       }
     }
   }
@@ -286,16 +416,16 @@ export function updateLightingAtEdit(
   }
   propagateBlockQueue(0, blkTail, getChunk, markDirty);
 
-  // Also ensure neighbor chunks are marked dirty if edit is within 1 voxel of chunk border
-  for (const key of Array.from(dirtyChunks)) {
-    const [cxStr, czStr] = key.split(',');
-    const cx = Number(cxStr);
-    const cz = Number(czStr);
-    dirtyChunks.add(Chunk.key(cx - 1, cz));
-    dirtyChunks.add(Chunk.key(cx + 1, cz));
-    dirtyChunks.add(Chunk.key(cx, cz - 1));
-    dirtyChunks.add(Chunk.key(cx, cz + 1));
-  }
+  // Face visibility crosses a chunk boundary only when the edited voxel itself lies on it.
+  // Light propagation already marks every chunk whose light bytes actually changed.
+  const editCx = worldToChunk(wx);
+  const editCz = worldToChunk(wz);
+  const editLx = worldToLocal(wx);
+  const editLz = worldToLocal(wz);
+  if (editLx === 0) dirtyChunks.add(Chunk.key(editCx - 1, editCz));
+  if (editLx === CHUNK_SIZE - 1) dirtyChunks.add(Chunk.key(editCx + 1, editCz));
+  if (editLz === 0) dirtyChunks.add(Chunk.key(editCx, editCz - 1));
+  if (editLz === CHUNK_SIZE - 1) dirtyChunks.add(Chunk.key(editCx, editCz + 1));
 
   return dirtyChunks;
 }

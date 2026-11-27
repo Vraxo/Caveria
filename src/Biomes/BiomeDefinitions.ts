@@ -83,7 +83,7 @@ const SURFACE_DEFINITIONS = {
     id: 'Snowy Taiga',
     tags: ['cold', 'forest', 'fresh-surface-water', 'grazable'],
     selectionPriority: 30,
-    matches: ({ surfaceY, temperatureNoise }) => temperatureNoise < -0.22 || surfaceY >= 68,
+    matches: ({ temperatureNoise }) => temperatureNoise < -0.22,
     terrain: {
       surfaceBlock: () => BlockId.SnowGrass,
       shallowSubsurfaceBlock: (_depth, shore) => shore ? BlockId.Sand : BlockId.Dirt,
@@ -97,7 +97,8 @@ const SURFACE_DEFINITIONS = {
     id: 'Alpine Peaks',
     tags: ['cold', 'fresh-surface-water', 'grazable'],
     selectionPriority: 10,
-    matches: ({ surfaceY }) => surfaceY >= 74,
+    matches: ({ surfaceY, temperatureNoise }) =>
+      surfaceY >= 76 && temperatureNoise < -0.08,
     terrain: {
       surfaceBlock: (surfaceY) => surfaceY >= 79 ? BlockId.SnowBlock : BlockId.Stone,
       shallowSubsurfaceBlock: (_depth, shore) => shore ? BlockId.Sand : BlockId.Stone,
