@@ -5,6 +5,11 @@ import {
   type CavernBiomeDefinition,
   type SurfaceBiomeDefinition,
 } from '../Biomes/BiomeDefinitions';
+import {
+  BIOME_SIZE_PROFILES,
+  DEFAULT_BIOME_SIZE,
+  type BiomeSize,
+} from '../Biomes/BiomeSize';
 import type { CavernBiome, SurfaceBiome } from '../Biomes/BiomeTypes';
 import { CHUNK_HEIGHT, CHUNK_SIZE, Chunk, SEA_LEVEL } from './Chunk';
 import { SeededNoise } from './Noise';
@@ -30,7 +35,8 @@ export class TerrainGen {
   constructor(
     seed: number,
     private readonly decorators: BiomeDecoratorRegistry = createDefaultBiomeDecoratorRegistry(),
-    private readonly biomeDefinitions: BiomeDefinitionRegistry = BIOME_DEFINITIONS
+    private readonly biomeDefinitions: BiomeDefinitionRegistry = BIOME_DEFINITIONS,
+    public readonly biomeSize: BiomeSize = DEFAULT_BIOME_SIZE
   ) {
     this.seed = seed;
     this.terrainNoise = new SeededNoise(seed);
@@ -48,16 +54,17 @@ export class TerrainGen {
     surfaceY?: number
   ): SurfaceBiomeDefinition {
     const resolvedSurfaceY = surfaceY ?? this.getSurfaceHeight(wx, wz);
+    const frequency = BIOME_SIZE_PROFILES[this.biomeSize].surfaceFrequencyMultiplier;
     return this.biomeDefinitions.selectSurface({
       surfaceY: resolvedSurfaceY,
       temperatureNoise: this.tempNoise.fbm2D(
-        wx * SURFACE_TEMPERATURE_SCALE,
-        wz * SURFACE_TEMPERATURE_SCALE,
+        wx * SURFACE_TEMPERATURE_SCALE * frequency,
+        wz * SURFACE_TEMPERATURE_SCALE * frequency,
         1
       ),
       humidityNoise: this.humidityNoise.fbm2D(
-        wx * SURFACE_HUMIDITY_SCALE + 120,
-        wz * SURFACE_HUMIDITY_SCALE - 90,
+        wx * SURFACE_HUMIDITY_SCALE * frequency + 120,
+        wz * SURFACE_HUMIDITY_SCALE * frequency - 90,
         1
       ),
     });
@@ -68,9 +75,10 @@ export class TerrainGen {
   }
 
   public getCavernBiomeDefinition(wx: number, wz: number): CavernBiomeDefinition {
+    const frequency = BIOME_SIZE_PROFILES[this.biomeSize].cavernFrequencyMultiplier;
     const noise = this.caveBiomeNoise.fbm2D(
-      wx * CAVERN_BIOME_SCALE,
-      wz * CAVERN_BIOME_SCALE,
+      wx * CAVERN_BIOME_SCALE * frequency,
+      wz * CAVERN_BIOME_SCALE * frequency,
       2
     );
     return this.biomeDefinitions.selectCavern(noise);

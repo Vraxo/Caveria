@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
+import { parseBiomeSize } from '../Biomes/BiomeSize';
 import {
   CamelRidingController,
   type CamelEntity,
@@ -137,12 +138,14 @@ export class Game {
     const rawSeed = params.get('seed') ?? 'caveria';
     const worldId = params.get('world') ?? `legacy:${rawSeed}`;
     const worldName = params.get('name')?.trim() || (rawSeed === 'caveria' ? 'Caveria World' : rawSeed);
+    const requestedBiomeSize = parseBiomeSize(params.get('biomeSize'));
     this.seedLabel = rawSeed;
     const numericSeed = hashString(rawSeed);
     this.persistence = new GamePersistenceController(
       rawSeed,
       worldId,
       worldName,
+      requestedBiomeSize,
       () => this.audio.playUiClick()
     );
     const savedGame = this.persistence.load();
@@ -154,7 +157,8 @@ export class Game {
       this.atlas,
       numericSeed,
       renderDistance,
-      savedGame?.worldEdits ?? []
+      savedGame?.worldEdits ?? [],
+      savedGame?.biomeSize ?? requestedBiomeSize
     );
 
     const generatedSpawn = this.world.findSpawnPoint();
@@ -443,6 +447,7 @@ export class Game {
         worldId,
         worldName: savedGame?.worldName ?? worldName,
         seed: rawSeed,
+        biomeSize: savedGame?.biomeSize ?? requestedBiomeSize,
         savedAt: savedGame?.savedAt ?? 0,
         createdAt: savedGame?.createdAt ?? Date.now(),
         editCount: savedGame?.worldEdits.length ?? 0,

@@ -1,8 +1,9 @@
+import type { BiomeSize } from '../Biomes/BiomeSize';
 import { CaveriaSaveData, SAVE_VERSION, WorldPersistence } from './WorldPersistence';
 
 export type GameSaveSnapshot = Omit<
   CaveriaSaveData,
-  'version' | 'worldId' | 'worldName' | 'seed' | 'createdAt' | 'savedAt'
+  'version' | 'worldId' | 'worldName' | 'seed' | 'biomeSize' | 'createdAt' | 'savedAt'
 >;
 
 const GAME_SAVE_SNAPSHOT_FIELDS = {
@@ -44,6 +45,7 @@ export class GamePersistenceController {
     private readonly seedLabel: string,
     private readonly worldId: string,
     private readonly worldName: string,
+    private biomeSize: BiomeSize,
     private readonly onManualSave: () => void
   ) {
     this.persistence = new WorldPersistence(seedLabel, worldId, worldName);
@@ -53,6 +55,7 @@ export class GamePersistenceController {
     const save = this.persistence.load();
     if (save) {
       this.createdAt = save.createdAt;
+      this.biomeSize = save.biomeSize;
       this.saveEnabled = true;
     }
     return save;
@@ -107,6 +110,7 @@ export class GamePersistenceController {
       worldId: this.worldId,
       worldName: this.worldName,
       seed: this.seedLabel,
+      biomeSize: this.biomeSize,
       createdAt: this.createdAt,
       savedAt: Date.now(),
       ...snapshot,

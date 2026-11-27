@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { Input } from '../core/Input';
+import { parseBiomeSize, type BiomeSize } from '../Biomes/BiomeSize';
 import { WorldPersistence, WorldSummary } from '../persistence/WorldPersistence';
 import { InventoryModal } from './InventoryModal';
 
@@ -58,6 +59,7 @@ export class GameOverlayController {
   private readonly worldDeleteEl = document.getElementById('world-delete-button') as HTMLButtonElement;
   private readonly worldNameEl = document.getElementById('world-name-input') as HTMLInputElement;
   private readonly worldSeedEl = document.getElementById('world-seed-input') as HTMLInputElement;
+  private readonly worldBiomeSizeEl = document.getElementById('world-biome-size-input') as HTMLSelectElement;
   private readonly menuEls: Record<MenuView, HTMLElement> = {
     title: document.getElementById('title-menu')!,
     worlds: document.getElementById('world-menu')!,
@@ -153,6 +155,7 @@ export class GameOverlayController {
     document.getElementById('world-create-button')!.addEventListener('click', () => {
       this.worldNameEl.value = this.nextWorldName();
       this.worldSeedEl.value = '';
+      this.worldBiomeSizeEl.value = 'standard';
       this.showMenu('create-world');
       this.worldNameEl.focus();
       this.worldNameEl.select();
@@ -289,7 +292,8 @@ export class GameOverlayController {
       const meta = document.createElement('span');
       meta.className = 'world-meta';
       const date = world.savedAt > 0 ? new Date(world.savedAt).toLocaleString() : 'Not saved yet';
-      meta.textContent = `${date} · Seed: ${world.seed} · ${world.editCount} edits`;
+      const biomeSize = world.biomeSize[0].toUpperCase() + world.biomeSize.slice(1);
+      meta.textContent = `${date} · Seed: ${world.seed} · ${biomeSize} biomes · ${world.editCount} edits`;
       details.append(name, document.createElement('br'), meta);
       entry.append(icon, details);
       entry.addEventListener('click', () => {
@@ -323,14 +327,15 @@ export class GameOverlayController {
       this.requestPlay();
       return;
     }
-    this.openWorld(selected.worldId, selected.worldName, selected.seed);
+    this.openWorld(selected.worldId, selected.worldName, selected.seed, selected.biomeSize);
   }
 
   private createWorld(): void {
     const worldName = this.worldNameEl.value.trim().slice(0, 48) || 'New World';
     const seed = this.worldSeedEl.value.trim().slice(0, 64) || this.randomSeed();
     const worldId = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    this.openWorld(worldId, worldName, seed);
+    const biomeSize = parseBiomeSize(this.worldBiomeSizeEl.value);
+    this.openWorld(worldId, worldName, seed, biomeSize);
   }
 
   private deleteSelectedWorld(): void {
@@ -344,13 +349,19 @@ export class GameOverlayController {
     }
   }
 
-  private openWorld(worldId: string, worldName: string, seed: string): void {
+  private openWorld(
+    worldId: string,
+    worldName: string,
+    seed: string,
+    biomeSize: BiomeSize
+  ): void {
     this.onBeforeWorldSwitch(this.hasEnteredWorld || this.currentWorld.savedAt > 0);
     const url = new URL(window.location.href);
     url.search = '';
     url.searchParams.set('world', worldId);
     url.searchParams.set('name', worldName);
     url.searchParams.set('seed', seed);
+    url.searchParams.set('biomeSize', biomeSize);
     window.location.href = url.toString();
   }
 
