@@ -1,5 +1,7 @@
+import { ItemId } from '../items/ItemTypes';
 import { BlockId } from './BlockId';
 import { BlockDefinition, BlockFaces } from './BlockTypes';
+import { fixedBlockLoot, NO_BLOCK_LOOT } from './loot/BlockLoot';
 import { TileIndex } from './TileIndex';
 
 export type BlockConfig = Pick<BlockDefinition, 'name' | 'hardness' | 'faces'> &
@@ -19,6 +21,9 @@ export function defineBlock(id: BlockId, config: BlockConfig): BlockDefinition {
     lightEmission: 0,
     lightOpacity: 15,
     shape: 'cube',
+    lootTable: config.breakable === false
+      ? NO_BLOCK_LOOT
+      : fixedBlockLoot(id as unknown as ItemId),
     ...config,
   };
 }
