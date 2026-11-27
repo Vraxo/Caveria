@@ -71,6 +71,13 @@ export class TextureAtlas {
     void exportTiles(this.blockTextures.tileCanvases);
   }
 
+  /** Hot-swaps the atlas contents with tiles from another texture pack. */
+  public reloadTiles(loadedTiles?: ReadonlyMap<TileIndex, HTMLCanvasElement>): void {
+    this.blockTextures.reload(loadedTiles);
+    this.icons.clearCache();
+    this.texture.needsUpdate = true;
+  }
+
   public getTileUVs(tile: TileIndex): UVBounds {
     return getTileUVs(tile);
   }

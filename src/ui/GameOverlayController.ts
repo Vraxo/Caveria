@@ -3,6 +3,12 @@ import { AudioManager } from '../audio/AudioManager';
 import { Input } from '../core/Input';
 import { type BiomeSize } from '../Biomes/BiomeSize';
 import { WorldPersistence, WorldSummary } from '../persistence/WorldPersistence';
+import {
+  BUILTIN_TEXTURE_PACKS,
+  DEFAULT_TEXTURE_PACK_ID,
+  resolveTexturePack,
+  type TexturePackDescriptor,
+} from '../rendering/textures/TexturePacks';
 import { SliderControl } from './SliderControl';
 import { InventoryModal } from './InventoryModal';
 
@@ -21,6 +27,9 @@ interface GameOverlayDependencies {
   onBeforeWorldSwitch: (saveCurrent: boolean) => void;
   onDeleteWorld: (world: WorldSummary) => void;
   onWorldStarted: () => void;
+  texturePacks?: readonly TexturePackDescriptor[];
+  activeTexturePackId?: string;
+  onSelectTexturePack?: (packId: string) => Promise<string>;
   onQuit: (saveCurrent: boolean) => void;
 }
 
@@ -47,11 +56,14 @@ export class GameOverlayController {
   private readonly onBeforeWorldSwitch: (saveCurrent: boolean) => void;
   private readonly onDeleteWorld: (world: WorldSummary) => void;
   private readonly onWorldStarted: () => void;
+  private readonly texturePacks: readonly TexturePackDescriptor[];
+  private readonly onSelectTexturePack?: (packId: string) => Promise<string>;
   private readonly onQuit: (saveCurrent: boolean) => void;
   private readonly overlayEl = document.getElementById('overlay')!;
   private readonly statusPillEl = document.getElementById('status-pill')!;
   private readonly audioToggleEl = document.getElementById('audio-toggle') as HTMLButtonElement;
   private readonly menuAudioEl = document.getElementById('menu-audio-button') as HTMLButtonElement;
+  private readonly texturePackEl = document.getElementById('texture-pack-button') as HTMLButtonElement | null;
   private fovSlider!: SliderControl;
   private readonly fullscreenEl = document.getElementById('fullscreen-button') as HTMLButtonElement;
   private readonly worldListEl = document.getElementById('world-list')!;
@@ -78,6 +90,8 @@ export class GameOverlayController {
   private worlds: WorldSummary[] = [];
   private selectedWorldId: string | null = null;
   private resumeOnEscapeRelease = false;
+  private activeTexturePackId: string;
+  private switchingTexturePack = false;
 
 
   constructor(deps: GameOverlayDependencies) {
@@ -92,11 +106,18 @@ export class GameOverlayController {
     this.onBeforeWorldSwitch = deps.onBeforeWorldSwitch;
     this.onDeleteWorld = deps.onDeleteWorld;
     this.onWorldStarted = deps.onWorldStarted;
+    this.texturePacks = deps.texturePacks ?? BUILTIN_TEXTURE_PACKS;
+    this.activeTexturePackId = resolveTexturePack(
+      this.texturePacks,
+      deps.activeTexturePackId ?? DEFAULT_TEXTURE_PACK_ID
+    ).id;
+    this.onSelectTexturePack = deps.onSelectTexturePack;
     this.onQuit = deps.onQuit;
     document.getElementById('menu-splash')!.textContent =
       SPLASHES[Math.floor(Math.random() * SPLASHES.length)];
     this.setupEvents();
     this.updateAudioToggle();
+    this.updateTexturePackButton();
     this.updateFullscreenButton();
     this.mountSliders();
     this.showMenu('title');
@@ -267,6 +288,7 @@ export class GameOverlayController {
       this.toggleAudio();
     });
     this.menuAudioEl.addEventListener('click', () => this.toggleAudio());
+    this.texturePackEl?.addEventListener('click', () => void this.cycleTexturePack());
     this.fullscreenEl.addEventListener('click', () => void this.toggleFullscreen());
 
     this.overlayEl.addEventListener('pointerdown', (event) => {
@@ -488,5 +510,34 @@ export class GameOverlayController {
 
   private updateFullscreenButton(): void {
     this.fullscreenEl.textContent = `Fullscreen: ${document.fullscreenElement ? 'On' : 'Off'}`;
+  }
+
+  private async cycleTexturePack(): Promise<void> {
+    if (this.switchingTexturePack || this.texturePacks.length <= 1 || !this.onSelectTexturePack) {
+      return;
+    }
+    const currentIndex = this.texturePacks.findIndex((pack) => pack.id === this.activeTexturePackId);
+    const nextPack = this.texturePacks[(currentIndex + 1) % this.texturePacks.length];
+    this.switchingTexturePack = true;
+    this.updateTexturePackButton(nextPack.name);
+    try {
+      this.activeTexturePackId = await this.onSelectTexturePack(nextPack.id);
+    } finally {
+      this.switchingTexturePack = false;
+      this.updateTexturePackButton();
+    }
+  }
+
+  private updateTexturePackButton(loadingName?: string): void {
+    if (!this.texturePackEl) return;
+    if (loadingName) {
+      this.texturePackEl.textContent = `Texture Pack: ${loadingName}...`;
+      this.texturePackEl.disabled = true;
+      return;
+    }
+    const active = resolveTexturePack(this.texturePacks, this.activeTexturePackId);
+    this.texturePackEl.textContent = `Texture Pack: ${active.name}`;
+    this.texturePackEl.title = active.description ?? '';
+    this.texturePackEl.disabled = this.texturePacks.length <= 1;
   }
 }

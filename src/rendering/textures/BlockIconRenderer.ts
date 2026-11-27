@@ -15,6 +15,12 @@ export class BlockIconRenderer {
     private readonly itemSprites: ItemSpriteGenerator
   ) {}
 
+  /** Invalidates cached block and item icon images (e.g. after switching texture packs). */
+  public clearCache(): void {
+    this.blockIconCache.clear();
+    this.itemIconCache.clear();
+  }
+
   public createBlockIcon(blockId: BlockId): HTMLCanvasElement {
     const cached = this.blockIconCache.get(blockId);
     if (cached) return cached;

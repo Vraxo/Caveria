@@ -1,0 +1,14 @@
+[
+  {
+    "id": "default",
+    "name": "Default",
+    "description": "Original Caveria voxel textures",
+    "tiles": "all"
+  },
+  {
+    "id": "ocd",
+    "name": "oCd",
+    "description": "Minimalist crisp geometric block textures inspired by oCd",
+    "tiles": "all"
+  }
+]

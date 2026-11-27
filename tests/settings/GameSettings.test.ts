@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_CHUNK_RENDER_DISTANCE,
+  DEFAULT_TEXTURE_PACK,
   readSettings,
   updateSettings,
 } from '../../src/settings/GameSettings';
@@ -19,24 +20,31 @@ describe('GameSettings', () => {
     return store;
   }
 
-  it('defaults the chunk render distance when nothing is stored', () => {
+  it('defaults the chunk render distance and texture pack when nothing is stored', () => {
     stubLocalStorage();
     expect(readSettings().chunkRenderDistance).toBe(DEFAULT_CHUNK_RENDER_DISTANCE);
+    expect(readSettings().texturePack).toBe(DEFAULT_TEXTURE_PACK);
     expect(DEFAULT_CHUNK_RENDER_DISTANCE).toBeGreaterThan(5); // doubled from the old 5
   });
 
   it('persists updated settings and reads them back', () => {
     const store = stubLocalStorage();
-    const settings = updateSettings({ chunkRenderDistance: 12 });
+    const settings = updateSettings({ chunkRenderDistance: 12, texturePack: 'ocd' });
     expect(settings.chunkRenderDistance).toBe(12);
+    expect(settings.texturePack).toBe('ocd');
     expect(readSettings().chunkRenderDistance).toBe(12);
+    expect(readSettings().texturePack).toBe('ocd');
     expect(store.size).toBeGreaterThan(0);
   });
 
   it('falls back to defaults for invalid stored values', () => {
     const store = stubLocalStorage();
-    store.set('caveria-settings-v1', JSON.stringify({ chunkRenderDistance: -3 }));
+    store.set(
+      'caveria-settings-v1',
+      JSON.stringify({ chunkRenderDistance: -3, texturePack: '../bad' })
+    );
     expect(readSettings().chunkRenderDistance).toBe(DEFAULT_CHUNK_RENDER_DISTANCE);
+    expect(readSettings().texturePack).toBe(DEFAULT_TEXTURE_PACK);
   });
 
   it('keeps defaults when storage is unavailable', () => {
