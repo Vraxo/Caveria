@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
+import { createDesertWildlife } from '../DesertWildlife/createDesertWildlife';
 import { ArrowProjectileManager } from '../gameplay/ArrowProjectileManager';
 import { BedManager } from '../gameplay/BedManager';
 import { BlockInteractionController } from '../gameplay/BlockInteractionController';
@@ -282,12 +283,23 @@ export class Game {
       this.particles,
       this.audio
     );
+    const desertWildlife = createDesertWildlife({
+      scene: this.scene,
+      world: this.world,
+      player: this.player,
+      vitals: this.vitals,
+      drops: this.drops,
+      particles: this.particles,
+      audio: this.audio,
+      poisonPlayer: () => this.statusEffects.poison(18),
+    });
     this.mobs = new MobManager([
       crystalMiteSpecies,
       caveCrawlerSpecies,
       chickenSpecies,
       sheepSpecies,
       rabbitSpecies,
+      ...desertWildlife,
     ]);
     this.mobs.restore(savedGame?.mobs ?? []);
     this.arrows = new ArrowProjectileManager(

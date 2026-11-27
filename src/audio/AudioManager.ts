@@ -49,6 +49,13 @@ export class AudioManager {
   public playRabbitSqueak(): void { this.creatures.playRabbitSqueak(); }
   public playRabbitHit(): void { this.creatures.playRabbitHit(); }
   public playRabbitDeath(): void { this.creatures.playRabbitDeath(); }
+  public playCamelCall(): void { this.creatures.playCamelCall(); }
+  public playScorpionChitter(): void { this.creatures.playScorpionChitter(); }
+  public playSnakeHiss(): void { this.creatures.playSnakeHiss(); }
+  public playLizardChirp(): void { this.creatures.playLizardChirp(); }
+  public playVultureCry(): void { this.creatures.playVultureCry(); }
+  public playDesertWildlifeHit(): void { this.creatures.playDesertWildlifeHit(); }
+  public playDesertWildlifeDeath(): void { this.creatures.playDesertWildlifeDeath(); }
 
   public playPickup(): void { this.ui.playPickup(); }
   public playCrystalPickup(): void { this.ui.playCrystalPickup(); }

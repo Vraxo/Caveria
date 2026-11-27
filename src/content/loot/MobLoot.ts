@@ -26,6 +26,15 @@ export const MOB_LOOT_TABLES: Readonly<Record<string, ReadonlyArray<MobLootEntry
   rabbit: [
     { item: ItemId.RawRabbit, chance: 1, minimum: 1, maximum: 1 },
   ],
+  camel: [],
+  scorpion: [
+    { item: ItemId.CaveChitin, chance: 0.65, minimum: 1, maximum: 1 },
+  ],
+  snake: [],
+  lizard: [],
+  vulture: [
+    { item: ItemId.Feather, chance: 1, minimum: 1, maximum: 2, maximumChance: 0.25 },
+  ],
 };
 
 export function rollMobLoot(tableId: string, random: () => number = Math.random): ItemStack[] {
