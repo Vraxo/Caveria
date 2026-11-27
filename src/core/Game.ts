@@ -24,7 +24,11 @@ import { ItemId, createStack } from '../items/Item';
 import { Player } from '../player/Player';
 import { ArmorManager } from '../player/ArmorManager';
 import { PlayerVitals } from '../player/PlayerVitals';
-import { GamePersistenceController, GameSaveSnapshot } from '../persistence/GamePersistenceController';
+import {
+  GAME_SAVE_SNAPSHOT_KEYS,
+  GamePersistenceController,
+  type GameSaveSnapshot,
+} from '../persistence/GamePersistenceController';
 import { WorldPersistence } from '../persistence/WorldPersistence';
 import { AtmosphereController } from '../rendering/AtmosphereController';
 import { BreakParticles } from '../rendering/BreakParticles';
@@ -44,6 +48,7 @@ import { HOTBAR_BLOCKS } from '../gameplay/CreativePalette';
 import { CHUNK_SIZE } from '../world/Chunk';
 import { hashString } from '../world/Noise';
 import { World } from '../world/World';
+import { GameFeatureRegistry } from './GameFeatureRegistry';
 import { Input } from './Input';
 
 const INITIAL_SKY_COLOR = 0x7ec4f8;
@@ -79,6 +84,9 @@ export class Game {
   private readonly atmosphere: AtmosphereController;
   private readonly weather: WeatherSystem;
   private readonly persistence: GamePersistenceController;
+  private readonly features = new GameFeatureRegistry<GameSaveSnapshot>(
+    GAME_SAVE_SNAPSHOT_KEYS
+  );
 
   private readonly inventory: Inventory;
   private readonly hotbar: Hotbar;
@@ -425,6 +433,7 @@ export class Game {
         window.close();
       },
     });
+    this.registerFeatureParticipants();
     this.persistence.bind(() => this.createSaveSnapshot());
     this.overlay.updateStatus(this.creativeMode, this.player.flyMode);
     if (savedGame) this.persistence.showRestored(this.world.editCount);
@@ -433,6 +442,150 @@ export class Game {
   public start(): void {
     this.lastTime = performance.now();
     requestAnimationFrame((now) => this.loop(now));
+  }
+
+  /** Registration order preserves the former frame order within each explicit phase. */
+  private registerFeatureParticipants(): void {
+    this.features
+      .register({
+        id: 'persistence',
+        updates: { 'frame-start': (dt) => this.persistence.update(dt) },
+      })
+      .register({
+        id: 'weather',
+        updates: { 'frame-start': (dt) => this.weather.update(dt) },
+        snapshot: () => ({ weather: this.weather.snapshot() }),
+      })
+      .register({
+        id: 'campfire-effects',
+        updates: { 'frame-start': (dt) => this.campfireEffects.update(dt) },
+      })
+      .register({
+        id: 'beds',
+        updates: { 'frame-start': (dt) => this.beds.update(dt) },
+        snapshot: () => ({
+          beds: this.beds.snapshots(),
+          respawnBed: this.beds.respawnSnapshot(),
+        }),
+      })
+      .register({
+        id: 'farms',
+        updates: { 'frame-start': (dt) => this.farms.update(dt) },
+        snapshot: () => ({ farms: this.farms.snapshots() }),
+      })
+      .register({
+        id: 'furnaces',
+        updates: { 'frame-start': (dt) => this.furnaces.update(dt) },
+        snapshot: () => ({ furnaces: this.furnaces.snapshot() }),
+      })
+      .register({
+        id: 'furnace-ui',
+        updates: { 'frame-start': (dt) => this.furnaceModal.update(dt) },
+      })
+      .register({
+        id: 'fishing',
+        updates: {
+          'frame-start': (dt) => this.fishing.update(dt,
+            this.input.isPointerLocked
+              && !this.inventoryModal.isOpen
+              && !this.furnaceModal.isOpen
+              && !this.chestModal.isOpen
+              && this.hotbar.selectedStack?.id === ItemId.FishingRod
+              && !this.vitals.dead),
+        },
+      })
+      .register({
+        id: 'survival-status',
+        updates: {
+          'before-player': (dt) => {
+            this.statusEffects.update(dt, this.creativeMode);
+            this.camera.rotation.z = this.statusEffects.cameraSway;
+            this.temperature.update(dt, this.creativeMode);
+          },
+        },
+        snapshot: () => ({
+          armor: this.armor.snapshot(),
+          temperature: this.temperature.temperature,
+          statusEffects: this.statusEffects.snapshots(),
+        }),
+      })
+      .register({
+        id: 'vitals',
+        updates: {
+          'after-player': (dt) => this.vitals.update(
+            dt,
+            this.player.isHeadUnderwater(this.world),
+            this.creativeMode
+          ),
+        },
+      })
+      .register({
+        id: 'mobs',
+        updates: { 'after-player': (dt) => this.mobs.update(dt) },
+        snapshot: () => ({ mobs: this.mobs.snapshots() }),
+      })
+      .register({
+        id: 'arrows',
+        updates: { 'after-player': (dt) => this.arrows.update(dt) },
+      })
+      .register({
+        id: 'drops',
+        updates: {
+          'frame-end': (dt) => this.drops.update(
+            dt,
+            this.world,
+            this.player.position,
+            this.inventory
+          ),
+        },
+      })
+      .register({
+        id: 'day-night',
+        updates: {
+          'frame-end': (dt) => this.dayNight.update(
+            dt,
+            this.player.position,
+            this.weather.cloudCover
+          ),
+        },
+        snapshot: () => ({ timeOfDay: this.dayNight.timeOfDay }),
+      })
+      .register({
+        id: 'ambient-audio',
+        updates: {
+          'frame-end': (dt) => this.movementAudio.updateAmbience(
+            dt,
+            this.dayNight,
+            this.weather.getAmbientState()
+          ),
+        },
+      })
+      .register({
+        id: 'atmosphere',
+        updates: { 'frame-end': () => this.atmosphere.update() },
+      })
+      .register({
+        id: 'world-streaming',
+        updates: {
+          'frame-end': () => this.world.updateStreaming(
+            this.player.position.x,
+            this.player.position.z
+          ),
+        },
+        snapshot: () => ({ worldEdits: this.world.exportEdits() }),
+      })
+      .register({
+        id: 'particles',
+        updates: { 'frame-end': (dt) => this.particles.update(dt) },
+      })
+      .register({
+        id: 'chests',
+        snapshot: () => ({ chests: this.chests.snapshots() }),
+      })
+      .register({
+        id: 'audio-preferences',
+        snapshot: () => ({ muted: this.audio.muted }),
+      });
   }
 
   private openInventoryScreen(gridSize: 2 | 3): void {
@@ -488,20 +641,7 @@ export class Game {
   }
 
   private update(dt: number): void {
-    this.persistence.update(dt);
-    this.weather.update(dt);
-    this.campfireEffects.update(dt);
-    this.beds.update(dt);
-    this.farms.update(dt);
-    this.furnaces.update(dt);
-    this.furnaceModal.update(dt);
-    const fishingActive = this.input.isPointerLocked
-      && !this.inventoryModal.isOpen
-      && !this.furnaceModal.isOpen
-      && !this.chestModal.isOpen
-      && this.hotbar.selectedStack?.id === ItemId.FishingRod
-      && !this.vitals.dead;
-    this.fishing.update(dt, fishingActive);
+    this.features.update('frame-start', dt);
 
     if (this.input.consumeKeyPress('KeyM')) {
       this.overlay.toggleAudio();
@@ -576,9 +716,7 @@ export class Game {
       const sprinting =
         !this.creativeMode && this.vitals.canSprint && !this.player.crouching && wantsToSprint;
       const maxStep = 1 / 90;
-      this.statusEffects.update(dt, this.creativeMode);
-      this.camera.rotation.z = this.statusEffects.cameraSway;
-      this.temperature.update(dt, this.creativeMode);
+      this.features.update('before-player', dt);
       const weatherMovementScale = this.weather.getMovementSpeedMultiplier(
         this.armor.hasFullGoldSet
       ) * this.temperature.movementMultiplier * this.statusEffects.movementMultiplier;
@@ -603,9 +741,7 @@ export class Game {
           this.vitals.addExhaustion(sprinting ? 0.2 : 0.08);
         }
       }
-      this.vitals.update(dt, this.player.isHeadUnderwater(this.world), this.creativeMode);
-      this.mobs.update(dt);
-      this.arrows.update(dt);
+      this.features.update('after-player', dt);
 
       if (this.vitals.dead) {
         this.interactions.clearTarget();
@@ -631,12 +767,7 @@ export class Game {
     this.heldItemView.setEquipped(this.hotbar.selectedStack);
     this.heldItemView.update(dt, horizSpeed, activelyMining, this.player.crouching);
 
-    this.drops.update(dt, this.world, this.player.position, this.inventory);
-    this.dayNight.update(dt, this.player.position, this.weather.cloudCover);
-    this.movementAudio.updateAmbience(dt, this.dayNight, this.weather.getAmbientState());
-    this.atmosphere.update();
-    this.world.updateStreaming(this.player.position.x, this.player.position.z);
-    this.particles.update(dt);
+    this.features.update('frame-end', dt);
     this.debugHud.update(
       dt,
       this.player,
@@ -675,7 +806,7 @@ export class Game {
   }
 
   private createSaveSnapshot(): GameSaveSnapshot {
-    return {
+    return this.features.capture({
       player: {
         x: this.player.position.x,
         y: this.player.position.y,
@@ -688,21 +819,8 @@ export class Game {
         saturation: this.vitals.saturation,
       },
       inventory: this.inventory.snapshot(),
-      armor: this.armor.snapshot(),
       selectedHotbar: this.hotbar.selectedIndex,
       creativeMode: this.creativeMode,
-      timeOfDay: this.dayNight.timeOfDay,
-      weather: this.weather.snapshot(),
-      muted: this.audio.muted,
-      temperature: this.temperature.temperature,
-      statusEffects: this.statusEffects.snapshots(),
-      furnaces: this.furnaces.snapshot(),
-      chests: this.chests.snapshots(),
-      farms: this.farms.snapshots(),
-      beds: this.beds.snapshots(),
-      respawnBed: this.beds.respawnSnapshot(),
-      mobs: this.mobs.snapshots(),
-      worldEdits: this.world.exportEdits(),
-    };
+    });
   }
 }
