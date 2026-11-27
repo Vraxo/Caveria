@@ -52,6 +52,13 @@ export class HeldItemView {
     this.bowDraw = Math.max(0, Math.min(1, ratio));
   }
 
+  /** Rebuilds the held item visual after a live texture pack reload without re-playing equip animation. */
+  public refreshEquipped(stack: ItemStack | null): void {
+    this.currentItemId = -1 as unknown as ItemId;
+    this.setEquipped(stack);
+    this.equipProgress = 1;
+  }
+
   public setEquipped(stack: ItemStack | null): void {
     const nextId = stack ? stack.id : null;
     if (nextId === this.currentItemId) return;

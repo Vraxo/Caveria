@@ -40,12 +40,13 @@ function imageToCanvas(image: HTMLImageElement): HTMLCanvasElement {
 }
 
 export async function loadTileCanvases(
-  baseUrl: string = TILES_BASE_URL
+  baseUrl: string = TILES_BASE_URL,
+  tileIndices?: readonly TileIndex[]
 ): Promise<Map<TileIndex, HTMLCanvasElement>> {
   const tiles = new Map<TileIndex, HTMLCanvasElement>();
-  const tileValues = Object.values(TileIndex).filter(
-    (value): value is TileIndex => typeof value === 'number'
-  );
+  const tileValues =
+    tileIndices ??
+    Object.values(TileIndex).filter((value): value is TileIndex => typeof value === 'number');
   await Promise.all(
     tileValues.map(async (tile) => {
       try {

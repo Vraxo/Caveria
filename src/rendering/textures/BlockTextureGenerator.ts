@@ -12,8 +12,8 @@ export class BlockTextureGenerator {
 
   constructor(
     private readonly context: CanvasRenderingContext2D,
-    /** Tile canvases loaded from `public/generated-textures/tiles`; used instead of painting. */
-    private readonly loadedTiles?: ReadonlyMap<TileIndex, HTMLCanvasElement>
+    /** Tile canvases loaded from a texture pack folder; used instead of painting. */
+    private loadedTiles?: ReadonlyMap<TileIndex, HTMLCanvasElement>
   ) {}
 
   public generateAllTiles(): void {
@@ -21,6 +21,15 @@ export class BlockTextureGenerator {
     paintSurfaceTextures(draw);
     paintStructureTextures(draw);
     paintUndergroundTextures(draw);
+  }
+
+  /** Rebuilds the entire atlas with a new set of loaded tile overrides. */
+  public reload(loadedTiles?: ReadonlyMap<TileIndex, HTMLCanvasElement>): void {
+    this.loadedTiles = loadedTiles;
+    this.tileCanvases.clear();
+    this.context.clearRect(0, 0, this.context.canvas.width, this.context.canvas.height);
+    this.generateAllTiles();
+    this.validateCompleteness();
   }
 
   public validateCompleteness(): void {

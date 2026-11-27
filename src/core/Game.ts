@@ -45,7 +45,14 @@ import { DroppedItemManager } from '../rendering/DroppedItems';
 import { HeldItemView } from '../rendering/HeldItemView';
 import { TileIndex } from '../content/TileIndex';
 import { TextureAtlas } from '../rendering/TextureAtlas';
-import { readSettings } from '../settings/GameSettings';
+import {
+  BUILTIN_TEXTURE_PACKS,
+  DEFAULT_TEXTURE_PACK_ID,
+  loadTexturePackTiles,
+  resolveTexturePack,
+  type TexturePackDescriptor,
+} from '../rendering/textures/TexturePacks';
+import { readSettings, updateSettings } from '../settings/GameSettings';
 import { WeatherSystem } from '../rendering/WeatherSystem';
 import { ChestModal } from '../ui/ChestModal';
 import { DebugHud } from '../ui/DebugHud';
@@ -106,14 +113,20 @@ export class Game {
   private readonly debugHud: DebugHud;
   private readonly overlay: GameOverlayController;
   private readonly seedLabel: string;
+  private readonly texturePacks: readonly TexturePackDescriptor[];
+  private activeTexturePackId: string;
 
   private lastTime = performance.now();
   private creativeMode = false;
 
   constructor(
     canvas: HTMLCanvasElement,
-    loadedTiles?: ReadonlyMap<TileIndex, HTMLCanvasElement>
+    loadedTiles?: ReadonlyMap<TileIndex, HTMLCanvasElement>,
+    texturePacks: readonly TexturePackDescriptor[] = BUILTIN_TEXTURE_PACKS,
+    activeTexturePackId: string = DEFAULT_TEXTURE_PACK_ID
   ) {
+    this.texturePacks = texturePacks;
+    this.activeTexturePackId = resolveTexturePack(texturePacks, activeTexturePackId).id;
     this.renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: false,
@@ -471,6 +484,9 @@ export class Game {
         }
       },
       onWorldStarted: () => this.persistence.enableSaving(),
+      texturePacks: this.texturePacks,
+      activeTexturePackId: this.activeTexturePackId,
+      onSelectTexturePack: (packId) => this.setTexturePack(packId),
       onQuit: (saveCurrent) => {
         if (saveCurrent) this.persistence.save(false);
         else this.persistence.suppressFurtherSaves();
@@ -481,6 +497,18 @@ export class Game {
     this.persistence.bind(() => this.createSaveSnapshot());
     this.overlay.updateStatus(this.creativeMode, this.player.flyMode);
     if (savedGame) this.persistence.showRestored(this.world.editCount);
+  }
+
+  /** Switches the active texture pack live without reloading the world. */
+  public async setTexturePack(packId: string): Promise<string> {
+    const pack = resolveTexturePack(this.texturePacks, packId);
+    const tiles = await loadTexturePackTiles(pack);
+    this.activeTexturePackId = pack.id;
+    this.atlas.reloadTiles(tiles);
+    this.hotbar.refresh();
+    this.heldItemView.refreshEquipped(this.hotbar.selectedStack);
+    updateSettings({ texturePack: pack.id });
+    return pack.id;
   }
 
   public start(): void {
