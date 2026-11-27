@@ -25,6 +25,10 @@ export class AudioManager {
   }
   public setMuted(muted: boolean): void { this.engine.setMuted(muted); }
   public toggleMute(): boolean { return this.engine.toggleMute(); }
+  public setSfxVolume(percent: number): void { this.engine.setSfxVolume(percent); }
+  public getSfxVolume(): number { return this.engine.getSfxVolume(); }
+  public setAmbienceVolume(percent: number): void { this.engine.setAmbienceVolume(percent); }
+  public getAmbienceVolume(): number { return this.engine.getAmbienceVolume(); }
   public dispose(): void { this.ambience.dispose(); this.engine.dispose(); }
 
   public playMineHit(block: BlockId): void { this.blocks.playMineHit(block); }
