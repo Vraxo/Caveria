@@ -1,5 +1,5 @@
 import { BlockId } from '../../src/content/BlockId';
-import { BIOME_DEFINITIONS } from '../../src/content/biomes/BiomeDefinitions';
+import { BIOME_DEFINITIONS } from '../../src/Biomes/BiomeDefinitions';
 import { SurfaceBiome } from '../../src/world/TerrainGen';
 import { World } from '../../src/world/World';
 

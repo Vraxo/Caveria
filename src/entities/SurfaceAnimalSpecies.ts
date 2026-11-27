@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { BlockId } from '../content/BlockId';
 import { MobDefinition } from '../content/mobs/MobDefinitions';
 import { rollMobLoot } from '../content/loot/MobLoot';
-import type { BiomeTag } from '../content/biomes/BiomeDefinitions';
+import type { BiomeTag } from '../Biomes/BiomeDefinitions';
 import { ItemId, ItemStack, createStack } from '../items/Item';
 import { Player } from '../player/Player';
 import { BreakParticles } from '../rendering/BreakParticles';

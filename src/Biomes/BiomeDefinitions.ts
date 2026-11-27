@@ -1,5 +1,5 @@
-import { ItemId } from '../../items/ItemTypes';
-import { BlockId } from '../BlockId';
+import { ItemId } from '../items/ItemTypes';
+import { BlockId } from '../content/BlockId';
 import {
   CAVERN_BIOMES,
   type CavernBiome,

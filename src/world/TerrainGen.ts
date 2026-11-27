@@ -4,14 +4,14 @@ import {
   type BiomeDefinitionRegistry,
   type CavernBiomeDefinition,
   type SurfaceBiomeDefinition,
-} from '../content/biomes/BiomeDefinitions';
-import type { CavernBiome, SurfaceBiome } from '../content/biomes/BiomeTypes';
+} from '../Biomes/BiomeDefinitions';
+import type { CavernBiome, SurfaceBiome } from '../Biomes/BiomeTypes';
 import { CHUNK_HEIGHT, CHUNK_SIZE, Chunk, SEA_LEVEL } from './Chunk';
 import { SeededNoise } from './Noise';
-import { BiomeDecoratorRegistry } from './biomes/BiomeDecoratorRegistry';
-import { createDefaultBiomeDecoratorRegistry } from './biomes/DefaultBiomeDecorators';
+import { BiomeDecoratorRegistry } from '../Biomes/BiomeDecoratorRegistry';
+import { createDefaultBiomeDecoratorRegistry } from '../Biomes/DefaultBiomeDecorators';
 
-export type { CavernBiome, SurfaceBiome } from '../content/biomes/BiomeTypes';
+export type { CavernBiome, SurfaceBiome } from '../Biomes/BiomeTypes';
 
 export class TerrainGen {
   public readonly seed: number;
