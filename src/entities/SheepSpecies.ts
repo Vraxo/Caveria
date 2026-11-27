@@ -32,7 +32,7 @@ export function createSheepSpecies(
 ): SurfaceAnimalSpecies<SheepVisual> {
   return new SurfaceAnimalSpecies(scene, world, player, drops, particles, {
     definition: MOB_DEFINITIONS[SHEEP_ID],
-    allowedBiomes: new Set(['Meadows', 'Oak Forest', 'Snowy Taiga', 'Alpine Peaks']),
+    requiredBiomeTag: 'grazable',
     visual: VISUAL,
     particles: BlockId.SnowBlock,
     wanderSpeed: 0.62,

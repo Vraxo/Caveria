@@ -1,4 +1,5 @@
 import { BlockId } from '../../src/content/BlockId';
+import { BIOME_DEFINITIONS } from '../../src/content/biomes/BiomeDefinitions';
 import { SurfaceBiome } from '../../src/world/TerrainGen';
 import { World } from '../../src/world/World';
 
@@ -16,7 +17,10 @@ export function createFakeWorld(options: FakeWorldOptions = {}): World {
     terrainGen: {
       getSurfaceHeight: () => options.surfaceHeight ?? 0,
       getSurfaceBiome: () => options.surfaceBiome ?? 'Meadows',
+      getSurfaceBiomeDefinition: () =>
+        BIOME_DEFINITIONS.getSurface(options.surfaceBiome ?? 'Meadows'),
       getCavernBiome: () => 'Crystal Geode Hall',
+      getCavernBiomeDefinition: () => BIOME_DEFINITIONS.getCavern('Crystal Geode Hall'),
     },
   } as unknown as World;
 }

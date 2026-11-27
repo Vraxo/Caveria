@@ -1,4 +1,10 @@
 import { BlockId } from '../content/BlockId';
+import {
+  BIOME_DEFINITIONS,
+  type BiomeDefinitionRegistry,
+  type CavernBiomeDefinition,
+  type SurfaceBiomeDefinition,
+} from '../content/biomes/BiomeDefinitions';
 import type { CavernBiome, SurfaceBiome } from '../content/biomes/BiomeTypes';
 import { CHUNK_HEIGHT, CHUNK_SIZE, Chunk, SEA_LEVEL } from './Chunk';
 import { SeededNoise } from './Noise';
@@ -19,7 +25,8 @@ export class TerrainGen {
 
   constructor(
     seed: number,
-    private readonly decorators: BiomeDecoratorRegistry = createDefaultBiomeDecoratorRegistry()
+    private readonly decorators: BiomeDecoratorRegistry = createDefaultBiomeDecoratorRegistry(),
+    private readonly biomeDefinitions: BiomeDefinitionRegistry = BIOME_DEFINITIONS
   ) {
     this.seed = seed;
     this.terrainNoise = new SeededNoise(seed);
@@ -31,36 +38,30 @@ export class TerrainGen {
     this.oreNoise = new SeededNoise(seed ^ 0xc2b2ae35);
   }
 
+  public getSurfaceBiomeDefinition(
+    wx: number,
+    wz: number,
+    surfaceY?: number
+  ): SurfaceBiomeDefinition {
+    const resolvedSurfaceY = surfaceY ?? this.getSurfaceHeight(wx, wz);
+    return this.biomeDefinitions.selectSurface({
+      surfaceY: resolvedSurfaceY,
+      temperatureNoise: this.tempNoise.fbm2D(wx * 0.0038, wz * 0.0038, 2),
+      humidityNoise: this.humidityNoise.fbm2D(wx * 0.0042 + 120, wz * 0.0042 - 90, 2),
+    });
+  }
+
   public getSurfaceBiome(wx: number, wz: number, surfaceY?: number): SurfaceBiome {
-    const h = surfaceY ?? this.getSurfaceHeight(wx, wz);
-    if (h >= 74) {
-      return 'Alpine Peaks';
-    }
+    return this.getSurfaceBiomeDefinition(wx, wz, surfaceY).id;
+  }
 
-    const temp = this.tempNoise.fbm2D(wx * 0.0038, wz * 0.0038, 2);
-    const humidity = this.humidityNoise.fbm2D(wx * 0.0042 + 120, wz * 0.0042 - 90, 2);
-
-    if (temp > 0.24 && humidity < 0.08) {
-      return 'Desert Dunes';
-    }
-    if (temp < -0.22 || h >= 68) {
-      return 'Snowy Taiga';
-    }
-    if (humidity > 0.06) {
-      return 'Oak Forest';
-    }
-    return 'Meadows';
+  public getCavernBiomeDefinition(wx: number, wz: number): CavernBiomeDefinition {
+    const noise = this.caveBiomeNoise.fbm2D(wx * 0.0075, wz * 0.0075, 2);
+    return this.biomeDefinitions.selectCavern(noise);
   }
 
   public getCavernBiome(wx: number, wz: number): CavernBiome {
-    const v = this.caveBiomeNoise.fbm2D(wx * 0.0075, wz * 0.0075, 2);
-    if (v > 0.18) {
-      return 'Lush Bioluminescent Cavern';
-    }
-    if (v < -0.18) {
-      return 'Crystal Geode Hall';
-    }
-    return 'Dripstone Depths';
+    return this.getCavernBiomeDefinition(wx, wz).id;
   }
 
   public getBiomeLabelAt(wx: number, wy: number, wz: number): string {
@@ -87,8 +88,8 @@ export class TerrainGen {
     const baseZ = chunk.cz * CHUNK_SIZE;
 
     const heights = new Int16Array(CHUNK_SIZE * CHUNK_SIZE);
-    const biomes: SurfaceBiome[] = new Array(CHUNK_SIZE * CHUNK_SIZE);
-    const cavBiomes: CavernBiome[] = new Array(CHUNK_SIZE * CHUNK_SIZE);
+    const surfaceBiomes: SurfaceBiomeDefinition[] = new Array(CHUNK_SIZE * CHUNK_SIZE);
+    const cavernBiomes: CavernBiomeDefinition[] = new Array(CHUNK_SIZE * CHUNK_SIZE);
 
     // Pass 1: Surface biome blocks, Deepslate strata, Spaghetti + Cathedral Caverns, Ores, Aquifers
     for (let lz = 0; lz < CHUNK_SIZE; lz++) {
@@ -97,12 +98,12 @@ export class TerrainGen {
         const wx = baseX + lx;
         const colIdx = lz * CHUNK_SIZE + lx;
         const surfaceY = this.getSurfaceHeight(wx, wz);
-        const surfBiome = this.getSurfaceBiome(wx, wz, surfaceY);
-        const cavBiome = this.getCavernBiome(wx, wz);
+        const surfaceBiome = this.getSurfaceBiomeDefinition(wx, wz, surfaceY);
+        const cavernBiome = this.getCavernBiomeDefinition(wx, wz);
 
         heights[colIdx] = surfaceY;
-        biomes[colIdx] = surfBiome;
-        cavBiomes[colIdx] = cavBiome;
+        surfaceBiomes[colIdx] = surfaceBiome;
+        cavernBiomes[colIdx] = cavernBiome;
 
         const isShore = surfaceY <= SEA_LEVEL + 2;
         const slateBoundary = 25 + Math.floor(this.oreNoise.noise2D(wx * 0.09, wz * 0.09) * 3);
@@ -118,36 +119,18 @@ export class TerrainGen {
             continue;
           }
 
-          // Determine base solid block from surface biome + depth strata
+          // Resolve biome-owned surface materials, then shared deep strata.
+          const depth = surfaceY - y;
           let block: BlockId;
-          if (y === surfaceY) {
-            if (y < SEA_LEVEL - 1) {
-              block = BlockId.Dirt;
-            } else if (surfBiome === 'Desert Dunes' || isShore) {
-              block = BlockId.Sand;
-            } else if (surfBiome === 'Alpine Peaks') {
-              block = surfaceY >= 79 ? BlockId.SnowBlock : BlockId.Stone;
-            } else if (surfBiome === 'Snowy Taiga') {
-              block = BlockId.SnowGrass;
-            } else {
-              block = BlockId.Grass;
-            }
-          } else if (y >= surfaceY - 3) {
-            if (surfBiome === 'Desert Dunes') {
-              block = y === surfaceY - 3 ? BlockId.Sandstone : BlockId.Sand;
-            } else if (isShore) {
-              block = BlockId.Sand;
-            } else if (surfBiome === 'Alpine Peaks') {
-              block = BlockId.Stone;
-            } else {
-              block = BlockId.Dirt;
-            }
-          } else if (surfBiome === 'Desert Dunes' && y >= surfaceY - 6) {
-            block = BlockId.Sandstone;
-          } else if (y <= slateBoundary) {
-            block = BlockId.DeepSlate;
+          if (depth === 0) {
+            block = y < SEA_LEVEL - 1
+              ? BlockId.Dirt
+              : isShore ? BlockId.Sand : surfaceBiome.terrain.surfaceBlock(surfaceY);
+          } else if (depth <= 3) {
+            block = surfaceBiome.terrain.shallowSubsurfaceBlock(depth, isShore);
           } else {
-            block = BlockId.Stone;
+            const biomeStrata = surfaceBiome.terrain.deepSubsurfaceBlock?.(depth) ?? null;
+            block = biomeStrata ?? (y <= slateBoundary ? BlockId.DeepSlate : BlockId.Stone);
           }
 
           // 3D Cave & Signature "Caveria" Cathedral Cavern Carving
@@ -211,11 +194,11 @@ export class TerrainGen {
       for (let lx = 1; lx < CHUNK_SIZE - 1; lx++) {
         const wx = baseX + lx;
         const columnIndex = lz * CHUNK_SIZE + lx;
-        const cavernBiome = cavBiomes[columnIndex];
+        const cavernBiome = cavernBiomes[columnIndex];
         const maxDecorY = Math.min(42, heights[columnIndex] - 5);
 
         for (let y = 3; y <= maxDecorY; y++) {
-          this.decorators.decorateCavern(cavernBiome, {
+          this.decorators.decorateCavern(cavernBiome.id, {
             chunk,
             lx,
             y,
@@ -242,7 +225,7 @@ export class TerrainGen {
         const surfaceY = heights[columnIndex];
         if (surfaceY <= SEA_LEVEL + 2 || surfaceY >= CHUNK_HEIGHT - 14) continue;
 
-        this.decorators.decorateSurface(biomes[columnIndex], {
+        this.decorators.decorateSurface(surfaceBiomes[columnIndex].id, {
           chunk,
           lx,
           lz,

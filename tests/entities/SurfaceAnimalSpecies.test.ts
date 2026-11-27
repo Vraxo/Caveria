@@ -55,7 +55,7 @@ function createHarness(options: {
     { spawnBurst } as unknown as BreakParticles,
     {
       definition: MOB_DEFINITIONS.chicken,
-      allowedBiomes: new Set(['Meadows']),
+      requiredBiomeTag: 'temperate',
       visual: visualAdapter,
       particles: BlockId.SnowBlock,
       wanderSpeed: 0.7,
