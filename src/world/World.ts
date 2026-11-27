@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { BiomeSize } from '../Biomes/BiomeSize';
 import type { SerializedVoxelEdit } from '../persistence/WorldPersistence';
 import { TextureAtlas } from '../rendering/TextureAtlas';
 import {
@@ -33,12 +34,13 @@ export class World {
     atlas: TextureAtlas,
     seed: number,
     renderDistance = 5,
-    savedEdits: SerializedVoxelEdit[] = []
+    savedEdits: SerializedVoxelEdit[] = [],
+    biomeSize: BiomeSize = 'standard'
   ) {
     this.scene = scene;
     this.atlas = atlas;
-    this.terrainGen = new TerrainGen(seed);
-    this.chunkPipeline = new ChunkPipeline(seed);
+    this.terrainGen = new TerrainGen(seed, undefined, undefined, biomeSize);
+    this.chunkPipeline = new ChunkPipeline(seed, biomeSize);
     this.renderDistance = renderDistance;
     this.lightUniforms = createVoxelLightUniforms();
     this.importEdits(savedEdits);

@@ -1,3 +1,5 @@
+import type { BiomeSize } from '../Biomes/BiomeSize';
+
 export interface GeneratedChunkData {
   cx: number;
   cz: number;
@@ -29,7 +31,10 @@ export class ChunkPipeline {
   private nextRequestId = 1;
   private readonly pending = new Map<number, PendingRequest>();
 
-  constructor(private readonly seed: number) {
+  constructor(
+    private readonly seed: number,
+    private readonly biomeSize: BiomeSize
+  ) {
     this.supported = typeof Worker !== 'undefined';
     if (!this.supported) return;
 
@@ -69,7 +74,14 @@ export class ChunkPipeline {
     const requestId = this.nextRequestId++;
     return new Promise((resolve, reject) => {
       this.pending.set(requestId, { cx, cz, resolve, reject });
-      this.worker!.postMessage({ type: 'generate', requestId, seed: this.seed, cx, cz });
+      this.worker!.postMessage({
+        type: 'generate',
+        requestId,
+        seed: this.seed,
+        biomeSize: this.biomeSize,
+        cx,
+        cz,
+      });
     });
   }
 }

@@ -990,7 +990,8 @@
         text-align: left;
         text-shadow: 1px 1px #000;
       }
-      .world-field input {
+      .world-field input,
+      .world-field select {
         width: 100%;
         padding: 11px 12px;
         border: 2px solid #111;
@@ -1000,7 +1001,9 @@
         font: 13px ui-monospace, monospace;
         user-select: text;
       }
-      .world-field input:focus { outline-color: #fff; }
+      .world-field select { cursor: pointer; }
+      .world-field input:focus,
+      .world-field select:focus { outline-color: #fff; }
       .world-create-hint { margin: -4px 0 18px; line-height: 1.5; }
 
       .options-list {
@@ -1219,7 +1222,15 @@
           <span>Seed for World Generator</span>
           <input id="world-seed-input" type="text" maxlength="64" placeholder="Leave blank for a random seed" autocomplete="off" />
         </label>
-        <div class="menu-hint world-create-hint">The seed controls terrain generation. Worlds with the same seed can still have separate saves.</div>
+        <label class="world-field">
+          <span>Biome Size</span>
+          <select id="world-biome-size-input">
+            <option value="compact">Compact — more frequent transitions</option>
+            <option value="standard" selected>Standard — broad regions</option>
+            <option value="large">Large — expansive regions</option>
+          </select>
+        </label>
+        <div class="menu-hint world-create-hint">Biome size is fixed for this world. It affects surface and cavern regions, but not terrain shape, caves, or ores.</div>
         <div class="menu-row">
           <button id="create-world-confirm" class="voxel-button" type="button">Create New World</button>
           <button id="create-world-cancel" class="voxel-button" type="button">Cancel</button>

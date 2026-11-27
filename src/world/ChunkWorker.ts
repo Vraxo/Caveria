@@ -1,3 +1,4 @@
+import type { BiomeSize } from '../Biomes/BiomeSize';
 import { Chunk } from './Chunk';
 import { TerrainGen } from './TerrainGen';
 
@@ -5,6 +6,7 @@ interface GenerateRequest {
   type: 'generate';
   requestId: number;
   seed: number;
+  biomeSize: BiomeSize;
   cx: number;
   cz: number;
 }
@@ -23,16 +25,17 @@ const workerScope = self as unknown as {
   postMessage: (message: GenerateResponse, transfer: Transferable[]) => void;
 };
 
-const generators = new Map<number, TerrainGen>();
+const generators = new Map<string, TerrainGen>();
 
 workerScope.onmessage = (event): void => {
   const request = event.data;
   if (request.type !== 'generate') return;
 
-  let generator = generators.get(request.seed);
+  const generatorKey = `${request.seed}:${request.biomeSize}`;
+  let generator = generators.get(generatorKey);
   if (!generator) {
-    generator = new TerrainGen(request.seed);
-    generators.set(request.seed, generator);
+    generator = new TerrainGen(request.seed, undefined, undefined, request.biomeSize);
+    generators.set(generatorKey, generator);
   }
 
   const chunk = new Chunk(request.cx, request.cz);

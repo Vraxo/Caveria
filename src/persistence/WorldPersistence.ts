@@ -1,3 +1,4 @@
+import { parseBiomeSize, type BiomeSize } from '../Biomes/BiomeSize';
 import type { BedSnapshot } from '../gameplay/BedManager';
 import type { FarmPlotSnapshot } from '../gameplay/FarmingManager';
 import { getCropDefinition } from '../content/crops/CropDefinitions';
@@ -27,6 +28,7 @@ export interface WorldSummary {
   worldId: string;
   worldName: string;
   seed: string;
+  biomeSize: BiomeSize;
   savedAt: number;
   createdAt: number;
   editCount: number;
@@ -37,6 +39,7 @@ export interface CaveriaSaveData {
   worldId: string;
   worldName: string;
   seed: string;
+  biomeSize: BiomeSize;
   createdAt: number;
   savedAt: number;
   player: {
@@ -110,6 +113,7 @@ export class WorldPersistence {
           worldId,
           worldName,
           seed: parsed.seed,
+          biomeSize: parseBiomeSize(parsed.biomeSize),
           savedAt: WorldPersistence.finite(parsed.savedAt, 0),
           createdAt: WorldPersistence.finite(parsed.createdAt, parsed.savedAt ?? Date.now()),
           editCount: Array.isArray(parsed.worldEdits) ? parsed.worldEdits.length : 0,
@@ -383,6 +387,7 @@ export class WorldPersistence {
           ? raw.worldName.trim().slice(0, 48)
           : this.worldName,
       seed: this.seedLabel,
+      biomeSize: parseBiomeSize(raw.biomeSize),
       createdAt: finite(raw.createdAt, finite(raw.savedAt, Date.now())),
       savedAt: finite(raw.savedAt, Date.now()),
       player: {
