@@ -4,6 +4,7 @@ import { isBlockSolid } from '../content/BlockQueries';
 import { rollMobLoot } from '../content/loot/MobLoot';
 import { MOB_DEFINITIONS, VULTURE_ID } from '../content/mobs/MobDefinitions';
 import { MobEntity, MobRuntime, MobSpeciesBehavior, MobTag, SavedMobSnapshot } from '../entities/MobTypes';
+import { ItemId } from '../items/Item';
 import { Player } from '../player/Player';
 import { BreakParticles } from '../rendering/BreakParticles';
 import { DroppedItemManager } from '../rendering/DroppedItems';
@@ -30,6 +31,14 @@ const CRUISE_SPEED = 2.2;
 const FLEE_SPEED = 3.6;
 const FLIGHT_HEIGHT = 4.5;
 const HURT_INVULNERABILITY_SECONDS = 0.24;
+const SCAVENGED_ITEMS = new Set<ItemId>([
+  ItemId.RawChicken,
+  ItemId.RawMutton,
+  ItemId.RawRabbit,
+  ItemId.RawCaveFish,
+  ItemId.RawRiverFish,
+  ItemId.BlightedFish,
+]);
 
 /** Desert flying wildlife with lightweight cruising, avoidance, persistence, and loot. */
 export class VultureSpecies implements MobSpeciesBehavior<VultureState, WildlifeVisual> {
@@ -75,6 +84,7 @@ export class VultureSpecies implements MobSpeciesBehavior<VultureState, Wildlife
     let directionX: number;
     let directionZ: number;
     let speed = CRUISE_SPEED;
+    let flightHeight = FLIGHT_HEIGHT;
     if (distance < 6) {
       const inverseDistance = 1 / Math.max(0.001, distance);
       directionX = awayX * inverseDistance;
@@ -82,16 +92,33 @@ export class VultureSpecies implements MobSpeciesBehavior<VultureState, Wildlife
       vulture.state.facingAngle = Math.atan2(directionX, directionZ);
       speed = FLEE_SPEED;
     } else {
-      if (vulture.state.turnTimer <= 0) {
-        vulture.state.facingAngle += (Math.random() - 0.5) * 1.2;
-        vulture.state.turnTimer = 2 + Math.random() * 4;
+      const carrion = this.drops.findNearestPosition(
+        vulture.position,
+        18,
+        (stack) => SCAVENGED_ITEMS.has(stack.id)
+      );
+      if (carrion) {
+        const towardX = carrion.x - vulture.position.x;
+        const towardZ = carrion.z - vulture.position.z;
+        const carrionDistance = Math.hypot(towardX, towardZ);
+        const inverseDistance = 1 / Math.max(0.001, carrionDistance);
+        directionX = towardX * inverseDistance;
+        directionZ = towardZ * inverseDistance;
+        vulture.state.facingAngle = Math.atan2(directionX, directionZ);
+        speed = carrionDistance > 2.5 ? 2.8 : 1.2;
+        flightHeight = 2.2;
+      } else {
+        if (vulture.state.turnTimer <= 0) {
+          vulture.state.facingAngle += (Math.random() - 0.5) * 1.2;
+          vulture.state.turnTimer = 2 + Math.random() * 4;
+        }
+        directionX = Math.sin(vulture.state.facingAngle);
+        directionZ = Math.cos(vulture.state.facingAngle);
       }
-      directionX = Math.sin(vulture.state.facingAngle);
-      directionZ = Math.cos(vulture.state.facingAngle);
     }
 
     const surface = this.world.terrainGen.getSurfaceHeight(vulture.position.x, vulture.position.z);
-    const desiredY = surface + FLIGHT_HEIGHT + Math.sin(vulture.age * 0.7 + vulture.state.flightOffset);
+    const desiredY = surface + flightHeight + Math.sin(vulture.age * 0.7 + vulture.state.flightOffset);
     const blend = Math.min(1, dt * 2.5);
     vulture.velocity.x += (directionX * speed - vulture.velocity.x) * blend;
     vulture.velocity.z += (directionZ * speed - vulture.velocity.z) * blend;

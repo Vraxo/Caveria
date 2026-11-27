@@ -80,6 +80,24 @@ export class DroppedItemManager {
     });
   }
 
+  public findNearestPosition(
+    position: THREE.Vector3,
+    radius: number,
+    accepts: (stack: Readonly<ItemStack>) => boolean = () => true
+  ): THREE.Vector3 | null {
+    const radiusSquared = radius * radius;
+    let nearest: DroppedEntity | null = null;
+    let nearestDistance = radiusSquared;
+    for (const entity of this.entities) {
+      if (!accepts(entity.stack)) continue;
+      const distance = entity.pos.distanceToSquared(position);
+      if (distance >= nearestDistance) continue;
+      nearest = entity;
+      nearestDistance = distance;
+    }
+    return nearest?.pos.clone() ?? null;
+  }
+
   public update(
     dt: number,
     world: World,

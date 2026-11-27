@@ -34,6 +34,8 @@ export interface DesertHostileConfig {
   attackDamage: number;
   poisonChance: number;
   minimumSpawnSpacing: number;
+  isActive?(): boolean;
+  ambush?: boolean;
   playCall(): void;
   playHit(): void;
   playDeath(): void;
@@ -99,9 +101,25 @@ implements MobSpeciesBehavior<DesertHostileState, WildlifeVisual> {
       return;
     }
 
-    let directionX = Math.sin(creature.state.facingAngle);
-    let directionZ = Math.cos(creature.state.facingAngle);
-    let speed = this.config.wanderSpeed;
+    if (this.config.isActive && !this.config.isActive()) {
+      creature.velocity.x *= Math.pow(0.05, dt);
+      creature.velocity.z *= Math.pow(0.05, dt);
+      moveGroundMob(
+        creature,
+        { directionX: 0, directionZ: 0, speed: 0 },
+        { radius: this.radius, height: this.height },
+        this.world,
+        dt,
+        { response: MOVEMENT_RESPONSE }
+      );
+      this.updateVisual(creature);
+      creature.visual.root.position.y -= this.height * 0.62;
+      return;
+    }
+
+    let directionX = this.config.ambush ? 0 : Math.sin(creature.state.facingAngle);
+    let directionZ = this.config.ambush ? 0 : Math.cos(creature.state.facingAngle);
+    let speed = this.config.ambush ? 0 : this.config.wanderSpeed;
     if (!this.vitals.dead && distance < this.config.sightDistance) {
       const inverseDistance = 1 / Math.max(0.001, distance);
       directionX = towardX * inverseDistance;
@@ -113,7 +131,7 @@ implements MobSpeciesBehavior<DesertHostileState, WildlifeVisual> {
         creature.state.soundTimer = 4 + Math.random() * 6;
         this.config.playCall();
       }
-    } else if (creature.state.decisionTimer <= 0) {
+    } else if (!this.config.ambush && creature.state.decisionTimer <= 0) {
       creature.state.facingAngle = Math.random() * Math.PI * 2;
       creature.state.decisionTimer = 1.5 + Math.random() * 3.5;
       directionX = Math.sin(creature.state.facingAngle);
@@ -129,12 +147,7 @@ implements MobSpeciesBehavior<DesertHostileState, WildlifeVisual> {
       { response: MOVEMENT_RESPONSE }
     );
     if (movement.collidedHorizontally) creature.state.decisionTimer = 0;
-    updateGroundWildlifeVisual(creature.visual, {
-      age: creature.age,
-      hurt: creature.hurtTimer > 0,
-      position: creature.position,
-      velocity: creature.velocity,
-    });
+    this.updateVisual(creature);
   }
 
   public saveState(creature: DesertHostileEntity): unknown {
@@ -186,6 +199,15 @@ implements MobSpeciesBehavior<DesertHostileState, WildlifeVisual> {
     disposeWildlifeVisual(creature.visual);
   }
 
+  private updateVisual(creature: DesertHostileEntity): void {
+    updateGroundWildlifeVisual(creature.visual, {
+      age: creature.age,
+      hurt: creature.hurtTimer > 0,
+      position: creature.position,
+      velocity: creature.velocity,
+    });
+  }
+
   private tryAttack(
     creature: DesertHostileEntity,
     distance: number,
@@ -209,6 +231,7 @@ implements MobSpeciesBehavior<DesertHostileState, WildlifeVisual> {
   private trySpawn(runtime: MobRuntime): void {
     if (
       this.vitals.dead
+      || (this.config.isActive && !this.config.isActive())
       || runtime.countSpecies(this.species) >= this.config.definition.maxPopulation
       || !this.playerIsNearSurface()
     ) return;

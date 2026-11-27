@@ -32,6 +32,7 @@ export interface DesertWildlifeDependencies {
   audio: AudioManager;
   camelRiding: CamelRidingController;
   openCamelStorage(camel: SurfaceAnimalEntity<WildlifeVisual>): void;
+  isNight(): boolean;
   poisonPlayer(): void;
 }
 
@@ -41,10 +42,10 @@ export function createDesertWildlife(
 ): ReadonlyArray<MobSpeciesBehavior<any, any>> {
   const {
     scene, world, player, vitals, drops, particles, audio, camelRiding,
-    openCamelStorage, poisonPlayer,
+    openCamelStorage, isNight, poisonPlayer,
   } = dependencies;
   const shared = {
-    scene, world, player, drops, particles, audio, camelRiding, openCamelStorage,
+    scene, world, player, drops, particles, audio, camelRiding, openCamelStorage, isNight,
   };
   return [
     createCamelSpecies(shared),
@@ -65,6 +66,7 @@ export function createDesertWildlife(
         attackDamage: 2,
         poisonChance: 0.3,
         minimumSpawnSpacing: 2.5,
+        isActive: isNight,
         playCall: () => audio.playScorpionChitter(),
         playHit: () => audio.playDesertWildlifeHit(),
         playDeath: () => audio.playDesertWildlifeDeath(),
@@ -88,6 +90,7 @@ export function createDesertWildlife(
         attackDamage: 2,
         poisonChance: 0.4,
         minimumSpawnSpacing: 3,
+        ambush: true,
         playCall: () => audio.playSnakeHiss(),
         playHit: () => audio.playDesertWildlifeHit(),
         playDeath: () => audio.playDesertWildlifeDeath(),
