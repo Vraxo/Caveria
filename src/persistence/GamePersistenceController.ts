@@ -5,6 +5,30 @@ export type GameSaveSnapshot = Omit<
   'version' | 'worldId' | 'worldName' | 'seed' | 'createdAt' | 'savedAt'
 >;
 
+const GAME_SAVE_SNAPSHOT_FIELDS = {
+  player: true,
+  inventory: true,
+  armor: true,
+  selectedHotbar: true,
+  creativeMode: true,
+  timeOfDay: true,
+  weather: true,
+  muted: true,
+  temperature: true,
+  statusEffects: true,
+  furnaces: true,
+  chests: true,
+  farms: true,
+  beds: true,
+  respawnBed: true,
+  mobs: true,
+  worldEdits: true,
+} satisfies Record<keyof GameSaveSnapshot, true>;
+
+export const GAME_SAVE_SNAPSHOT_KEYS = Object.keys(
+  GAME_SAVE_SNAPSHOT_FIELDS
+) as Array<keyof GameSaveSnapshot>;
+
 /** Owns autosave cadence, browser lifecycle saves, reset controls, and save feedback. */
 export class GamePersistenceController {
   private readonly persistence: WorldPersistence;
