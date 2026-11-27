@@ -11,6 +11,7 @@ import { PlayerVitals } from '../player/PlayerVitals';
 import { BreakParticles } from '../rendering/BreakParticles';
 import { DroppedItemManager } from '../rendering/DroppedItems';
 import { World } from '../world/World';
+import { CamelRidingController } from './CamelRidingController';
 import { DesertHostileSpecies } from './DesertHostileSpecies';
 import { createCamelSpecies, createLizardSpecies } from './DesertPassiveSpecies';
 import { createScorpionVisual, createSnakeVisual } from './DesertWildlifeVisuals';
@@ -24,6 +25,7 @@ export interface DesertWildlifeDependencies {
   drops: DroppedItemManager;
   particles: BreakParticles;
   audio: AudioManager;
+  camelRiding: CamelRidingController;
   poisonPlayer(): void;
 }
 
@@ -31,8 +33,10 @@ export interface DesertWildlifeDependencies {
 export function createDesertWildlife(
   dependencies: DesertWildlifeDependencies
 ): ReadonlyArray<MobSpeciesBehavior<any, any>> {
-  const { scene, world, player, vitals, drops, particles, audio, poisonPlayer } = dependencies;
-  const shared = { scene, world, player, drops, particles, audio };
+  const {
+    scene, world, player, vitals, drops, particles, audio, camelRiding, poisonPlayer,
+  } = dependencies;
+  const shared = { scene, world, player, drops, particles, audio, camelRiding };
   return [
     createCamelSpecies(shared),
     new DesertHostileSpecies(

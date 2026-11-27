@@ -194,6 +194,21 @@ export class Player {
     this.syncCamera();
   }
 
+  /** Synchronizes the player body and camera to an externally controlled mount. */
+  public syncMountedPosition(
+    position: THREE.Vector3,
+    velocity: THREE.Vector3,
+    onGround: boolean
+  ): void {
+    this.position.copy(position);
+    this.velocity.copy(velocity);
+    this.onGround = onGround;
+    this.crouching = false;
+    this.collider.height = STANDING_HEIGHT;
+    this.eyeHeight = STANDING_EYE_HEIGHT;
+    this.syncCamera();
+  }
+
   private updateCrouch(input: Input, world: World): void {
     const shiftHeld = input.isKeyDown('ShiftLeft') || input.isKeyDown('ShiftRight');
     if (shiftHeld) {

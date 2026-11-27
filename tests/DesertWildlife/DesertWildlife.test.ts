@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { CamelRidingController } from '../../src/DesertWildlife/CamelRidingController';
 import { createDesertWildlife } from '../../src/DesertWildlife/createDesertWildlife';
 import { BlockId } from '../../src/content/BlockId';
+import { Input } from '../../src/core/Input';
 import { MOB_DEFINITIONS } from '../../src/content/mobs/MobDefinitions';
 import { MobSpeciesBehavior } from '../../src/entities/MobTypes';
 import { createStack, ItemId } from '../../src/items/Item';
@@ -18,10 +20,11 @@ function createHarness(biome: 'Desert Dunes' | 'Meadows' = 'Desert Dunes') {
     surfaceHeight: 0,
     getBlock: (_x, y) => y === 0 ? BlockId.Sand : BlockId.Air,
   });
-  const player = {
-    position: new THREE.Vector3(0, 1, 0),
-    velocity: new THREE.Vector3(),
-  } as unknown as Player;
+  const player = new Player(
+    new THREE.PerspectiveCamera(),
+    new THREE.Vector3(0, 1, 0)
+  );
+  const camelRiding = new CamelRidingController(player, world);
   const damage = vi.fn(() => true);
   const vitals = {
     dead: false,
@@ -36,6 +39,7 @@ function createHarness(biome: 'Desert Dunes' | 'Meadows' = 'Desert Dunes') {
     vitals,
     drops: { spawnDrop: vi.fn() } as unknown as DroppedItemManager,
     particles: { spawnBurst: vi.fn() } as unknown as BreakParticles,
+    camelRiding,
     audio: {
       playCamelCall: vi.fn(),
       playScorpionChitter: vi.fn(),
@@ -47,7 +51,7 @@ function createHarness(biome: 'Desert Dunes' | 'Meadows' = 'Desert Dunes') {
     } as never,
     poisonPlayer,
   });
-  return { behaviors, player, damage, poisonPlayer };
+  return { behaviors, player, damage, poisonPlayer, camelRiding };
 }
 
 afterEach(() => vi.restoreAllMocks());
@@ -95,6 +99,40 @@ describe('desert wildlife', () => {
       expect(behavior.interact?.(entity, createStack(ItemId.Cactus), false, runtime))
         .toMatchObject({ consumeHeld: true, swing: true });
     }
+  });
+
+  it('mounts adult Camels with an empty hand and transfers movement control', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const { behaviors, player, camelRiding } = createHarness();
+    const runtime = new RecordingMobRuntime();
+    for (const behavior of behaviors) behavior.updateSpawning?.(6, runtime);
+    const camelBehavior = behaviors.find((behavior) => behavior.species === 'camel')!;
+    const camel = runtime.entities.find((entity) => entity.species === 'camel')!;
+
+    expect(camelBehavior.interact?.(camel, null, false, runtime))
+      .toMatchObject({ swing: true });
+    expect(camelRiding.mountedEntityId).toBe(camel.id);
+
+    camel.onGround = true;
+    const ridingInput = {
+      isKeyDown: (code: string) => code === 'KeyW',
+      consumeKeyPress: () => false,
+    } as unknown as Input;
+    const startZ = camel.position.z;
+    camelRiding.update(0.1, ridingInput);
+    camelBehavior.update(camel, 0.1, runtime);
+
+    expect(camel.position.z).toBeLessThan(startZ);
+    expect(player.position.x).toBe(camel.position.x);
+    expect(player.position.z).toBe(camel.position.z);
+    expect(player.position.y).toBeCloseTo(camel.position.y + 1.62);
+
+    const dismountInput = {
+      isKeyDown: () => false,
+      consumeKeyPress: (code: string) => code === 'ShiftLeft',
+    } as unknown as Input;
+    expect(camelRiding.update(0.1, dismountInput)).toBe(false);
+    expect(camelRiding.isRiding).toBe(false);
   });
 
   it('round-trips every species through the shared persistence contract', () => {

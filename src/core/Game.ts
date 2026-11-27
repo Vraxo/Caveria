@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
+import { CamelRidingController } from '../DesertWildlife/CamelRidingController';
 import { createDesertWildlife } from '../DesertWildlife/createDesertWildlife';
 import { ArrowProjectileManager } from '../gameplay/ArrowProjectileManager';
 import { BedManager } from '../gameplay/BedManager';
@@ -64,6 +65,7 @@ export class Game {
   private readonly world: World;
   private readonly dayNight: DayNightCycle;
   private readonly player: Player;
+  private readonly camelRiding: CamelRidingController;
   private readonly vitals: PlayerVitals;
   private readonly armor: ArmorManager;
   private readonly temperature: TemperatureSystem;
@@ -164,6 +166,7 @@ export class Game {
       this.player.flyMode = savedGame.player.flyMode;
       this.dayNight.timeOfDay = savedGame.timeOfDay;
     }
+    this.camelRiding = new CamelRidingController(this.player, this.world);
     this.audio = new AudioManager();
     if (savedGame) this.audio.setMuted(savedGame.muted);
     this.weather = new WeatherSystem(this.scene, this.world, this.player, this.audio);
@@ -188,17 +191,20 @@ export class Game {
     );
     this.vitals = new PlayerVitals(
       () => {
+        this.camelRiding.dismount();
         this.interactions.clearTarget();
         this.overlay.setDeathScreenActive(true);
         this.input.exitPointerLock();
       },
       () => {
+        this.camelRiding.dismount();
         const respawn = this.findRespawnPoint();
         this.player.restoreTransform(respawn, 0, 0);
         this.overlay.setDeathScreenActive(false);
         this.input.requestPointerLock();
       },
       () => {
+        this.camelRiding.dismount();
         const respawn = this.findRespawnPoint();
         this.player.restoreTransform(respawn, 0, 0);
         this.persistence.save(false);
@@ -291,6 +297,7 @@ export class Game {
       drops: this.drops,
       particles: this.particles,
       audio: this.audio,
+      camelRiding: this.camelRiding,
       poisonPlayer: () => this.statusEffects.poison(18),
     });
     this.mobs = new MobManager([
@@ -690,7 +697,7 @@ export class Game {
       !this.furnaceModal.isOpen &&
       !this.chestModal.isOpen
     ) {
-      if (this.input.consumeKeyPress('KeyF')) {
+      if (!this.camelRiding.isRiding && this.input.consumeKeyPress('KeyF')) {
         this.player.flyMode = !this.player.flyMode;
         this.player.velocity.y = 0;
         this.audio.playModeToggle();
@@ -745,18 +752,22 @@ export class Game {
       let remaining = dt;
       while (remaining > 0) {
         const step = Math.min(remaining, maxStep);
-        this.player.updatePhysics(
-          step,
-          this.input,
-          this.world,
-          weatherMovementScale,
-          this.creativeMode || this.vitals.canSprint
-        );
+        if (!this.camelRiding.update(step, this.input)) {
+          this.player.updatePhysics(
+            step,
+            this.input,
+            this.world,
+            weatherMovementScale,
+            this.creativeMode || this.vitals.canSprint
+          );
+        }
         remaining -= step;
       }
       this.movementAudio.updateMovement(dt, wasGrounded, impactVelocity);
-      if (!wasGrounded && this.player.onGround) this.vitals.applyFallDamage(impactVelocity);
-      if (!this.creativeMode) {
+      if (!this.camelRiding.isRiding && !wasGrounded && this.player.onGround) {
+        this.vitals.applyFallDamage(impactVelocity);
+      }
+      if (!this.creativeMode && !this.camelRiding.isRiding) {
         const traveled = Math.hypot(this.player.position.x - startX, this.player.position.z - startZ);
         this.vitals.addMovementExhaustion(traveled, sprinting, swimming);
         if (wasGrounded && !this.player.onGround && this.input.isKeyDown('Space')) {
