@@ -39,6 +39,7 @@ export class CamelRidingController {
     camel.state.activity = 'idle';
     camel.state.activityTimer = 0;
     camel.state.loveTimer = 0;
+    camel.state.persistent = true;
     this.player.flyMode = false;
     this.syncPlayer(camel);
     return true;

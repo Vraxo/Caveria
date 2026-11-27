@@ -6,6 +6,7 @@ import {
   SNAKE_ID,
 } from '../content/mobs/MobDefinitions';
 import { MobSpeciesBehavior } from '../entities/MobTypes';
+import type { SurfaceAnimalEntity } from '../entities/SurfaceAnimalSpecies';
 import { Player } from '../player/Player';
 import { PlayerVitals } from '../player/PlayerVitals';
 import { BreakParticles } from '../rendering/BreakParticles';
@@ -14,7 +15,11 @@ import { World } from '../world/World';
 import { CamelRidingController } from './CamelRidingController';
 import { DesertHostileSpecies } from './DesertHostileSpecies';
 import { createCamelSpecies, createLizardSpecies } from './DesertPassiveSpecies';
-import { createScorpionVisual, createSnakeVisual } from './DesertWildlifeVisuals';
+import {
+  type WildlifeVisual,
+  createScorpionVisual,
+  createSnakeVisual,
+} from './DesertWildlifeVisuals';
 import { VultureSpecies } from './VultureSpecies';
 
 export interface DesertWildlifeDependencies {
@@ -26,6 +31,7 @@ export interface DesertWildlifeDependencies {
   particles: BreakParticles;
   audio: AudioManager;
   camelRiding: CamelRidingController;
+  openCamelStorage(camel: SurfaceAnimalEntity<WildlifeVisual>): void;
   poisonPlayer(): void;
 }
 
@@ -34,9 +40,12 @@ export function createDesertWildlife(
   dependencies: DesertWildlifeDependencies
 ): ReadonlyArray<MobSpeciesBehavior<any, any>> {
   const {
-    scene, world, player, vitals, drops, particles, audio, camelRiding, poisonPlayer,
+    scene, world, player, vitals, drops, particles, audio, camelRiding,
+    openCamelStorage, poisonPlayer,
   } = dependencies;
-  const shared = { scene, world, player, drops, particles, audio, camelRiding };
+  const shared = {
+    scene, world, player, drops, particles, audio, camelRiding, openCamelStorage,
+  };
   return [
     createCamelSpecies(shared),
     new DesertHostileSpecies(

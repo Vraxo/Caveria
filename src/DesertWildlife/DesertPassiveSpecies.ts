@@ -6,7 +6,11 @@ import {
   LIZARD_ID,
   MOB_DEFINITIONS,
 } from '../content/mobs/MobDefinitions';
-import { SurfaceAnimalSpecies, SurfaceAnimalVisualAdapter } from '../entities/SurfaceAnimalSpecies';
+import {
+  SurfaceAnimalSpecies,
+  SurfaceAnimalVisualAdapter,
+  type SurfaceAnimalEntity,
+} from '../entities/SurfaceAnimalSpecies';
 import { ItemId } from '../items/Item';
 import { Player } from '../player/Player';
 import { BreakParticles } from '../rendering/BreakParticles';
@@ -38,10 +42,11 @@ interface DesertPassiveDependencies {
   particles: BreakParticles;
   audio: AudioManager;
   camelRiding: CamelRidingController;
+  openCamelStorage(camel: SurfaceAnimalEntity<WildlifeVisual>): void;
 }
 
 export function createCamelSpecies({
-  scene, world, player, drops, particles, audio, camelRiding,
+  scene, world, player, drops, particles, audio, camelRiding, openCamelStorage,
 }: DesertPassiveDependencies): SurfaceAnimalSpecies<WildlifeVisual> {
   return new SurfaceAnimalSpecies(scene, world, player, drops, particles, {
     definition: MOB_DEFINITIONS[CAMEL_ID],
@@ -55,11 +60,28 @@ export function createCamelSpecies({
     spawnGround: new Set([BlockId.Sand]),
     breedingItem: ItemId.Cactus,
     resource: 'none',
+    storageSlots: 18,
     playAmbientSound: () => audio.playCamelCall(),
     playHitSound: () => audio.playDesertWildlifeHit(),
     playDeathSound: () => audio.playDesertWildlifeDeath(),
-    onEmptyHandInteract: (camel) => camelRiding.mount(camel) ? { swing: true } : null,
+    onEmptyHandInteract: (camel, _runtime, sneaking) => {
+      if (camel.state.growthRemaining > 0) return null;
+      camel.state.persistent = true;
+      if (sneaking) {
+        openCamelStorage(camel);
+        return { swing: true };
+      }
+      return camelRiding.mount(camel) ? { swing: true } : null;
+    },
     isExternallyControlled: (camel) => camelRiding.isMounted(camel),
+    preventDespawn: (camel) => camel.state.persistent === true,
+    onDeath: (camel) => {
+      for (const stack of camel.state.storage ?? []) {
+        if (!stack) continue;
+        drops.spawnDrop(camel.position.x, camel.position.y + 0.8, camel.position.z, { ...stack });
+      }
+      camel.state.storage?.fill(null);
+    },
     onRemoved: (camel) => camelRiding.dismountIfMounted(camel),
   });
 }

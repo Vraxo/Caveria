@@ -3,7 +3,7 @@ import { BlockId } from '../content/BlockId';
 import { MobDefinition } from '../content/mobs/MobDefinitions';
 import { rollMobLoot } from '../content/loot/MobLoot';
 import type { BiomeTag } from '../Biomes/BiomeDefinitions';
-import { ItemId, ItemStack, createStack } from '../items/Item';
+import { ITEMS, ItemId, ItemStack, createStack } from '../items/Item';
 import { Player } from '../player/Player';
 import { BreakParticles } from '../rendering/BreakParticles';
 import { DroppedItemManager } from '../rendering/DroppedItems';
@@ -31,6 +31,10 @@ export interface SurfaceAnimalState {
   breedingCooldown: number;
   sheared: boolean;
   resourceTimer: number;
+  /** Optional feature-owned inventory used by pack animals. */
+  storage?: Array<ItemStack | null>;
+  /** Player-used animals remain in the world beyond normal ambient despawn range. */
+  persistent?: boolean;
 }
 
 export interface SurfaceAnimalVisualAdapter<TVisual> {
@@ -63,14 +67,18 @@ export interface SurfaceAnimalConfig<TVisual> {
   spawnGround: ReadonlySet<BlockId>;
   breedingItem: ItemId;
   resource: 'eggs' | 'wool' | 'none';
+  storageSlots?: number;
   playAmbientSound(): void;
   playHitSound(): void;
   playDeathSound(): void;
   onEmptyHandInteract?(
     animal: SurfaceAnimalEntity<TVisual>,
-    runtime: MobRuntime
+    runtime: MobRuntime,
+    sneaking: boolean
   ): MobInteractionResult | null;
   isExternallyControlled?(animal: SurfaceAnimalEntity<TVisual>): boolean;
+  preventDespawn?(animal: SurfaceAnimalEntity<TVisual>): boolean;
+  onDeath?(animal: SurfaceAnimalEntity<TVisual>): void;
   onRemoved?(animal: SurfaceAnimalEntity<TVisual>): void;
 }
 
@@ -153,7 +161,10 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
     const awayX = animal.position.x - this.player.position.x;
     const awayZ = animal.position.z - this.player.position.z;
     const playerDistance = Math.hypot(awayX, awayZ);
-    if (playerDistance > this.config.definition.despawnDistance) {
+    if (
+      playerDistance > this.config.definition.despawnDistance
+      && !this.config.preventDespawn?.(animal)
+    ) {
       runtime.remove(animal.id);
       return;
     }
@@ -172,7 +183,8 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
     animal: SurfaceAnimalEntity<TVisual>,
     held: ItemStack | null,
     creativeMode: boolean,
-    runtime: MobRuntime
+    runtime: MobRuntime,
+    sneaking = false
   ) {
     if (
       this.config.resource === 'wool'
@@ -192,7 +204,7 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
     }
 
     if (!held && this.config.onEmptyHandInteract) {
-      return this.config.onEmptyHandInteract(animal, runtime);
+      return this.config.onEmptyHandInteract(animal, runtime, sneaking);
     }
     if (held?.id !== this.config.breedingItem || animal.state.feedingCooldown > 0) return null;
     if (animal.state.growthRemaining > 0) {
@@ -236,7 +248,10 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
   }
 
   public saveState(animal: SurfaceAnimalEntity<TVisual>): unknown {
-    return { ...animal.state };
+    return {
+      ...animal.state,
+      storage: animal.state.storage?.map((stack) => stack ? { ...stack } : null),
+    };
   }
 
   public restore(snapshot: SavedMobSnapshot, runtime: MobRuntime): void {
@@ -269,6 +284,8 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
         breedingCooldown: Math.max(0, savedNumber(saved.breedingCooldown, 0)),
         sheared: Boolean(saved.sheared),
         resourceTimer,
+        storage: this.restoreStorage(saved.storage),
+        persistent: Boolean(saved.persistent),
       },
       visual,
     });
@@ -295,6 +312,7 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
       animal.position.z - 0.5,
       this.config.particles
     );
+    this.config.onDeath?.(animal);
     if (animal.state.growthRemaining > 0) return;
     for (const stack of rollMobLoot(this.config.definition.lootTable)) {
       this.drops.spawnDrop(
@@ -502,10 +520,42 @@ implements MobSpeciesBehavior<SurfaceAnimalState, TVisual> {
         breedingCooldown: 0,
         sheared: false,
         resourceTimer: this.initialResourceTimer(),
+        storage: this.config.storageSlots === undefined
+          ? undefined
+          : new Array<ItemStack | null>(this.config.storageSlots).fill(null),
+        persistent: false,
       },
       visual,
     });
     this.updateVisual(animal);
+  }
+
+  private restoreStorage(value: unknown): Array<ItemStack | null> | undefined {
+    if (this.config.storageSlots === undefined) return undefined;
+    const saved = Array.isArray(value) ? value : [];
+    return Array.from({ length: this.config.storageSlots }, (_, index) => {
+      const stack = saved[index];
+      if (!stack || typeof stack !== 'object') return null;
+      const candidate = stack as Partial<ItemStack>;
+      if (
+        typeof candidate.id !== 'number'
+        || !ITEMS[candidate.id]
+        || typeof candidate.count !== 'number'
+        || !Number.isFinite(candidate.count)
+        || candidate.count <= 0
+      ) return null;
+      const definition = ITEMS[candidate.id];
+      return {
+        id: candidate.id,
+        count: Math.min(definition.maxStack, Math.floor(candidate.count)),
+        durability: definition.maxDurability === undefined
+          ? undefined
+          : Math.max(1, Math.min(
+            definition.maxDurability,
+            Math.floor(savedNumber(candidate.durability, definition.maxDurability))
+          )),
+      };
+    });
   }
 
   private initialResourceTimer(): number {

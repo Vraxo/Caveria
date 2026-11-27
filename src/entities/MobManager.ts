@@ -201,12 +201,13 @@ export class MobManager implements MobRuntime {
   public interact(
     hit: MobHit,
     held: ItemStack | null,
-    creativeMode: boolean
+    creativeMode: boolean,
+    sneaking = false
   ): MobInteractionResult | null {
     const entity = this.entitiesById.get(hit.entityId);
     if (!entity || entity.species !== hit.species) return null;
     const behavior = this.requireSpecies(entity.species);
-    return behavior.interact?.(entity, held, creativeMode, this) ?? null;
+    return behavior.interact?.(entity, held, creativeMode, this, sneaking) ?? null;
   }
 
   public snapshots(): SavedMobSnapshot[] {
