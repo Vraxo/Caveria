@@ -6,10 +6,11 @@
     <title>Caveria — Voxel Survival Sandbox</title>
     <style>
       @font-face {
-        font-family: 'OCD Disco';
-        src: url('fonts/ocd-disco/ocd-disco.otf') format('opentype');
-        font-weight: normal;
+        font-family: 'Caveria Pixel';
+        src: url('fonts/caveria-pixel/caveria-pixel.ttf') format('truetype');
+        font-weight: 100 900;
         font-style: normal;
+        font-display: swap;
       }
 
       * {
@@ -25,7 +26,8 @@
         height: 100%;
         overflow: hidden;
         background: #7ec4f8;
-        font-family: 'OCD Disco', ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+        font-family: 'Caveria Pixel', ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+        font-synthesis: none;
         color: #f8fafc;
       }
 
@@ -179,7 +181,7 @@
       #health-hearts, #hunger-pips, #armor-pips { display: flex; gap: 2px; }
       .heart, .hunger-pip {
         width: 18px;
-        font: 18px/1 'OCD Disco', sans-serif;
+        font: 18px/1 'Caveria Pixel', sans-serif;
       }
       .heart {
         color: #ef3340;
@@ -206,7 +208,7 @@
       .armor-pip {
         width: 14px;
         color: #a8b5c7;
-        font: 14px/1 'OCD Disco', sans-serif;
+        font: 14px/1 'Caveria Pixel', sans-serif;
         text-shadow: 1px 1px 0 #1e293b;
       }
       .armor-pip.empty { color: #334155; }
@@ -284,7 +286,7 @@
         border-radius: 4px;
         background: rgba(8, 12, 22, 0.88);
         color: #f8fafc;
-        font: 700 13px 'OCD Disco', ui-monospace, monospace;
+        font: 700 13px 'Caveria Pixel', ui-monospace, monospace;
         text-align: center;
         text-shadow: 1px 1px #000;
         opacity: 0;
@@ -303,7 +305,7 @@
         border-radius: 4px;
         background: rgba(5, 20, 32, 0.86);
         color: #bae6fd;
-        font: 800 12px 'OCD Disco', ui-monospace, monospace;
+        font: 800 12px 'Caveria Pixel', ui-monospace, monospace;
         text-shadow: 1px 1px #000;
         pointer-events: none;
       }
@@ -334,7 +336,7 @@
         border-radius: 5px;
         background: rgba(15, 23, 42, 0.78);
         color: #bbf7d0;
-        font: 700 11px/1 'OCD Disco', ui-monospace, monospace;
+        font: 700 11px/1 'Caveria Pixel', ui-monospace, monospace;
         cursor: pointer;
         text-shadow: 1px 1px #000;
       }
@@ -375,7 +377,7 @@
         border: 1px solid rgba(255, 255, 255, 0.16);
         background: rgba(255, 255, 255, 0.07);
         color: #cbd5e1;
-        font: 700 11px 'OCD Disco', ui-monospace, monospace;
+        font: 700 11px 'Caveria Pixel', ui-monospace, monospace;
         cursor: pointer;
       }
       .save-action:hover { background: rgba(255, 255, 255, 0.14); }
@@ -761,7 +763,7 @@
       .death-title {
         margin-bottom: 4px;
         color: #fff;
-        font: 800 clamp(42px, 8vw, 70px)/1 'OCD Disco', ui-monospace, monospace;
+        font: 800 clamp(42px, 8vw, 70px)/1 'Caveria Pixel', ui-monospace, monospace;
         text-shadow: 4px 4px #260000;
       }
       #death-message { margin-bottom: 18px; color: #e5e7eb; text-shadow: 2px 2px #000; }
@@ -825,9 +827,9 @@
       .caveria-logo {
         position: relative;
         margin: 0 auto 42px;
-        font-family: 'OCD Disco', Impact, Haettenschweiler, 'Arial Black', sans-serif;
+        font-family: 'Caveria Pixel', Impact, Haettenschweiler, 'Arial Black', sans-serif;
         font-size: clamp(50px, 8vw, 84px);
-        line-height: 0.82;
+        line-height: 0.92;
         letter-spacing: 0.055em;
         color: #d9e2df;
         -webkit-text-stroke: 2px #17231f;
@@ -854,7 +856,7 @@
         right: -54px;
         top: 56%;
         color: #ffe84b;
-        font: 800 clamp(12px, 2.2vw, 18px)/1 'OCD Disco', ui-monospace, monospace;
+        font: 800 clamp(12px, 2.2vw, 18px)/1 'Caveria Pixel', ui-monospace, monospace;
         text-shadow: 2px 2px 0 #5c4100;
         transform: rotate(-12deg);
         white-space: nowrap;
@@ -887,7 +889,7 @@
           repeating-linear-gradient(135deg, #555 0 3px, #505050 3px 6px);
         box-shadow: inset 0 0 0 2px #6d6d6d, 2px 3px 0 rgba(0,0,0,0.62);
         color: #fff;
-        font: 700 14px/1.15 'OCD Disco', ui-monospace, monospace;
+        font: 700 14px/1.15 'Caveria Pixel', ui-monospace, monospace;
         text-shadow: 2px 2px 0 #252525;
         cursor: pointer;
       }
@@ -1005,7 +1007,7 @@
         outline: 2px solid #6b7280;
         background: rgba(5, 8, 12, 0.94);
         color: #fff;
-        font: 13px 'OCD Disco', ui-monospace, monospace;
+        font: 13px 'Caveria Pixel', ui-monospace, monospace;
         user-select: text;
       }
       .world-field select { cursor: pointer; }
@@ -1032,7 +1034,7 @@
       .voxel-slider__end {
         min-width: 46px;
         color: #c9d3e0;
-        font: 700 11px/1 'OCD Disco', ui-monospace, monospace;
+        font: 700 11px/1 'Caveria Pixel', ui-monospace, monospace;
         text-align: center;
         text-shadow: 1px 1px #000;
       }
@@ -1068,7 +1070,7 @@
       }
       .voxel-slider__value {
         color: #ffd88a;
-        font: 700 13px 'OCD Disco', ui-monospace, monospace;
+        font: 700 13px 'Caveria Pixel', ui-monospace, monospace;
         text-shadow: 1px 1px #000;
       }
 
@@ -1347,7 +1349,7 @@
       <div class="menu-footer">
         <span>Caveria 0.6.0</span>
         <span>Original Caveria interface · Inspired by classic voxel sandboxes</span>
-        <span>Font: “oCd Disco” by eekysam · CC BY-SA 3.0</span>
+        <span>Font: Caveria Pixel</span>
       </div>
     </div>
 
