@@ -869,6 +869,9 @@
         background: rgba(2, 6, 12, 0.68);
         backdrop-filter: blur(2px);
       }
+      #overlay.mode-create-world::before {
+        background: #101820;
+      }
       #overlay.hidden { display: none; }
 
       body.menu-open #crosshair,
@@ -1756,6 +1759,7 @@
           <div id="sfx-volume-root"></div>
           <div id="ambient-volume-root"></div>
           <div id="fov-slider-root"></div>
+          <div id="chunk-render-distance-root" class="wide"></div>
           <button id="fullscreen-button" class="voxel-button" type="button">Fullscreen: Off</button>
           <button id="options-controls-button" class="voxel-button" type="button">Controls...</button>
           <button id="texture-pack-button" class="voxel-button wide" type="button">Texture Pack: Default</button>

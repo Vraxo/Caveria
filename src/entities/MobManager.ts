@@ -30,11 +30,22 @@ export type {
 type AnySpecies = MobSpeciesBehavior<any, any>;
 type AnyMob = MobEntity<any, any>;
 
+function copySnapshot(snapshot: SavedMobSnapshot): SavedMobSnapshot {
+  return {
+    ...snapshot,
+    position: [...snapshot.position],
+    velocity: [...snapshot.velocity],
+    state: structuredClone(snapshot.state),
+  };
+}
+
 /** Owns every mob instance and coordinates registered species behavior. */
 export class MobManager implements MobRuntime {
   private readonly entities: AnyMob[] = [];
   private readonly entitiesById = new Map<MobEntityId, AnyMob>();
   private readonly species = new Map<MobSpeciesId, AnySpecies>();
+  /** Snapshots for unregistered species remain dormant instead of disappearing on save. */
+  private readonly dormantSnapshots = new Map<MobEntityId, SavedMobSnapshot>();
   private nextEntityId = 1;
 
   public constructor(species: Iterable<AnySpecies> = []) {
@@ -127,7 +138,9 @@ export class MobManager implements MobRuntime {
     }
 
     const id = data.id ?? this.nextEntityId;
-    if (this.entitiesById.has(id)) throw new Error(`Duplicate mob entity id: ${id}`);
+    if (this.entitiesById.has(id) || this.dormantSnapshots.has(id)) {
+      throw new Error(`Duplicate mob entity id: ${id}`);
+    }
     this.nextEntityId = Math.max(this.nextEntityId, id + 1);
     const entity: MobEntity<TState, TVisual> = {
       id,
@@ -211,25 +224,43 @@ export class MobManager implements MobRuntime {
   }
 
   public snapshots(): SavedMobSnapshot[] {
-    return this.entities.map((entity) => {
+    const active = this.entities.map((entity) => {
       const behavior = this.requireSpecies(entity.species);
       return {
         id: entity.id,
         species: entity.species,
-        position: entity.position.toArray(),
-        velocity: entity.velocity.toArray(),
+        position: entity.position.toArray() as [number, number, number],
+        velocity: entity.velocity.toArray() as [number, number, number],
         health: entity.health,
         age: entity.age,
         hurtTimer: entity.hurtTimer,
         state: behavior.saveState(entity),
       };
     });
+    return [...active, ...[...this.dormantSnapshots.values()].map(copySnapshot)];
   }
 
   public restore(snapshots: ReadonlyArray<SavedMobSnapshot>): void {
+    const restoredIds = new Set<MobEntityId>();
     for (const snapshot of snapshots) {
+      if (
+        !Number.isSafeInteger(snapshot.id)
+        || snapshot.id < 1
+        || restoredIds.has(snapshot.id)
+        || this.entitiesById.has(snapshot.id)
+      ) continue;
+      restoredIds.add(snapshot.id);
+      this.nextEntityId = Math.max(this.nextEntityId, snapshot.id + 1);
+
       const behavior = this.species.get(snapshot.species);
-      if (!behavior || this.entitiesById.has(snapshot.id)) continue;
+      if (!behavior) {
+        if (!this.dormantSnapshots.has(snapshot.id)) {
+          this.dormantSnapshots.set(snapshot.id, copySnapshot(snapshot));
+        }
+        continue;
+      }
+
+      this.dormantSnapshots.delete(snapshot.id);
       behavior.restore(snapshot, this);
     }
   }

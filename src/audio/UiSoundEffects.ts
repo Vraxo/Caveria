@@ -13,7 +13,33 @@ export class UiSoundEffects {
     this.synth.tone({ type: 'sine', freq: 1760, duration: 0.16, gain: 0.08, delay: 0.06 });
     this.synth.tone({ type: 'sine', freq: 2640, duration: 0.2, gain: 0.05, delay: 0.12 });
   }
-  public playUiClick(): void { this.synth.tone({ type: 'square', freq: 880, duration: 0.045, gain: 0.05 }); }
+  public playUiClick(): void {
+    this.synth.noiseBurst({
+      duration: 0.04,
+      filterType: 'lowpass',
+      freq: 420,
+      freqEnd: 180,
+      q: 0.9,
+      gain: 0.045,
+      attack: 0.001,
+    });
+    this.synth.tone({
+      type: 'triangle',
+      freq: 210,
+      freqEnd: 105,
+      duration: 0.07,
+      gain: 0.055,
+      attack: 0.001,
+    });
+    this.synth.noiseBurst({
+      duration: 0.012,
+      filterType: 'bandpass',
+      freq: 900,
+      q: 1.1,
+      gain: 0.012,
+      attack: 0.001,
+    });
+  }
   public playHotbarSelect(): void { this.synth.tone({ type: 'square', freq: 520, duration: 0.04, gain: 0.04 }); }
   public playInventoryOpen(): void {
     this.synth.noiseBurst({ duration: 0.14, filterType: 'bandpass', freq: 900, q: 1.4, gain: 0.08 });

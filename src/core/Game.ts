@@ -54,8 +54,8 @@ import {
   type TexturePackDescriptor,
 } from '../rendering/textures/TexturePacks';
 import { readSettings, updateSettings } from '../settings/GameSettings';
+import { initializeMobPackIfEnabled } from '../features/OptionalMobPackLoader';
 import {
-  isMobPackEnabled,
   parseWorldFeatureProfile,
   type WorldFeatureProfile,
 } from '../features/WorldFeatureProfile';
@@ -488,6 +488,10 @@ export class Game {
         editCount: savedGame?.worldEdits.length ?? 0,
       },
       onAudioChanged: () => this.persistence.save(false),
+      onRenderDistanceChanged: (distance) => {
+        this.world.setRenderDistance(distance);
+        this.atmosphere.update();
+      },
       onBeforeWorldSwitch: (saveCurrent) => {
         if (!saveCurrent) this.persistence.suppressFurtherSaves();
       },
@@ -529,28 +533,32 @@ export class Game {
   private async initializeOptionalMobPacks(): Promise<void> {
     if (this.optionalMobPacksInitialized) return;
 
-    if (isMobPackEnabled(this.featureProfile, 'desert-wildlife')) {
-      const [camelModule, desertWildlifeModule] = await Promise.all([
-        import('../DesertWildlife/CamelRidingController'),
-        import('../DesertWildlife/createDesertWildlife'),
-      ]);
-      const camelRiding = new camelModule.CamelRidingController(this.player, this.world);
-      this.camelRiding = camelRiding;
-      const desertWildlife = desertWildlifeModule.createDesertWildlife({
-        scene: this.scene,
-        world: this.world,
-        player: this.player,
-        vitals: this.vitals,
-        drops: this.drops,
-        particles: this.particles,
-        audio: this.audio,
-        camelRiding,
-        openCamelStorage: (camel) => this.openCamelStorage(camel),
-        isNight: () => this.dayNight.isNight,
-        poisonPlayer: () => this.statusEffects.poison(18),
-      });
-      for (const species of desertWildlife) this.mobs.register(species);
-    }
+    await initializeMobPackIfEnabled(
+      this.featureProfile,
+      'desert-wildlife',
+      async () => {
+        const [camelModule, desertWildlifeModule] = await Promise.all([
+          import('../DesertWildlife/CamelRidingController'),
+          import('../DesertWildlife/createDesertWildlife'),
+        ]);
+        const camelRiding = new camelModule.CamelRidingController(this.player, this.world);
+        this.camelRiding = camelRiding;
+        return desertWildlifeModule.createDesertWildlife({
+          scene: this.scene,
+          world: this.world,
+          player: this.player,
+          vitals: this.vitals,
+          drops: this.drops,
+          particles: this.particles,
+          audio: this.audio,
+          camelRiding,
+          openCamelStorage: (camel) => this.openCamelStorage(camel),
+          isNight: () => this.dayNight.isNight,
+          poisonPlayer: () => this.statusEffects.poison(18),
+        });
+      },
+      (species) => { this.mobs.register(species); }
+    );
 
     this.mobs.restore([...this.savedMobSnapshots]);
     this.optionalMobPacksInitialized = true;

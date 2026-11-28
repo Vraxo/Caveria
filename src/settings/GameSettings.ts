@@ -12,6 +12,10 @@ export interface GameSettings {
   texturePack: string;
 }
 
+/** Supported slider range for chunk render distance. */
+export const MIN_CHUNK_RENDER_DISTANCE = 4;
+export const MAX_CHUNK_RENDER_DISTANCE = 16;
+
 /** Default chunk render distance — doubled from the original 5-chunk value. */
 export const DEFAULT_CHUNK_RENDER_DISTANCE = 10;
 
@@ -25,9 +29,11 @@ const DEFAULTS: GameSettings = {
 
 function normalizeChunkRenderDistance(value: unknown): number {
   const distance = typeof value === 'number' ? value : NaN;
-  return Number.isFinite(distance) && distance >= 1
-    ? Math.floor(distance)
-    : DEFAULTS.chunkRenderDistance;
+  if (!Number.isFinite(distance) || distance < 1) return DEFAULTS.chunkRenderDistance;
+  return Math.min(
+    MAX_CHUNK_RENDER_DISTANCE,
+    Math.max(MIN_CHUNK_RENDER_DISTANCE, Math.floor(distance))
+  );
 }
 
 function normalizeTexturePack(value: unknown): string {

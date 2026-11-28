@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_CHUNK_RENDER_DISTANCE,
   DEFAULT_TEXTURE_PACK,
+  MAX_CHUNK_RENDER_DISTANCE,
+  MIN_CHUNK_RENDER_DISTANCE,
   readSettings,
   updateSettings,
 } from '../../src/settings/GameSettings';
@@ -35,6 +37,15 @@ describe('GameSettings', () => {
     expect(readSettings().chunkRenderDistance).toBe(12);
     expect(readSettings().texturePack).toBe('ocd');
     expect(store.size).toBeGreaterThan(0);
+  });
+
+  it('clamps render distance to the supported slider range', () => {
+    stubLocalStorage();
+
+    expect(updateSettings({ chunkRenderDistance: MIN_CHUNK_RENDER_DISTANCE - 1 }).chunkRenderDistance)
+      .toBe(MIN_CHUNK_RENDER_DISTANCE);
+    expect(updateSettings({ chunkRenderDistance: MAX_CHUNK_RENDER_DISTANCE + 1 }).chunkRenderDistance)
+      .toBe(MAX_CHUNK_RENDER_DISTANCE);
   });
 
   it('falls back to defaults for invalid stored values', () => {
