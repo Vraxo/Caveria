@@ -4,6 +4,13 @@ import { Input } from '../core/Input';
 import { type BiomeSize } from '../Biomes/BiomeSize';
 import { WorldPersistence, WorldSummary } from '../persistence/WorldPersistence';
 import {
+  DEFAULT_WORLD_FEATURE_PROFILE,
+  isMobPackEnabled,
+  serializeWorldFeatureProfile,
+  setMobPackEnabled,
+  type WorldFeatureProfile,
+} from '../features/WorldFeatureProfile';
+import {
   BUILTIN_TEXTURE_PACKS,
   DEFAULT_TEXTURE_PACK_ID,
   resolveTexturePack,
@@ -74,6 +81,9 @@ export class GameOverlayController {
   private readonly worldDeleteEl = document.getElementById('world-delete-button') as HTMLButtonElement;
   private readonly worldNameEl = document.getElementById('world-name-input') as HTMLInputElement;
   private readonly worldSeedEl = document.getElementById('world-seed-input') as HTMLInputElement;
+  private readonly worldDesertWildlifeEl = document.getElementById(
+    'world-desert-wildlife-input'
+  ) as HTMLInputElement;
   private worldBiomeSizeSlider!: SliderControl;
   private readonly menuEls: Record<MenuView, HTMLElement> = {
     title: document.getElementById('title-menu')!,
@@ -251,6 +261,7 @@ export class GameOverlayController {
       this.worldNameEl.value = this.nextWorldName();
       this.worldSeedEl.value = '';
       this.worldBiomeSizeSlider.setValue(2);
+      this.worldDesertWildlifeEl.checked = true;
       this.showMenu('create-world');
       this.worldNameEl.focus();
       this.worldNameEl.select();
@@ -392,7 +403,10 @@ export class GameOverlayController {
       meta.className = 'world-meta';
       const date = world.savedAt > 0 ? new Date(world.savedAt).toLocaleString() : 'Not saved yet';
       const biomeSize = world.biomeSize[0].toUpperCase() + world.biomeSize.slice(1);
-      meta.textContent = `${date} · Seed: ${world.seed} · ${biomeSize} biomes · ${world.editCount} edits`;
+      const wildlife = isMobPackEnabled(world.featureProfile, 'desert-wildlife')
+        ? 'Desert wildlife on'
+        : 'Desert wildlife off';
+      meta.textContent = `${date} · Seed: ${world.seed} · ${biomeSize} biomes · ${wildlife} · ${world.editCount} edits`;
       details.append(name, document.createElement('br'), meta);
       entry.append(icon, details);
       entry.addEventListener('click', () => {
@@ -434,7 +448,12 @@ export class GameOverlayController {
     const seed = this.worldSeedEl.value.trim().slice(0, 64) || this.randomSeed();
     const worldId = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const biomeSize = this.biomeSize;
-    this.openWorld(worldId, worldName, seed, biomeSize);
+    const featureProfile = setMobPackEnabled(
+      DEFAULT_WORLD_FEATURE_PROFILE,
+      'desert-wildlife',
+      this.worldDesertWildlifeEl.checked
+    );
+    this.openWorld(worldId, worldName, seed, biomeSize, featureProfile);
   }
 
   private deleteSelectedWorld(): void {
@@ -452,7 +471,8 @@ export class GameOverlayController {
     worldId: string,
     worldName: string,
     seed: string,
-    biomeSize: BiomeSize
+    biomeSize: BiomeSize,
+    featureProfile?: WorldFeatureProfile
   ): void {
     this.audio.setWorldAudioActive(false);
     this.onLoadingWorld?.(worldName);
@@ -463,6 +483,9 @@ export class GameOverlayController {
     url.searchParams.set('name', worldName);
     url.searchParams.set('seed', seed);
     url.searchParams.set('biomeSize', biomeSize);
+    if (featureProfile) {
+      url.searchParams.set('mobPacks', serializeWorldFeatureProfile(featureProfile));
+    }
     window.location.href = url.toString();
   }
 

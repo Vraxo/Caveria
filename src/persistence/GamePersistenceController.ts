@@ -1,9 +1,17 @@
 import type { BiomeSize } from '../Biomes/BiomeSize';
+import type { WorldFeatureProfile } from '../features/WorldFeatureProfile';
 import { CaveriaSaveData, SAVE_VERSION, WorldPersistence } from './WorldPersistence';
 
 export type GameSaveSnapshot = Omit<
   CaveriaSaveData,
-  'version' | 'worldId' | 'worldName' | 'seed' | 'biomeSize' | 'createdAt' | 'savedAt'
+  | 'version'
+  | 'worldId'
+  | 'worldName'
+  | 'seed'
+  | 'biomeSize'
+  | 'featureProfile'
+  | 'createdAt'
+  | 'savedAt'
 >;
 
 const GAME_SAVE_SNAPSHOT_FIELDS = {
@@ -39,6 +47,7 @@ export class GamePersistenceController {
   private statusTimer = 0;
   private createdAt = Date.now();
   private saveEnabled = false;
+  private snapshotReady = false;
   private saveSuppressed = false;
 
   constructor(
@@ -46,6 +55,7 @@ export class GamePersistenceController {
     private readonly worldId: string,
     private readonly worldName: string,
     private biomeSize: BiomeSize,
+    private featureProfile: WorldFeatureProfile,
     private readonly onManualSave: () => void
   ) {
     this.persistence = new WorldPersistence(seedLabel, worldId, worldName);
@@ -56,6 +66,7 @@ export class GamePersistenceController {
     if (save) {
       this.createdAt = save.createdAt;
       this.biomeSize = save.biomeSize;
+      this.featureProfile = save.featureProfile;
       this.saveEnabled = true;
     }
     return save;
@@ -92,6 +103,11 @@ export class GamePersistenceController {
     this.saveEnabled = true;
   }
 
+  /** Prevents unload/manual saves from capturing a partially restored async world. */
+  public markSnapshotReady(): void {
+    this.snapshotReady = true;
+  }
+
   public suppressFurtherSaves(): void {
     this.saveSuppressed = true;
   }
@@ -103,7 +119,7 @@ export class GamePersistenceController {
   }
 
   public save(showFeedback: boolean): void {
-    if (!this.saveEnabled || this.saveSuppressed || !this.snapshotProvider) return;
+    if (!this.saveEnabled || !this.snapshotReady || this.saveSuppressed || !this.snapshotProvider) return;
     const snapshot = this.snapshotProvider();
     const saved = this.persistence.save({
       version: SAVE_VERSION,
@@ -111,6 +127,7 @@ export class GamePersistenceController {
       worldName: this.worldName,
       seed: this.seedLabel,
       biomeSize: this.biomeSize,
+      featureProfile: this.featureProfile,
       createdAt: this.createdAt,
       savedAt: Date.now(),
       ...snapshot,

@@ -16,6 +16,11 @@ import { BlockId } from '../content/BlockId';
 import { CHUNK_HEIGHT } from '../world/Chunk';
 import type { SavedMobSnapshot } from '../entities/MobTypes';
 import { MOB_DEFINITIONS } from '../content/mobs/MobDefinitions';
+import {
+  DEFAULT_WORLD_FEATURE_PROFILE,
+  normalizeWorldFeatureProfile,
+  type WorldFeatureProfile,
+} from '../features/WorldFeatureProfile';
 
 export const SAVE_VERSION = 1;
 export type SerializedVoxelEdit = [x: number, y: number, z: number, block: BlockId];
@@ -29,6 +34,7 @@ export interface WorldSummary {
   worldName: string;
   seed: string;
   biomeSize: BiomeSize;
+  featureProfile: WorldFeatureProfile;
   savedAt: number;
   createdAt: number;
   editCount: number;
@@ -40,6 +46,7 @@ export interface CaveriaSaveData {
   worldName: string;
   seed: string;
   biomeSize: BiomeSize;
+  featureProfile: WorldFeatureProfile;
   createdAt: number;
   savedAt: number;
   player: {
@@ -114,6 +121,7 @@ export class WorldPersistence {
           worldName,
           seed: parsed.seed,
           biomeSize: parseBiomeSize(parsed.biomeSize),
+          featureProfile: normalizeWorldFeatureProfile(parsed.featureProfile),
           savedAt: WorldPersistence.finite(parsed.savedAt, 0),
           createdAt: WorldPersistence.finite(parsed.createdAt, parsed.savedAt ?? Date.now()),
           editCount: Array.isArray(parsed.worldEdits) ? parsed.worldEdits.length : 0,
@@ -388,6 +396,9 @@ export class WorldPersistence {
           : this.worldName,
       seed: this.seedLabel,
       biomeSize: parseBiomeSize(raw.biomeSize),
+      featureProfile: normalizeWorldFeatureProfile(
+        raw.featureProfile ?? DEFAULT_WORLD_FEATURE_PROFILE
+      ),
       createdAt: finite(raw.createdAt, finite(raw.savedAt, Date.now())),
       savedAt: finite(raw.savedAt, Date.now()),
       player: {
