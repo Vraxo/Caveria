@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { MobManager } from '../../src/entities/MobManager';
-import { MobEntity, MobSpeciesBehavior, MobTag } from '../../src/entities/MobTypes';
+import { MobEntity, MobSpeciesBehavior, MobTag, SavedMobSnapshot } from '../../src/entities/MobTypes';
 
 interface TestState {
   updates: number;
@@ -124,6 +124,53 @@ describe('MobManager', () => {
     expect(hit?.entityId).toBe(nearest.id);
     expect(hit?.species).toBe('target');
     expect(blocked).toBeNull();
+  });
+
+  it('keeps snapshots for unregistered pack species dormant and restores them when enabled', () => {
+    const camel = createSpecies('camel');
+    const core = createSpecies('core');
+    const snapshot: SavedMobSnapshot = {
+      id: 11,
+      species: 'camel',
+      position: [1, 2, 3],
+      velocity: [0.5, 0, -0.5],
+      health: 12,
+      age: 9,
+      hurtTimer: 0.1,
+      state: { updates: 7 },
+    };
+    const disabled = new MobManager([core.behavior]);
+
+    disabled.restore([snapshot]);
+
+    expect(disabled.countSpecies('camel')).toBe(0);
+    expect(disabled.snapshots()).toEqual([snapshot]);
+    expect(spawn(disabled, core.behavior).id).toBe(12);
+    expect(() => disabled.spawn(core.behavior, {
+      id: 11,
+      position: new THREE.Vector3(),
+      state: { updates: 0 },
+      visual: { disposed: false },
+    })).toThrow('Duplicate mob entity id: 11');
+
+    disabled.update(0.5);
+    expect(camel.behavior.update).not.toHaveBeenCalled();
+    expect(disabled.snapshots().find((mob) => mob.species === 'camel')?.state)
+      .toEqual({ updates: 7 });
+
+    const enabled = new MobManager([core.behavior, camel.behavior]);
+    enabled.restore(disabled.snapshots());
+
+    expect(enabled.countSpecies('camel')).toBe(1);
+    expect(enabled.snapshots().find((mob) => mob.species === 'camel'))
+      .toMatchObject({
+        id: 11,
+        position: [1, 2, 3],
+        velocity: [0.5, 0, -0.5],
+        health: 5,
+        age: 9,
+        state: { updates: 7 },
+      });
   });
 
   it('snapshots and restores instances while preserving global IDs', () => {

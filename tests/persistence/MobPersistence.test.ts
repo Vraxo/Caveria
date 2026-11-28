@@ -58,6 +58,35 @@ describe('mob persistence sanitization', () => {
     });
   });
 
+  it('preserves known optional-pack snapshots in saves when the pack is disabled', () => {
+    localStorage.setItem('caveria:world:v1:quiet', JSON.stringify({
+      version: SAVE_VERSION,
+      seed: 'quiet',
+      featureProfile: { version: 1, enabledMobPacks: [] },
+      mobs: [{
+        id: 3,
+        species: 'camel',
+        position: [4, 8, 12],
+        velocity: [0, 0, 0],
+        health: 12,
+        age: 24,
+        hurtTimer: 0,
+        state: { growthRemaining: 180, storage: [] },
+      }],
+    }));
+
+    const save = new WorldPersistence('quiet').load();
+
+    expect(save?.featureProfile.enabledMobPacks).toEqual([]);
+    expect(save?.mobs).toHaveLength(1);
+    expect(save?.mobs[0]).toMatchObject({
+      id: 3,
+      species: 'camel',
+      position: [4, 8, 12],
+      state: { growthRemaining: 180, storage: [] },
+    });
+  });
+
   it('defaults missing mob data for older saves to an empty collection', () => {
     localStorage.setItem('caveria:world:v1:test', JSON.stringify({
       version: SAVE_VERSION,

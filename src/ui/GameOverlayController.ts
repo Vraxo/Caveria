@@ -16,6 +16,12 @@ import {
   resolveTexturePack,
   type TexturePackDescriptor,
 } from '../rendering/textures/TexturePacks';
+import {
+  MAX_CHUNK_RENDER_DISTANCE,
+  MIN_CHUNK_RENDER_DISTANCE,
+  readSettings,
+  updateSettings,
+} from '../settings/GameSettings';
 import { SliderControl } from './SliderControl';
 import { InventoryModal } from './InventoryModal';
 
@@ -31,6 +37,7 @@ interface GameOverlayDependencies {
   isGameplayModalOpen: () => boolean;
   currentWorld: WorldSummary;
   onAudioChanged: () => void;
+  onRenderDistanceChanged: (distance: number) => void;
   onBeforeWorldSwitch: (saveCurrent: boolean) => void;
   onDeleteWorld: (world: WorldSummary) => void;
   onWorldStarted: () => void;
@@ -61,6 +68,7 @@ export class GameOverlayController {
   private readonly isGameplayModalOpen: () => boolean;
   private readonly currentWorld: WorldSummary;
   private readonly onAudioChanged: () => void;
+  private readonly onRenderDistanceChanged: (distance: number) => void;
   private readonly onBeforeWorldSwitch: (saveCurrent: boolean) => void;
   private readonly onDeleteWorld: (world: WorldSummary) => void;
   private readonly onWorldStarted: () => void;
@@ -115,6 +123,7 @@ export class GameOverlayController {
     this.isGameplayModalOpen = deps.isGameplayModalOpen;
     this.currentWorld = deps.currentWorld;
     this.onAudioChanged = deps.onAudioChanged;
+    this.onRenderDistanceChanged = deps.onRenderDistanceChanged;
     this.onBeforeWorldSwitch = deps.onBeforeWorldSwitch;
     this.onDeleteWorld = deps.onDeleteWorld;
     this.onWorldStarted = deps.onWorldStarted;
@@ -165,6 +174,26 @@ export class GameOverlayController {
       value: 75,
       label: 'FOV: 75',
       onValueChange: (fov) => this.applyFov(fov),
+    });
+
+    let chunkRenderDistance = readSettings().chunkRenderDistance;
+    SliderControl.mount(document.getElementById('chunk-render-distance-root')!, {
+      min: MIN_CHUNK_RENDER_DISTANCE,
+      max: MAX_CHUNK_RENDER_DISTANCE,
+      step: 1,
+      value: chunkRenderDistance,
+      label: 'Render Distance',
+      endLabels: {
+        min: `${MIN_CHUNK_RENDER_DISTANCE} chunks`,
+        max: `${MAX_CHUNK_RENDER_DISTANCE} chunks`,
+      },
+      onValueChange: (value) => {
+        const nextDistance = Math.round(value);
+        if (nextDistance === chunkRenderDistance) return;
+        chunkRenderDistance = nextDistance;
+        const settings = updateSettings({ chunkRenderDistance });
+        this.onRenderDistanceChanged(settings.chunkRenderDistance);
+      },
     });
 
     SliderControl.mount(document.getElementById('sfx-volume-root')!, {
@@ -518,13 +547,14 @@ export class GameOverlayController {
     for (const [name, element] of Object.entries(this.menuEls)) {
       element.classList.toggle('hidden', name !== menu);
     }
-    this.overlayEl.classList.remove('hidden', 'mode-title', 'mode-pause');
+    this.overlayEl.classList.remove('hidden', 'mode-title', 'mode-pause', 'mode-create-world');
     const titleMode =
       menu === 'title' ||
       menu === 'worlds' ||
       menu === 'create-world' ||
       ((menu === 'options' || menu === 'controls') && this.rootMenu === 'title');
     this.overlayEl.classList.add(titleMode ? 'mode-title' : 'mode-pause');
+    if (menu === 'create-world') this.overlayEl.classList.add('mode-create-world');
     document.body.classList.add('menu-open');
     document.body.classList.toggle('title-menu', titleMode);
   }

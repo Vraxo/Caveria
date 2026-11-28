@@ -45,14 +45,15 @@ export class World {
   public readonly scene: THREE.Scene;
   public readonly atlas: TextureAtlas;
   public readonly terrainGen: TerrainGen;
-  public readonly renderDistance: number;
   public readonly lightUniforms: VoxelLightUniforms;
+
+  private renderDistanceChunks: number;
 
   private readonly chunks = new Map<number, Chunk>();
   private readonly chunkPipeline: ChunkPipeline;
   private readonly pendingChunks = new Set<number>();
   private readonly completedGenQueue: GeneratedChunkData[] = [];
-  private readonly spiralOffsets: readonly SpiralOffset[];
+  private spiralOffsets: readonly SpiralOffset[];
   /** Sparse player edits grouped by numeric chunk key. */
   private readonly editsByChunk = new Map<number, ChunkEditBucket>();
   private readonly opaqueMaterial: THREE.MeshBasicMaterial;
@@ -72,9 +73,9 @@ export class World {
     this.atlas = atlas;
     this.terrainGen = new TerrainGen(seed, undefined, undefined, biomeSize);
     this.chunkPipeline = new ChunkPipeline(seed, biomeSize);
-    this.renderDistance = renderDistance;
+    this.renderDistanceChunks = Math.max(1, Math.floor(renderDistance));
     this.lightUniforms = createVoxelLightUniforms();
-    this.spiralOffsets = this.buildSpiralOffsets(renderDistance);
+    this.spiralOffsets = this.buildSpiralOffsets(this.renderDistanceChunks);
     this.importEdits(savedEdits);
 
     this.opaqueMaterial = new THREE.MeshBasicMaterial({
@@ -94,6 +95,22 @@ export class World {
       side: THREE.DoubleSide,
     });
     applyVoxelLightingShader(this.waterMaterial, this.lightUniforms, 'caveria-voxel-water-v1');
+  }
+
+  public get renderDistance(): number {
+    return this.renderDistanceChunks;
+  }
+
+  /** Changes the streaming radius and lets the next frame unload or request the new range. */
+  public setRenderDistance(distance: number): void {
+    if (!Number.isFinite(distance)) return;
+    const nextDistance = Math.max(1, Math.floor(distance));
+    if (nextDistance === this.renderDistanceChunks) return;
+
+    this.renderDistanceChunks = nextDistance;
+    this.spiralOffsets = this.buildSpiralOffsets(nextDistance);
+    this.lastUnloadCx = Number.NaN;
+    this.lastUnloadCz = Number.NaN;
   }
 
   public get loadedChunkCount(): number {
