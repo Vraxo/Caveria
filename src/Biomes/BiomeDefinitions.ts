@@ -26,6 +26,7 @@ export interface SurfaceBiomeSelectionContext {
 
 export interface SurfaceTerrainProfile {
   surfaceBlock(surfaceY: number): BlockId;
+  shoreSurfaceBlock(surfaceY: number, seaLevel: number): BlockId;
   shallowSubsurfaceBlock(depth: number, shore: boolean): BlockId;
   deepSubsurfaceBlock?(depth: number): BlockId | null;
 }
@@ -57,6 +58,7 @@ export interface CavernBiomeDefinition {
 
 const GRASS_TERRAIN: SurfaceTerrainProfile = {
   surfaceBlock: () => BlockId.Grass,
+  shoreSurfaceBlock: () => BlockId.Sand,
   shallowSubsurfaceBlock: (_depth, shore) => shore ? BlockId.Sand : BlockId.Dirt,
 };
 
@@ -69,6 +71,7 @@ const SURFACE_DEFINITIONS = {
       temperatureNoise > 0.24 && humidityNoise < 0.08,
     terrain: {
       surfaceBlock: () => BlockId.Sand,
+      shoreSurfaceBlock: () => BlockId.Sand,
       shallowSubsurfaceBlock: (depth) => depth === 3 ? BlockId.Sandstone : BlockId.Sand,
       deepSubsurfaceBlock: (depth) => depth <= 6 ? BlockId.Sandstone : null,
     },
@@ -86,7 +89,9 @@ const SURFACE_DEFINITIONS = {
     matches: ({ temperatureNoise }) => temperatureNoise < -0.22,
     terrain: {
       surfaceBlock: () => BlockId.SnowGrass,
-      shallowSubsurfaceBlock: (_depth, shore) => shore ? BlockId.Sand : BlockId.Dirt,
+      shoreSurfaceBlock: (surfaceY, seaLevel) =>
+        surfaceY > seaLevel ? BlockId.SnowBlock : BlockId.Stone,
+      shallowSubsurfaceBlock: () => BlockId.Dirt,
     },
     temperature: { day: 23, night: 10 },
     precipitation: 'snow',
@@ -101,7 +106,9 @@ const SURFACE_DEFINITIONS = {
       surfaceY >= 76 && temperatureNoise < -0.08,
     terrain: {
       surfaceBlock: (surfaceY) => surfaceY >= 79 ? BlockId.SnowBlock : BlockId.Stone,
-      shallowSubsurfaceBlock: (_depth, shore) => shore ? BlockId.Sand : BlockId.Stone,
+      shoreSurfaceBlock: (surfaceY, seaLevel) =>
+        surfaceY > seaLevel ? BlockId.SnowBlock : BlockId.Stone,
+      shallowSubsurfaceBlock: () => BlockId.Stone,
     },
     temperature: { day: 17, night: 5 },
     precipitation: 'snow',

@@ -65,6 +65,10 @@ export class AudioManager {
   public playVultureCry(): void { this.creatures.playVultureCry(); }
   public playDesertWildlifeHit(): void { this.creatures.playDesertWildlifeHit(); }
   public playDesertWildlifeDeath(): void { this.creatures.playDesertWildlifeDeath(); }
+  public playPolarBearGrowl(): void { this.creatures.playPolarBearGrowl(); }
+  public playPolarBearRoar(): void { this.creatures.playPolarBearRoar(); }
+  public playPolarBearHit(): void { this.creatures.playPolarBearHit(); }
+  public playPolarBearDeath(): void { this.creatures.playPolarBearDeath(); }
 
   public playPickup(): void { this.ui.playPickup(); }
   public playCrystalPickup(): void { this.ui.playCrystalPickup(); }

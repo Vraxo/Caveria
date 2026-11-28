@@ -48,20 +48,26 @@ export class TerrainGen {
     this.oreNoise = new SeededNoise(seed ^ 0xc2b2ae35);
   }
 
+  public getSurfaceTemperatureNoise(wx: number, wz: number): number {
+    const frequency = BIOME_SIZE_PROFILES[this.biomeSize].surfaceFrequencyMultiplier;
+    return this.tempNoise.fbm2D(
+      wx * SURFACE_TEMPERATURE_SCALE * frequency,
+      wz * SURFACE_TEMPERATURE_SCALE * frequency,
+      1
+    );
+  }
+
   public getSurfaceBiomeDefinition(
     wx: number,
     wz: number,
-    surfaceY?: number
+    surfaceY?: number,
+    temperatureNoise?: number
   ): SurfaceBiomeDefinition {
     const resolvedSurfaceY = surfaceY ?? this.getSurfaceHeight(wx, wz);
     const frequency = BIOME_SIZE_PROFILES[this.biomeSize].surfaceFrequencyMultiplier;
     return this.biomeDefinitions.selectSurface({
       surfaceY: resolvedSurfaceY,
-      temperatureNoise: this.tempNoise.fbm2D(
-        wx * SURFACE_TEMPERATURE_SCALE * frequency,
-        wz * SURFACE_TEMPERATURE_SCALE * frequency,
-        1
-      ),
+      temperatureNoise: temperatureNoise ?? this.getSurfaceTemperatureNoise(wx, wz),
       humidityNoise: this.humidityNoise.fbm2D(
         wx * SURFACE_HUMIDITY_SCALE * frequency + 120,
         wz * SURFACE_HUMIDITY_SCALE * frequency - 90,
@@ -122,7 +128,8 @@ export class TerrainGen {
         const wx = baseX + lx;
         const colIdx = lz * CHUNK_SIZE + lx;
         const surfaceY = this.getSurfaceHeight(wx, wz);
-        const surfaceBiome = this.getSurfaceBiomeDefinition(wx, wz, surfaceY);
+        const temperatureNoise = this.getSurfaceTemperatureNoise(wx, wz);
+        const surfaceBiome = this.getSurfaceBiomeDefinition(wx, wz, surfaceY, temperatureNoise);
         const cavernBiome = this.getCavernBiomeDefinition(wx, wz);
 
         heights[colIdx] = surfaceY;
@@ -130,6 +137,7 @@ export class TerrainGen {
         cavernBiomes[colIdx] = cavernBiome;
 
         const isShore = surfaceY <= SEA_LEVEL + 2;
+        const coolShore = isShore && temperatureNoise < -0.1 && !surfaceBiome.tags.includes('cold');
         const slateBoundary = 25 + Math.floor(this.oreNoise.noise2D(wx * 0.09, wz * 0.09) * 3);
 
         for (let y = 0; y <= Math.max(surfaceY, SEA_LEVEL); y++) {
@@ -149,9 +157,11 @@ export class TerrainGen {
           if (depth === 0) {
             block = y < SEA_LEVEL - 1
               ? BlockId.Dirt
-              : isShore ? BlockId.Sand : surfaceBiome.terrain.surfaceBlock(surfaceY);
+              : isShore
+                ? (coolShore ? BlockId.Stone : surfaceBiome.terrain.shoreSurfaceBlock(surfaceY, SEA_LEVEL))
+                : surfaceBiome.terrain.surfaceBlock(surfaceY);
           } else if (depth <= 3) {
-            block = surfaceBiome.terrain.shallowSubsurfaceBlock(depth, isShore);
+            block = surfaceBiome.terrain.shallowSubsurfaceBlock(depth, isShore && !coolShore);
           } else {
             const biomeStrata = surfaceBiome.terrain.deepSubsurfaceBlock?.(depth) ?? null;
             block = biomeStrata ?? (y <= slateBoundary ? BlockId.DeepSlate : BlockId.Stone);

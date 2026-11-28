@@ -24,6 +24,7 @@ import { MobManager } from '../entities/MobManager';
 import { CaveCrawlerSpecies } from '../entities/CaveCrawlerSpecies';
 import { createChickenSpecies } from '../entities/ChickenSpecies';
 import { CrystalMiteSpecies } from '../entities/CrystalMiteSpecies';
+import { PolarBearSpecies } from '../entities/PolarBearSpecies';
 import { createRabbitSpecies } from '../entities/RabbitSpecies';
 import { createSheepSpecies } from '../entities/SheepSpecies';
 import { Inventory } from '../items/Inventory';
@@ -323,6 +324,15 @@ export class Game {
       this.particles,
       this.audio
     );
+    const polarBearSpecies = new PolarBearSpecies(
+      this.scene,
+      this.world,
+      this.player,
+      this.vitals,
+      this.drops,
+      this.particles,
+      this.audio
+    );
     const desertWildlife = createDesertWildlife({
       scene: this.scene,
       world: this.world,
@@ -342,6 +352,7 @@ export class Game {
       chickenSpecies,
       sheepSpecies,
       rabbitSpecies,
+      polarBearSpecies,
       ...desertWildlife,
     ]);
     this.mobs.restore(savedGame?.mobs ?? []);

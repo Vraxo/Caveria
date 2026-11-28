@@ -10,6 +10,7 @@ export const SCORPION_ID = 'scorpion';
 export const SNAKE_ID = 'snake';
 export const LIZARD_ID = 'lizard';
 export const VULTURE_ID = 'vulture';
+export const POLAR_BEAR_ID = 'polar-bear';
 
 export interface MobDefinition {
   id: MobSpeciesId;
@@ -144,5 +145,17 @@ export const MOB_DEFINITIONS: Readonly<Record<string, MobDefinition>> = {
     despawnDistance: 64,
     spawnDelay: { minimum: 6, variance: 8 },
     lootTable: 'vulture',
+  },
+  [POLAR_BEAR_ID]: {
+    id: POLAR_BEAR_ID,
+    name: 'Polar Bear',
+    tags: ['neutral', 'animal', 'surface'],
+    maxHealth: 24,
+    radius: 0.68,
+    height: 1.4,
+    maxPopulation: 4,
+    despawnDistance: 58,
+    spawnDelay: { minimum: 5, variance: 7 },
+    lootTable: 'polar-bear',
   },
 };
