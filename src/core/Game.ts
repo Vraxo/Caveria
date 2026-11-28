@@ -1,11 +1,10 @@
 import * as THREE from 'three';
 import { AudioManager } from '../audio/AudioManager';
 import { parseBiomeSize } from '../Biomes/BiomeSize';
-import {
+import type {
+  CamelEntity,
   CamelRidingController,
-  type CamelEntity,
 } from '../DesertWildlife/CamelRidingController';
-import { createDesertWildlife } from '../DesertWildlife/createDesertWildlife';
 import { ArrowProjectileManager } from '../gameplay/ArrowProjectileManager';
 import { BedManager } from '../gameplay/BedManager';
 import { BlockInteractionController } from '../gameplay/BlockInteractionController';
@@ -21,6 +20,7 @@ import { WaterSurvivalSystem } from '../gameplay/WaterSurvivalSystem';
 import { createDefaultUseRegistry } from '../gameplay/interactions/DefaultUseHandlers';
 import { createDefaultBlockBehaviorRegistries } from '../gameplay/interactions/DefaultBlockBehaviors';
 import { MobManager } from '../entities/MobManager';
+import type { SavedMobSnapshot } from '../entities/MobTypes';
 import { CaveCrawlerSpecies } from '../entities/CaveCrawlerSpecies';
 import { createChickenSpecies } from '../entities/ChickenSpecies';
 import { CrystalMiteSpecies } from '../entities/CrystalMiteSpecies';
@@ -54,6 +54,11 @@ import {
   type TexturePackDescriptor,
 } from '../rendering/textures/TexturePacks';
 import { readSettings, updateSettings } from '../settings/GameSettings';
+import {
+  isMobPackEnabled,
+  parseWorldFeatureProfile,
+  type WorldFeatureProfile,
+} from '../features/WorldFeatureProfile';
 import { WeatherSystem } from '../rendering/WeatherSystem';
 import { ChestModal } from '../ui/ChestModal';
 import { DebugHud } from '../ui/DebugHud';
@@ -81,7 +86,7 @@ export class Game {
   private readonly world: World;
   private readonly dayNight: DayNightCycle;
   private readonly player: Player;
-  private readonly camelRiding: CamelRidingController;
+  private camelRiding: CamelRidingController | null = null;
   private readonly vitals: PlayerVitals;
   private readonly armor: ArmorManager;
   private readonly temperature: TemperatureSystem;
@@ -118,6 +123,9 @@ export class Game {
   private readonly touchControls: TouchControls;
   private readonly seedLabel: string;
   private readonly initialSpawnPos: THREE.Vector3;
+  private readonly featureProfile: WorldFeatureProfile;
+  private readonly savedMobSnapshots: ReadonlyArray<SavedMobSnapshot>;
+  private optionalMobPacksInitialized = false;
   private readonly texturePacks: readonly TexturePackDescriptor[];
   private activeTexturePackId: string;
 
@@ -164,6 +172,7 @@ export class Game {
     const worldId = params.get('world') ?? `legacy:${rawSeed}`;
     const worldName = params.get('name')?.trim() || (rawSeed === 'caveria' ? 'Caveria World' : rawSeed);
     const requestedBiomeSize = parseBiomeSize(params.get('biomeSize'));
+    const requestedFeatureProfile = parseWorldFeatureProfile(params);
     this.seedLabel = rawSeed;
     const numericSeed = hashString(rawSeed);
     this.persistence = new GamePersistenceController(
@@ -171,9 +180,12 @@ export class Game {
       worldId,
       worldName,
       requestedBiomeSize,
+      requestedFeatureProfile,
       () => this.audio.playUiClick()
     );
     const savedGame = this.persistence.load();
+    this.featureProfile = savedGame?.featureProfile ?? requestedFeatureProfile;
+    this.savedMobSnapshots = savedGame?.mobs ?? [];
 
     this.input = new Input(canvas);
     this.atlas = new TextureAtlas(loadedTiles);
@@ -201,7 +213,6 @@ export class Game {
       this.player.flyMode = savedGame.player.flyMode;
       this.dayNight.timeOfDay = savedGame.timeOfDay;
     }
-    this.camelRiding = new CamelRidingController(this.player, this.world);
     this.audio = new AudioManager();
     if (savedGame) this.audio.setMuted(savedGame.muted);
     this.weather = new WeatherSystem(this.scene, this.world, this.player, this.audio);
@@ -226,20 +237,20 @@ export class Game {
     );
     this.vitals = new PlayerVitals(
       () => {
-        this.camelRiding.dismount();
+        this.camelRiding?.dismount();
         this.interactions.clearTarget();
         this.overlay.setDeathScreenActive(true);
         this.input.exitPointerLock();
       },
       () => {
-        this.camelRiding.dismount();
+        this.camelRiding?.dismount();
         const respawn = this.findRespawnPoint();
         this.player.restoreTransform(respawn, 0, 0);
         this.overlay.setDeathScreenActive(false);
         this.input.requestPointerLock();
       },
       () => {
-        this.camelRiding.dismount();
+        this.camelRiding?.dismount();
         const respawn = this.findRespawnPoint();
         this.player.restoreTransform(respawn, 0, 0);
         this.persistence.save(false);
@@ -333,19 +344,6 @@ export class Game {
       this.particles,
       this.audio
     );
-    const desertWildlife = createDesertWildlife({
-      scene: this.scene,
-      world: this.world,
-      player: this.player,
-      vitals: this.vitals,
-      drops: this.drops,
-      particles: this.particles,
-      audio: this.audio,
-      camelRiding: this.camelRiding,
-      openCamelStorage: (camel) => this.openCamelStorage(camel),
-      isNight: () => this.dayNight.isNight,
-      poisonPlayer: () => this.statusEffects.poison(18),
-    });
     this.mobs = new MobManager([
       crystalMiteSpecies,
       caveCrawlerSpecies,
@@ -353,9 +351,7 @@ export class Game {
       sheepSpecies,
       rabbitSpecies,
       polarBearSpecies,
-      ...desertWildlife,
     ]);
-    this.mobs.restore(savedGame?.mobs ?? []);
     this.arrows = new ArrowProjectileManager(
       this.scene,
       this.world,
@@ -486,6 +482,7 @@ export class Game {
         worldName: savedGame?.worldName ?? worldName,
         seed: rawSeed,
         biomeSize: savedGame?.biomeSize ?? requestedBiomeSize,
+        featureProfile: this.featureProfile,
         savedAt: savedGame?.savedAt ?? 0,
         createdAt: savedGame?.createdAt ?? Date.now(),
         editCount: savedGame?.worldEdits.length ?? 0,
@@ -528,16 +525,49 @@ export class Game {
     if (savedGame) this.persistence.showRestored(this.world.editCount);
   }
 
+  /** Loads selected mob packs before restoring entities or generating the first area. */
+  private async initializeOptionalMobPacks(): Promise<void> {
+    if (this.optionalMobPacksInitialized) return;
+
+    if (isMobPackEnabled(this.featureProfile, 'desert-wildlife')) {
+      const [camelModule, desertWildlifeModule] = await Promise.all([
+        import('../DesertWildlife/CamelRidingController'),
+        import('../DesertWildlife/createDesertWildlife'),
+      ]);
+      const camelRiding = new camelModule.CamelRidingController(this.player, this.world);
+      this.camelRiding = camelRiding;
+      const desertWildlife = desertWildlifeModule.createDesertWildlife({
+        scene: this.scene,
+        world: this.world,
+        player: this.player,
+        vitals: this.vitals,
+        drops: this.drops,
+        particles: this.particles,
+        audio: this.audio,
+        camelRiding,
+        openCamelStorage: (camel) => this.openCamelStorage(camel),
+        isNight: () => this.dayNight.isNight,
+        poisonPlayer: () => this.statusEffects.poison(18),
+      });
+      for (const species of desertWildlife) this.mobs.register(species);
+    }
+
+    this.mobs.restore([...this.savedMobSnapshots]);
+    this.optionalMobPacksInitialized = true;
+  }
+
   /** Asynchronously builds the initial spawn chunks and renders the first frame for the loading screen. */
   public async initializeWorld(
     onProgress?: (fraction: number, statusText: string) => void
   ): Promise<void> {
+    await this.initializeOptionalMobPacks();
     await this.world.generateInitialAreaAsync(
       this.initialSpawnPos.x,
       this.initialSpawnPos.z,
       3,
       onProgress
     );
+    this.persistence.markSnapshotReady();
     this.atmosphere.update();
     this.renderer.render(this.scene, this.camera);
   }
@@ -793,7 +823,7 @@ export class Game {
     this.touchControls.syncPlayerState(
       this.player.flyMode,
       this.player.crouching,
-      this.camelRiding.isRiding
+      this.camelRiding?.isRiding ?? false
     );
 
     this.features.update('frame-start', dt);
@@ -815,7 +845,7 @@ export class Game {
       !this.furnaceModal.isOpen &&
       !this.chestModal.isOpen
     ) {
-      if (!this.camelRiding.isRiding && this.input.consumeKeyPress('KeyF')) {
+      if (!(this.camelRiding?.isRiding ?? false) && this.input.consumeKeyPress('KeyF')) {
         this.player.flyMode = !this.player.flyMode;
         this.player.velocity.y = 0;
         this.audio.playModeToggle();
@@ -870,7 +900,7 @@ export class Game {
       let remaining = dt;
       while (remaining > 0) {
         const step = Math.min(remaining, maxStep);
-        if (!this.camelRiding.update(step, this.input)) {
+        if (!this.camelRiding?.update(step, this.input)) {
           this.player.updatePhysics(
             step,
             this.input,
@@ -882,10 +912,10 @@ export class Game {
         remaining -= step;
       }
       this.movementAudio.updateMovement(dt, wasGrounded, impactVelocity);
-      if (!this.camelRiding.isRiding && !wasGrounded && this.player.onGround) {
+      if (!(this.camelRiding?.isRiding ?? false) && !wasGrounded && this.player.onGround) {
         this.vitals.applyFallDamage(impactVelocity);
       }
-      if (!this.creativeMode && !this.camelRiding.isRiding) {
+      if (!this.creativeMode && !(this.camelRiding?.isRiding ?? false)) {
         const traveled = Math.hypot(this.player.position.x - startX, this.player.position.z - startZ);
         this.vitals.addMovementExhaustion(traveled, sprinting, swimming);
         if (wasGrounded && !this.player.onGround && this.input.isKeyDown('Space')) {

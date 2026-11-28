@@ -9,3 +9,5 @@ This feature owns the built-in animals that give `arid` surface biomes an ecosys
 - Vultures cruise above desert terrain, avoid nearby players, descend toward dropped raw meat and fish, and drop Feathers.
 
 All creatures register behavior with the central `MobManager`; this feature does not own a separate entity collection or manager. Ground species query the biome's `arid` tag and require Sand. Vultures use lightweight flight behavior above the selected biome profile.
+
+Desert Wildlife is an optional, per-world mob pack. New worlds enable it by default, but it can be unchecked during world creation. The profile is persisted with the world; old saves without a profile keep the default enabled behavior. When disabled, the pack's behavior modules and Camel riding controller are dynamically imported only if the profile selects them.

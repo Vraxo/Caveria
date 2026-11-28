@@ -1215,6 +1215,31 @@
       .world-field input:focus,
       .world-field select:focus { outline-color: #fff; }
       .world-create-hint { margin: -4px 0 18px; line-height: 1.5; }
+      .world-option {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin: 2px 0 14px;
+        color: #fff;
+        font-size: 12px;
+        text-align: left;
+        text-shadow: 1px 1px #000;
+        cursor: pointer;
+      }
+      .world-option input {
+        width: 18px;
+        height: 18px;
+        flex: 0 0 auto;
+        margin: 1px 0 0;
+        accent-color: #76c76e;
+        cursor: pointer;
+      }
+      .world-option-copy { display: grid; gap: 4px; }
+      .world-option-copy small {
+        color: #cbd5e1;
+        font-size: 10px;
+        line-height: 1.4;
+      }
 
       .voxel-slider {
         display: grid;
@@ -1698,6 +1723,13 @@
           <div id="world-biome-size-root"></div>
         </label>
         <div class="menu-hint world-create-hint">Biome size is fixed for this world. It affects surface and cavern regions, but not terrain shape, caves, or ores.</div>
+        <label class="world-option">
+          <input id="world-desert-wildlife-input" type="checkbox" checked />
+          <span class="world-option-copy">
+            <strong>Desert Wildlife</strong>
+            <small>Camels, Scorpions, Snakes, Lizards, and Vultures. Turn this pack off to skip loading and simulating these creatures in this world.</small>
+          </span>
+        </label>
         <div class="menu-row">
           <button id="create-world-confirm" class="voxel-button" type="button">Create New World</button>
           <button id="create-world-cancel" class="voxel-button" type="button">Cancel</button>
