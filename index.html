@@ -1025,51 +1025,92 @@
         position: relative;
         min-height: 44px;
         padding: 8px 16px;
-        border: 2px solid #1e1f22;
+        border: 2px solid #241108;
         border-radius: 0;
-        background: #cfd2d6;
-        box-shadow: inset 0 2px 0 #e6e8eb, inset 0 -3px 0 #9ea3a9;
-        color: #202327;
+        background-color: #6b3a1e;
+        background-image:
+          linear-gradient(180deg, rgba(255, 224, 190, 0.14) 0 42%, rgba(28, 11, 4, 0.12) 42% 100%),
+          repeating-linear-gradient(
+            90deg,
+            transparent 0 62px,
+            rgba(42, 18, 7, 0.44) 62px 64px,
+            rgba(196, 132, 86, 0.24) 64px 66px
+          );
+        background-position: center;
+        box-shadow:
+          inset 0 3px 0 #965a34,
+          inset 0 -4px 0 #42200d,
+          inset 3px 0 0 #824a29,
+          inset -3px 0 0 #4d2611,
+          0 2px 0 rgba(18, 8, 3, 0.65);
+        color: #fff4df;
         font: 700 14px/1.15 'Caveria Pixel', ui-monospace, monospace;
-        text-shadow: none;
+        text-shadow: 2px 2px 0 #2a1207;
         cursor: pointer;
         touch-action: manipulation;
-        transition: background-color 0.08s ease, border-color 0.08s ease, color 0.08s ease;
+        transition: background-color 0.08s ease, border-color 0.08s ease, color 0.08s ease, transform 0.06s ease;
       }
       .voxel-button:hover,
       .voxel-button:focus-visible {
         outline: none;
-        border-color: #ffffff;
-        background: #2f8a1e;
-        box-shadow: inset 0 2px 0 #48ad34, inset 0 -3px 0 #1f6113;
-        color: #ffffff;
+        border-color: #ffe8b8;
+        background-color: #884c25;
+        box-shadow:
+          inset 0 3px 0 #b87240,
+          inset 0 -4px 0 #572b12,
+          inset 3px 0 0 #a36034,
+          inset -3px 0 0 #663416,
+          0 2px 0 rgba(18, 8, 3, 0.72);
+        color: #fffcf2;
+        text-shadow: 2px 2px 0 #3a1a09;
       }
       .voxel-button:active {
         transform: translateY(1px);
-        box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.25);
+        box-shadow:
+          inset 0 3px 0 #3a1a0a,
+          inset 0 -2px 0 #7a4424,
+          inset 2px 0 0 #42200d,
+          inset -2px 0 0 #663619;
       }
       .voxel-button.danger:hover,
       .voxel-button.danger:focus-visible {
-        border-color: #ffffff;
-        background: #b83232;
-        box-shadow: inset 0 2px 0 #d64b4b, inset 0 -3px 0 #821f1f;
-        color: #ffffff;
+        border-color: #ffe0d6;
+        background-color: #92262c;
+        box-shadow:
+          inset 0 3px 0 #ba4046,
+          inset 0 -4px 0 #5e1216,
+          inset 3px 0 0 #a8343a,
+          inset -3px 0 0 #6e181c,
+          0 2px 0 rgba(18, 8, 3, 0.72);
+        color: #fff8f4;
+        text-shadow: 2px 2px 0 #3a0a0c;
       }
       .voxel-button:disabled {
-        border-color: #2c2f34;
-        background: #6c7076;
-        box-shadow: inset 0 2px 0 #7b8087, inset 0 -3px 0 #585c62;
-        color: #a4aab2;
+        border-color: #261a14;
+        background-color: #4a382e;
+        background-image: none;
+        box-shadow:
+          inset 0 2px 0 #5e493d,
+          inset 0 -3px 0 #34261e,
+          inset 2px 0 0 #564237,
+          inset -2px 0 0 #3a2a22;
+        color: #a08a7c;
         cursor: default;
         filter: none;
-        text-shadow: none;
+        text-shadow: 1px 1px 0 #241812;
       }
       .voxel-button:disabled:hover,
       .voxel-button:disabled:focus-visible {
-        border-color: #2c2f34;
-        background: #6c7076;
-        box-shadow: inset 0 2px 0 #7b8087, inset 0 -3px 0 #585c62;
-        color: #a4aab2;
+        border-color: #261a14;
+        background-color: #4a382e;
+        background-image: none;
+        box-shadow:
+          inset 0 2px 0 #5e493d,
+          inset 0 -3px 0 #34261e,
+          inset 2px 0 0 #564237,
+          inset -2px 0 0 #3a2a22;
+        color: #a08a7c;
+        text-shadow: 1px 1px 0 #241812;
       }
       .menu-spacer { height: 14px; }
 
@@ -1203,44 +1244,44 @@
       .voxel-slider__input {
         flex: 1;
         height: 14px;
-        border: 2px solid #1e1f22;
+        border: 2px solid #241108;
         border-radius: 0;
-        background: #2b2f35;
+        background: #2e190e;
         touch-action: pan-x;
         -webkit-appearance: none;
         appearance: none;
       }
-      .voxel-slider__input::-webkit-slider-runnable-track { height: 14px; background: #2b2f35; }
+      .voxel-slider__input::-webkit-slider-runnable-track { height: 14px; background: #2e190e; }
       .voxel-slider__input::-webkit-slider-thumb {
         -webkit-appearance: none;
         appearance: none;
         width: 18px;
         height: 20px;
         margin-top: -3px;
-        border: 2px solid #1e1f22;
-        background: #cfd2d6;
-        box-shadow: inset 0 2px 0 #e6e8eb, inset 0 -2px 0 #9ea3a9;
+        border: 2px solid #241108;
+        background: #6b3a1e;
+        box-shadow: inset 0 2px 0 #965a34, inset 0 -2px 0 #42200d;
         cursor: ew-resize;
       }
       .voxel-slider__input:hover::-webkit-slider-thumb {
-        border-color: #ffffff;
-        background: #2f8a1e;
-        box-shadow: inset 0 2px 0 #48ad34, inset 0 -2px 0 #1f6113;
+        border-color: #ffe8b8;
+        background: #884c25;
+        box-shadow: inset 0 2px 0 #b87240, inset 0 -2px 0 #572b12;
       }
-      .voxel-slider__input::-moz-range-track { height: 14px; background: #2b2f35; }
+      .voxel-slider__input::-moz-range-track { height: 14px; background: #2e190e; }
       .voxel-slider__input::-moz-range-thumb {
         width: 18px;
         height: 20px;
-        border: 2px solid #1e1f22;
+        border: 2px solid #241108;
         border-radius: 0;
-        background: #cfd2d6;
-        box-shadow: inset 0 2px 0 #e6e8eb, inset 0 -2px 0 #9ea3a9;
+        background: #6b3a1e;
+        box-shadow: inset 0 2px 0 #965a34, inset 0 -2px 0 #42200d;
         cursor: ew-resize;
       }
       .voxel-slider__input:hover::-moz-range-thumb {
-        border-color: #ffffff;
-        background: #2f8a1e;
-        box-shadow: inset 0 2px 0 #48ad34, inset 0 -2px 0 #1f6113;
+        border-color: #ffe8b8;
+        background: #884c25;
+        box-shadow: inset 0 2px 0 #b87240, inset 0 -2px 0 #572b12;
       }
       .voxel-slider__value {
         color: #ffd88a;

@@ -35,6 +35,9 @@ export const MOB_LOOT_TABLES: Readonly<Record<string, ReadonlyArray<MobLootEntry
   vulture: [
     { item: ItemId.Feather, chance: 1, minimum: 1, maximum: 2, maximumChance: 0.25 },
   ],
+  'polar-bear': [
+    { item: ItemId.RawRiverFish, chance: 1, minimum: 1, maximum: 2, maximumChance: 0.6 },
+  ],
 };
 
 export function rollMobLoot(tableId: string, random: () => number = Math.random): ItemStack[] {

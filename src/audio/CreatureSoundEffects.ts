@@ -100,4 +100,25 @@ export class CreatureSoundEffects {
   public playDesertWildlifeDeath(): void {
     this.synth.tone({ type: 'triangle', freq: 390, freqEnd: 85, duration: 0.35, gain: 0.032, attack: 0.006 });
   }
+
+  public playPolarBearGrowl(): void {
+    this.synth.noiseBurst({ duration: 0.42, filterType: 'lowpass', freq: 340, freqEnd: 95, gain: 0.045, attack: 0.05 });
+    this.synth.tone({ type: 'sawtooth', freq: 94, freqEnd: 60, duration: 0.46, gain: 0.032, attack: 0.04 });
+  }
+
+  public playPolarBearRoar(): void {
+    this.synth.noiseBurst({ duration: 0.54, filterType: 'bandpass', freq: 420, freqEnd: 115, q: 0.9, gain: 0.085, attack: 0.02 });
+    this.synth.tone({ type: 'sawtooth', freq: 148, freqEnd: 62, duration: 0.56, gain: 0.052, attack: 0.018 });
+    this.synth.tone({ type: 'triangle', freq: 205, freqEnd: 82, duration: 0.44, gain: 0.03, attack: 0.015, delay: 0.04 });
+  }
+
+  public playPolarBearHit(): void {
+    this.synth.noiseBurst({ duration: 0.16, filterType: 'lowpass', freq: 440, freqEnd: 140, gain: 0.068, attack: 0.005 });
+    this.synth.tone({ type: 'sawtooth', freq: 132, freqEnd: 74, duration: 0.18, gain: 0.036, attack: 0.006 });
+  }
+
+  public playPolarBearDeath(): void {
+    this.synth.noiseBurst({ duration: 0.62, filterType: 'lowpass', freq: 380, freqEnd: 60, gain: 0.088, attack: 0.01 });
+    this.synth.tone({ type: 'sawtooth', freq: 120, freqEnd: 42, duration: 0.64, gain: 0.048, attack: 0.012 });
+  }
 }

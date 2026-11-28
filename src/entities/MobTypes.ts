@@ -5,6 +5,7 @@ export type MobEntityId = number;
 export type MobSpeciesId = string;
 export type MobTag =
   | 'passive'
+  | 'neutral'
   | 'hostile'
   | 'animal'
   | 'surface'
